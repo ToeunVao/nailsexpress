@@ -1,0 +1,329 @@
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, signInWithCustomToken, signInAnonymously, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getFirestore, collection, doc, getDoc, onSnapshot, addDoc, updateDoc, deleteDoc, setDoc, query, where, Timestamp, writeBatch } from 'firebase/firestore';
+import { getStorage, ref, listAll, getDownloadURL, deleteObject } from 'firebase/storage';
+
+// --- Configuration ---
+const firebaseConfig = {
+    apiKey: "AIzaSyBo2h0GlsG5NdCRoUioVQyVfCiaO5uxcwY", 
+    authDomain: "nailexpress-10f2f.firebaseapp.com",
+    projectId: "nailexpress-10f2f",
+    storageBucket: "nailexpress-10f2f.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+const getSafeAppId = () => typeof __app_id !== 'undefined' ? __app_id : 'default-nail-salon-app';
+
+// --- Reusable Components ---
+const Icon = ({ path, className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d={path} />
+    </svg>
+);
+
+const LoadingScreen = ({ text = "Loading..." }) => (
+    <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="text-xl font-semibold">{text}</div>
+    </div>
+);
+
+// --- Main App Component (Acts as a Router) ---
+export default function App() {
+    const [user, setUser] = useState(null);
+    const [userRole, setUserRole] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [isAuthReady, setIsAuthReady] = useState(false);
+    const [showLogin, setShowLogin] = useState(false);
+
+    const app = useRef(null);
+    const auth = useRef(null);
+    const db = useRef(null);
+    const storage = useRef(null);
+
+    useEffect(() => {
+        if (!app.current) {
+            app.current = initializeApp(firebaseConfig);
+            auth.current = getAuth(app.current);
+            db.current = getFirestore(app.current);
+            storage.current = getStorage(app.current);
+            
+            setPersistence(auth.current, browserLocalPersistence)
+              .catch((error) => {
+                console.error("Could not set session persistence:", error);
+              });
+        }
+
+        const unsubscribe = onAuthStateChanged(auth.current, async (firebaseUser) => {
+            if (firebaseUser && !firebaseUser.isAnonymous) {
+                const userDocRef = doc(db.current, 'users', firebaseUser.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists()) {
+                    setUser(firebaseUser);
+                    setUserRole(userDocSnap.data().role);
+                } else {
+                    console.error("User document not found for UID:", firebaseUser.uid);
+                    signOut(auth.current);
+                }
+            } else {
+                setUser(null);
+                setUserRole(null);
+            }
+            setLoading(false);
+            setIsAuthReady(true);
+        });
+        
+        const handleInitialAuth = async () => {
+            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                try {
+                    await signInWithCustomToken(auth.current, __initial_auth_token);
+                } catch (error) {
+                    console.error("Error with custom token:", error);
+                    if(auth.current) await signInAnonymously(auth.current);
+                }
+            } else if (auth.current && !auth.current.currentUser) {
+                await signInAnonymously(auth.current);
+            }
+        };
+        handleInitialAuth();
+        return () => unsubscribe();
+    }, []);
+
+    if (loading || !isAuthReady) {
+        return <LoadingScreen />;
+    }
+
+    if (user && userRole) {
+        return <AdminPanel userRole={userRole} auth={auth.current} db={db.current} storage={storage.current} isAuthReady={isAuthReady} />;
+    }
+
+    return (
+        <>
+            <PublicSalonPage db={db.current} onStaffLoginClick={() => setShowLogin(true)} />
+            {showLogin && <LoginModal auth={auth.current} db={db.current} onClose={() => setShowLogin(false)} />}
+        </>
+    );
+}
+
+// --- Public Facing Components ---
+const PublicSalonPage = ({ db, onStaffLoginClick }) => {
+    const [services, setServices] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [booking, setBooking] = useState({ clientName: '', service: '', date: '' });
+    const [message, setMessage] = useState('');
+
+    useEffect(() => {
+        if(!db) return;
+        const servicesCollection = collection(db, `artifacts/${getSafeAppId()}/public/data/services`);
+        const unsubscribe = onSnapshot(servicesCollection, (snapshot) => {
+            setServices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            setIsLoading(false);
+        }, console.error);
+        return () => unsubscribe();
+    }, [db]);
+
+    const handleBookingSubmit = async (e) => {
+        e.preventDefault();
+        setMessage('');
+        if (!booking.clientName || !booking.service || !booking.date) {
+            setMessage('Please fill out all fields to book an appointment.');
+            return;
+        }
+        try {
+            const appointmentsCollection = collection(db, `artifacts/${getSafeAppId()}/public/data/appointments`);
+            await addDoc(appointmentsCollection, {
+                clientName: booking.clientName,
+                services: [booking.service],
+                date: Timestamp.fromDate(new Date(booking.date)),
+                status: 'booked',
+                phone: '',
+                groupSize: 1,
+                bookingType: 'Online',
+                technician: 'Any',
+                notes: ''
+            });
+            setMessage('Thank you! Your appointment has been booked.');
+            setBooking({ clientName: '', service: '', date: '' });
+        } catch (error) {
+            console.error("Booking Error: ", error);
+            setMessage('Sorry, there was an error booking your appointment. Please try again.');
+        }
+    };
+
+    return (
+        <div className="bg-pink-50 min-h-screen font-serif">
+            <header className="bg-white shadow-md sticky top-0 z-10">
+                <nav className="container mx-auto px-6 py-4 flex justify-between items-center">
+                    <h1 className="text-2xl font-bold text-pink-600">NailXpress</h1>
+                    <button onClick={onStaffLoginClick} className="px-4 py-2 text-sm font-semibold bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">Staff Login</button>
+                </nav>
+            </header>
+            
+            <main className="container mx-auto px-6 py-12">
+                <section className="text-center">
+                    <h2 className="text-5xl font-extrabold text-gray-800">Your Perfect Nails, A Moment Away.</h2>
+                    <p className="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Experience luxury and style with our professional nail care services. Book your appointment below.</p>
+                </section>
+
+                <section id="services" className="mt-16">
+                    <h3 className="text-3xl font-bold text-center text-gray-800 mb-8">Our Services</h3>
+                    {isLoading ? <p className="text-center">Loading services...</p> : (
+                        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                            {services.map(service => (
+                                <div key={service.id} className="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+                                    <h4 className="text-xl font-bold text-pink-600">{service.name}</h4>
+                                    <p className="mt-2 text-gray-600">{service.duration} minutes</p>
+                                    <p className="mt-2 text-2xl font-bold text-gray-800">${service.price ? service.price.toFixed(2) : '0.00'}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </section>
+
+                <section id="book" className="mt-16 bg-white p-8 rounded-xl shadow-2xl max-w-4xl mx-auto">
+                    <h3 className="text-3xl font-bold text-center text-gray-800 mb-8">Book an Appointment</h3>
+                    <form onSubmit={handleBookingSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="md:col-span-2">
+                            <label htmlFor="clientName" className="block text-sm font-medium text-gray-700">Full Name</label>
+                            <input type="text" id="clientName" value={booking.clientName} onChange={e => setBooking({...booking, clientName: e.target.value})} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500" />
+                        </div>
+                        <div>
+                            <label htmlFor="service" className="block text-sm font-medium text-gray-700">Service</label>
+                            <select id="service" value={booking.service} onChange={e => setBooking({...booking, service: e.target.value})} className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500">
+                                <option value="">Select a service</option>
+                                {services.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="date" className="block text-sm font-medium text-gray-700">Date and Time</label>
+                            <input type="datetime-local" id="date" value={booking.date} onChange={e => setBooking({...booking, date: e.target.value})} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500" />
+                        </div>
+                        <div className="md:col-span-2 text-center">
+                           <button type="submit" className="w-auto mt-4 px-12 py-3 font-semibold text-white bg-pink-600 rounded-lg hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 transition-transform transform hover:scale-105">Book Now</button>
+                        </div>
+                    </form>
+                    {message && <p className="mt-4 text-center text-green-600">{message}</p>}
+                </section>
+            </main>
+        </div>
+    );
+};
+
+const LoginModal = ({ auth, db, onClose }) => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [isSigningUp, setIsSigningUp] = useState(false);
+
+    const handleAuthAction = async (e) => {
+        e.preventDefault();
+        setError('');
+        try {
+            if (isSigningUp) {
+                const cred = await createUserWithEmailAndPassword(auth, email, password);
+                await setDoc(doc(db, "users", cred.user.uid), { role: 'admin', email: cred.user.email, name: 'Admin', phone: '' });
+            } else {
+                await signInWithEmailAndPassword(auth, email, password);
+            }
+            onClose();
+        } catch (err) {
+            setError(err.message);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-2xl shadow-xl relative">
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-gray-800">
+                    <Icon path="M6 18L18 6M6 6l12 12" />
+                </button>
+                <h2 className="text-3xl font-bold text-center text-gray-800">{isSigningUp ? 'Create First Admin' : 'Staff Login'}</h2>
+                <form onSubmit={handleAuthAction} className="space-y-6">
+                    <div>
+                        <label htmlFor="email-auth" className="text-sm font-medium text-gray-600">Email</label>
+                        <input id="email-auth" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full px-4 py-2 mt-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400" />
+                    </div>
+                    <div>
+                        <label htmlFor="password-auth" className="text-sm font-medium text-gray-600">Password</label>
+                        <input id="password-auth" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full px-4 py-2 mt-2 text-gray-700 bg-gray-100 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-400" />
+                    </div>
+                    {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+                    <button type="submit" className={`w-full py-3 font-semibold text-white rounded-lg transition-colors ${isSigningUp ? 'bg-blue-500 hover:bg-blue-600' : 'bg-pink-500 hover:bg-pink-600'}`}>{isSigningUp ? 'Create Admin' : 'Log In'}</button>
+                </form>
+                <p className="text-center text-sm">
+                    <button onClick={() => setIsSigningUp(!isSigningUp)} className="font-medium text-pink-600 hover:text-pink-500 ml-1">{isSigningUp ? 'Switch to Login' : 'Create First Admin'}</button>
+                </p>
+            </div>
+        </div>
+    );
+};
+
+
+// --- Admin Panel Components ---
+const AdminPanel = ({ userRole, auth, db, storage, isAuthReady }) => {
+    const [currentTab, setCurrentTab] = useState(userRole === 'admin' ? 'reports' : 'checkIn');
+    const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+    
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+        } catch (err) {
+            console.error("Logout Error:", err);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-50 font-sans">
+            <Navbar userRole={userRole} currentTab={currentTab} setCurrentTab={setCurrentTab} onLogout={handleLogout} />
+            <main className="p-4 sm:p-6 lg:p-8">
+                <TabContent currentTab={currentTab} db={db} storage={storage} isAuthReady={isAuthReady} auth={auth} />
+            </main>
+            <button onClick={() => setIsBookingModalOpen(true)} className="fixed bottom-8 right-8 bg-pink-600 text-white p-4 rounded-full shadow-lg hover:bg-pink-700 transition-transform transform hover:scale-110">
+                <Icon path="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+            </button>
+            {isBookingModalOpen && <BookingModal db={db} onClose={() => setIsBookingModalOpen(false)} />}
+        </div>
+    );
+};
+
+const Navbar = ({ userRole, currentTab, setCurrentTab, onLogout }) => {
+    const navItems = [
+        { id: 'checkIn', label: 'Check-In', icon: <Icon path="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /> },
+        { id: 'clients', label: 'Clients', icon: <Icon path="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-4.67c.12-.318.232-.656.328-1.003a4.125 4.125 0 00-7.533-2.493c-3.253 1.436-5.44 4.73-5.44 8.425v.036a12.318 12.318 0 008.624 4.482A12.318 12.318 0 0015 19.128zm-9.374 1.766a6.375 6.375 0 0111.964-4.67 4.125 4.125 0 00-7.533-2.493-4.125 4.125 0 00-4.43 2.493z" /> },
+        { id: 'bookings', label: 'Bookings', icon: <Icon path="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0h18" /> },
+    ];
+    
+    if (userRole === 'admin') {
+        navItems.unshift({ id: 'reports', label: 'Dashboard', icon: <Icon path="M3.75 3v11.25A2.25 2.25 0 006 16.5h12A2.25 2.25 0 0020.25 14.25V3M3.75 3H5.25m-1.5 0h-1.5m1.5 0V1.5m0 1.5v1.5m-1.5-1.5H1.5m15 0h1.5m-1.5 0h-1.5m1.5 0V1.5m0 1.5v1.5m1.5-1.5H22.5" /> });
+        navItems.push({ id: 'admin', label: 'Admin Settings', icon: <Icon path="M10.343 3.94c.09-.542.56-1.007 1.11-1.11h1.094c.55.103 1.02.567 1.11 1.11l.08.48a1.5 1.5 0 001.442 1.053l.498-.105c.58-.122 1.17.225 1.365.79l.578 1.002a1.5 1.5 0 00.44 1.05l.372.373c.464.463.695 1.11.588 1.715l-.12.602a1.5 1.5 0 00.88 1.53l.53.215c.603.244.966.834.966 1.48v1.094c0 .646-.363 1.236-.966 1.48l-.53.215a1.5 1.5 0 00-.88 1.53l.12.602c.107.605-.124 1.252-.588-1.715l-.372.373a1.5 1.5 0 00-.44 1.05l-.578 1.002c-.195.565-.785.912-1.365.79l-.498-.105a1.5 1.5 0 00-1.442 1.053l-.08.48c-.09.542-.56 1.007-1.11 1.11h-1.094c-.55-.103-1.02-.567-1.11-1.11l-.08-.48a1.5 1.5 0 00-1.442-1.053l-.498.105c-.58.122-1.17-.225-1.365-.79l-.578-1.002a1.5 1.5 0 00-.44-1.05l-.372-.373c-.464-.463-.695-1.11-.588-1.715l.12-.602a1.5 1.5 0 00-.88-1.53l-.53-.215c-.603-.244-.966-.834-.966-1.48v-1.094c0-.646.363-1.236.966-1.48l.53-.215a1.5 1.5 0 00.88-1.53l-.12-.602c-.107-.605.124-1.252.588-1.715l.372.373a1.5 1.5 0 00.44 1.05l.578-1.002c.195-.565.785.912-1.365.79l.498.105a1.5 1.5 0 001.442-1.053l.08-.48z" /> }
+        );
+    }
+
+    return (
+        <header className="bg-white shadow-md"><div className="container mx-auto px-4 sm:px-6 lg:px-8"><div className="flex items-center justify-between h-16"><div className="flex items-center"><span className="font-bold text-xl text-pink-600">NailXpress Admin</span></div><nav className="hidden md:flex items-center space-x-1">{navItems.map(item => (<button key={item.id} onClick={() => setCurrentTab(item.id)} className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${currentTab === item.id ? 'bg-pink-100 text-pink-700' : 'text-gray-500 hover:bg-gray-100'}`}>{item.icon}<span className="ml-2">{item.label}</span></button>))}</nav><div className="flex items-center"><button onClick={onLogout} className="ml-4 flex items-center px-3 py-2 rounded-md text-sm font-medium text-gray-500 hover:bg-gray-100"><Icon path="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" className="w-5 h-5 mr-1" />Logout</button></div></div></div></header>
+    );
+};
+
+const TabContent = ({ currentTab, db, storage, isAuthReady, auth }) => {
+    switch (currentTab) {
+        case 'admin': return <AdminTab db={db} storage={storage} isAuthReady={isAuthReady} auth={auth} />;
+        case 'bookings': return <ClientsBookingTab db={db} isAuthReady={isAuthReady} />;
+        case 'reports': return <ReportsTab db={db} isAuthReady={isAuthReady} />;
+        case 'checkIn': return <CheckInTab db={db} isAuthReady={isAuthReady} />;
+        case 'clients': return <ClientsTab db={db} isAuthReady={isAuthReady} />;
+        default: return <ReportsTab db={db} isAuthReady={isAuthReady} />;
+    }
+};
+
+const AdminTab = ({ db, storage, isAuthReady, auth }) => (
+    <div className="space-y-8">
+        <div className="p-6 bg-white rounded-lg shadow">
+            <h1 className="text-3xl font-bold text-gray-800">Admin Settings</h1>
+            <p className="mt-2 text-gray-600">Manage core salon data and settings.</p>
+        </div>
+        <UserManagement db={db} />
+        <ServiceManagement db={db} isAuthReady={isAuthReady} />
+    </div>
+);
+
+con
