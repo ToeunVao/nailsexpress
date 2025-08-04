@@ -144,16 +144,22 @@
                         <div class="space-y-8">
                              <div>
                                 <h3 class="text-xl font-semibold text-gray-700 border-b pb-3 mb-6">Your Information</h3>
-                                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                                    <div>
+                                <div class="grid grid-cols-2 md:grid-cols-5 gap-6">
+                                    <div class="col-span-2 md:col-span-1">
                                         <label for="full-name" class="block text-sm font-medium text-gray-600 mb-1">Full Name</label>
                                         <input type="text" id="full-name" list="checkin-client-names" class="form-input w-full p-3 border border-gray-300 rounded-lg" placeholder="e.g., Jane Doe" required>
                                         <datalist id="checkin-client-names"></datalist>
                                     </div>
-                                    <div>
+                                    <div class="col-span-2 md:col-span-1">
                                         <label for="phone-number" class="block text-sm font-medium text-gray-600 mb-1">Phone</label>
                                         <input type="tel" id="phone-number" list="checkin-client-phones" class="form-input w-full p-3 border border-gray-300 rounded-lg" placeholder="(555) 123-4567">
                                         <datalist id="checkin-client-phones"></datalist>
+                                    </div>
+                                    <div>
+                                        <label for="checkin-technician-select" class="block text-sm font-medium text-gray-600 mb-1">Technician</label>
+                                        <select id="checkin-technician-select" class="form-select w-full p-3 border border-gray-300 rounded-lg">
+                                            <option>Any Technician</option>
+                                        </select>
                                     </div>
                                     <div>
                                         <label for="people-count" class="block text-sm font-medium text-gray-600 mb-1">Group Size</label>
@@ -163,8 +169,8 @@
                                         <label for="booking-type" class="block text-sm font-medium text-gray-600 mb-1">Booking Type</label>
                                         <select id="booking-type" class="form-select w-full p-3 border border-gray-300 rounded-lg">
                                             <option>Walk-in</option>
-                                            <option>Booked by Phone</option>
-                                            <option>Booked Online</option>
+                                            <option value="Phone">Phone</option>
+                                            <option value="Online">Online</option>
                                         </select>
                                     </div>
                                 </div>
@@ -406,8 +412,12 @@
                             <h3 class="text-xl font-semibold text-gray-700">Salon Earning Report</h3>
                         </div>
                         <form id="salon-earning-form" class="space-y-6 mb-8">
-                            <input type="date" id="salon-earning-date" class="hidden" required>
-
+                             <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                                <div>
+                                    <label for="salon-earning-date" class="block text-sm font-medium text-gray-600">Date</label>
+                                    <input type="date" id="salon-earning-date" class="form-input mt-1 w-full p-2 border border-gray-300 rounded-lg" required>
+                                </div>
+                            </div>
                             <!-- Staff Earnings Row -->
                             <div id="salon-earning-inputs" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
                                 <!-- Dynamic inputs will be inserted here -->
@@ -711,8 +721,8 @@
                         <label for="appointment-booking-type" class="block text-sm font-medium text-gray-600">Booking Type</label>
                         <select id="appointment-booking-type" class="form-select w-full p-2 mt-1 border border-gray-300 rounded-lg">
                             <option>Booked - Calendar</option>
-                            <option>Booked by Phone</option>
-                            <option>Booked Online</option>
+                            <option value="Phone">Phone</option>
+                            <option value="Online">Online</option>
                         </select>
                     </div>
                     <div>
@@ -785,7 +795,7 @@
                 <h3 class="text-2xl font-bold text-pink-700 mb-6">Edit Salon Earning</h3>
                 <input type="hidden" id="edit-salon-earning-id">
                 <div class="space-y-6">
-                    <div class="hidden">
+                    <div>
                         <label for="edit-salon-earning-date" class="block text-sm font-medium text-gray-600 mb-1">Date</label>
                         <input type="date" id="edit-salon-earning-date" class="form-input w-full p-3 border border-gray-300 rounded-lg" required>
                     </div>
@@ -988,7 +998,7 @@
                 let currentEarningDateFilter = '';
                 let currentEarningRangeFilter = 'daily';
                 let currentSalonEarningDateFilter = '';
-                let currentSalonEarningRangeFilter = 'daily';
+                let currentSalonEarningRangeFilter = String(new Date().getMonth());
 
                 // Data stores
                 let allActiveClients = [];
@@ -1304,7 +1314,7 @@
                     const allFooterIds = [...staffAndTechNames, ...footerIds];
 
                     if (earnings.length === 0) {
-                        tbody.innerHTML = `<tr><td colspan="${staffAndTechNames.length + 8}" class="py-6 text-center text-gray-400">No salon earnings found.</td></tr>`;
+                        tbody.innerHTML = `<tr><td colspan="${staffAndTechNames.length + 10}" class="py-6 text-center text-gray-400">No salon earnings found.</td></tr>`;
                          allFooterIds.forEach(id => {
                             const el = document.getElementById(`total-${id}`);
                             if (el) el.textContent = id === 'no-credit' ? '0' : '$0.00';
@@ -1322,22 +1332,23 @@
                     }
                     
                     let grandTotals = {};
+                    allFooterIds.forEach(id => grandTotals[id.replace(/-/g, '')] = 0);
+
 
                     earnings.sort((a, b) => b.date.seconds - a.date.seconds).forEach(earning => {
                         const row = tbody.insertRow();
                         row.className = 'bg-white border-b';
                         
                         let rowHTML = `<td class="px-6 py-4">${new Date(earning.date.seconds * 1000).toLocaleDateString()}</td>`;
-                        let rowTotal = 0;
+                        let rowStaffTotal = 0;
 
                         staffAndTechNames.forEach(name => {
                             const techEarning = earning[name] || 0;
                             rowHTML += `<td class="px-6 py-4">$${techEarning.toFixed(2)}</td>`;
-                            rowTotal += techEarning;
-                            grandTotals[name] = (grandTotals[name] || 0) + techEarning;
+                            rowStaffTotal += techEarning;
                         });
                         
-                        rowTotal += (earning.sellGiftCard || 0) + ((earning.noOfCredit || 0) * 2);
+                        const rowTotal = rowStaffTotal + (earning.sellGiftCard || 0);
                         const cash = rowTotal - ((earning.totalCredit || 0) + (earning.check || 0) + (earning.returnGiftCard || 0) + (earning.venmo || 0) + (earning.square || 0));
 
                         rowHTML += `
@@ -1356,25 +1367,38 @@
                             </td>
                         `;
                         row.innerHTML = rowHTML;
+
                     });
                     
                     // Calculate and render grand totals
-                    footerIds.forEach(id => {
-                       grandTotals[id.replace(/-/g, '')] = earnings.reduce((sum, e) => sum + (e[id.replace(/-/g, '')] || 0), 0)
+                    earnings.forEach(earning => {
+                        let rowStaffTotal = 0;
+                        staffAndTechNames.forEach(name => {
+                            const techEarning = earning[name] || 0;
+                            grandTotals[name] = (grandTotals[name] || 0) + techEarning;
+                            rowStaffTotal += techEarning;
+                        });
+                        const rowTotal = rowStaffTotal + (earning.sellGiftCard || 0);
+                        const cash = rowTotal - ((earning.totalCredit || 0) + (earning.check || 0) + (earning.returnGiftCard || 0) + (earning.venmo || 0) + (earning.square || 0));
+                        
+                        grandTotals.sellgc += earning.sellGiftCard || 0;
+                        grandTotals.returngc += earning.returnGiftCard || 0;
+                        grandTotals.check += earning.check || 0;
+                        grandTotals.noofcredit += earning.noOfCredit || 0;
+                        grandTotals.totalcredit += earning.totalCredit || 0;
+                        grandTotals.venmo += earning.venmo || 0;
+                        grandTotals.square += earning.square || 0;
+                        grandTotals.total += rowTotal;
+                        grandTotals.cash += cash;
                     });
-                    
-                    let finalTotal = 0;
-                    staffAndTechNames.forEach(name => finalTotal += grandTotals[name]);
-                    finalTotal += grandTotals.sellGiftCard + (grandTotals.noOfCredit * 2);
-                    grandTotals.total = finalTotal;
-                    grandTotals.cash = finalTotal - (grandTotals.totalCredit + grandTotals.check + grandTotals.returnGiftCard + grandTotals.venmo + grandTotals.square);
 
 
                     allFooterIds.forEach(id => {
-                        const el = document.getElementById(`total-${id}`);
+                        const el = document.getElementById(`total-${id.replace(/gc/g, '-gc').replace(/of/g, '-of-')}`);
                         if (el) {
-                            const value = grandTotals[id.replace(/-/g, '')] || 0;
-                            el.textContent = id === 'no-credit' ? value : `$${value.toFixed(2)}`;
+                            const key = id.replace(/-/g, '');
+                            const value = grandTotals[key] || 0;
+                            el.textContent = id === 'noofcredit' ? value : `$${value.toFixed(2)}`;
                         }
                     });
 
@@ -2740,7 +2764,7 @@
                 
                 const populateTechnicianFilters = () => {
                     const techContainers = document.querySelectorAll('.tech-filter-container');
-                    const techSelects = document.querySelectorAll('#appointment-technician-select, #technician-name-select, #staff-name, #edit-staff-name');
+                    const techSelects = document.querySelectorAll('#appointment-technician-select, #technician-name-select, #staff-name, #edit-staff-name, #checkin-technician-select');
                     
                     techContainers.forEach(container => {
                         const userList = container.id.includes('earning') ? techniciansAndStaff : technicians;
@@ -2764,6 +2788,9 @@
                         userList.forEach(tech => {
                             select.appendChild(new Option(tech.name, tech.name));
                         });
+                         if(select.id === 'technician-name-select') {
+                            select.appendChild(new Option("Other", "other"));
+                        }
                     });
                     
                     // Dynamic Salon Earning Report
@@ -3043,6 +3070,8 @@
                 // --- INITIALIZATION ---
                 loadAndRenderServices();
                 const todayString = getLocalDateString();
+                const currentMonthIndex = new Date().getMonth();
+
                 // Set default date for finished clients filter
                 document.getElementById('finished-date-filter').value = todayString;
                 currentFinishedDateFilter = todayString;
@@ -3054,11 +3083,16 @@
                 currentEarningDateFilter = todayString;
                 renderStaffEarnings(applyEarningFilters(allEarnings, 'All', currentEarningDateFilter, 'daily'));
 
-                // Set default date for salon earning form and filter
+                // Set default for salon earning form and filter to current month
                 document.getElementById('salon-earning-date').value = todayString;
-                document.getElementById('salon-earning-date-filter').value = todayString;
-                currentSalonEarningDateFilter = todayString;
-                renderSalonEarnings(applySalonEarningFilters(allSalonEarnings, currentSalonEarningDateFilter, 'daily'));
+                const salonEarningRangeFilter = document.getElementById('salon-earning-range-filter');
+                const salonEarningDateFilter = document.getElementById('salon-earning-date-filter');
+
+                salonEarningRangeFilter.value = currentMonthIndex;
+                salonEarningDateFilter.style.display = 'none';
+                currentSalonEarningRangeFilter = String(currentMonthIndex);
+                currentSalonEarningDateFilter = ''; // Date input is not used for month filter
+                renderSalonEarnings(applySalonEarningFilters(allSalonEarnings, currentSalonEarningDateFilter, currentSalonEarningRangeFilter));
 
             };
             
