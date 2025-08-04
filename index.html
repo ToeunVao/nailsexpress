@@ -919,9 +919,11 @@
             if (userRole === 'technician' || userRole === 'staff') {
                 document.getElementById('reports-tab').style.display = 'none';
                 document.getElementById('admin-tab').style.display = 'none';
+                document.getElementById('clients-list-tab').style.display = 'none';
             } else { // admin
                  document.getElementById('reports-tab').style.display = 'inline-block';
                  document.getElementById('admin-tab').style.display = 'inline-block';
+                 document.getElementById('clients-list-tab').style.display = 'inline-block';
             }
 
             // --- Main Application Logic ---
