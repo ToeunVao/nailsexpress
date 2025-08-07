@@ -49,7 +49,7 @@
 
         /* Landing Page Hero Section */
         .hero-section-new {
-             background-image: url('https://images.unsplash.com/photo-1604333233169-5423f618e5b8?q=80&w=1974&auto=format&fit=crop');
+             background-image: url('https://images.unsplash.com/photo-1519014816548-bf5fe059798b?q=80&w=2070&auto=format&fit=crop');
             background-size: cover;
             background-position: center;
         }
@@ -107,7 +107,7 @@
         <!-- Header -->
         <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50">
             <div class="container mx-auto px-6 py-4 flex justify-between items-center">
-                <div class="text-2xl font-bold text-gray-800 tracking-wider"><a href="#">NAIL EXPRESS</a></div>
+                <div class="text-2xl font-bold text-pink-700 tracking-wider"><a href="#">NAIL EXPRESS</a></div>
                 <nav class="hidden md:flex space-x-8 text-sm font-semibold text-gray-600">
                     <a href="#booking-landing" class="hover:text-pink-600">Booking</a>
                     <a href="#about-landing" class="hover:text-pink-600">About Us</a>
@@ -127,15 +127,23 @@
             <div class="hero-overlay-new w-full h-full">
                 <div class="container mx-auto px-6 py-24 md:py-32 flex items-center">
                     <div class="text-left md:w-1/2">
-                        <h1 class="text-5xl md:text-7xl font-bold text-gray-800 leading-tight">Elegance at<br>Your Fingertips</h1>
+                        <h1 class="text-5xl md:text-7xl font-bold text-pink-700 leading-tight">Elegance at<br>Your Fingertips</h1>
                         <p class="mt-4 text-gray-600 max-w-md">
                             Experience elegance at its finest with our nail art creations. From delicate patterns to intricate details, our salon ensures that sophistication is just a brushstroke away.
                         </p>
-                        <div id="hero-services-container" class="mt-8 flex justify-start gap-3 flex-wrap">
-                             <!-- Service category buttons will be injected here by JS -->
+                        <div class="mt-8 flex justify-start items-center space-x-6">
+                             <a href="https://www.facebook.com/profile.php?id=61566760681750" target="_blank" class="text-gray-600 hover:text-pink-600 transition-colors">
+                                <i class="fab fa-facebook fa-2x"></i>
+                            </a>
+                            <a href="https://youtube.com/@NailExpressKY" target="_blank" class="text-gray-600 hover:text-pink-600 transition-colors">
+                                <i class="fab fa-youtube fa-2x"></i>
+                            </a>
+                            <a href="https://www.tiktok.com/@nailsexpressky" target="_blank" class="text-gray-600 hover:text-pink-600 transition-colors">
+                                <i class="fab fa-tiktok fa-2x"></i>
+                            </a>
                         </div>
-                        <div class="mt-8 flex justify-start space-x-4">
-                            <a href="#booking-landing" class="bg-gray-800 text-white font-semibold py-3 px-8 rounded-lg hover:bg-gray-900 transition-colors">
+                        <div class="mt-6 flex justify-start space-x-4">
+                            <a href="#booking-landing" class="bg-pink-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-pink-700 transition-colors">
                                 Book your appointment now
                             </a>
                         </div>
@@ -151,14 +159,29 @@
                     <h2 class="text-3xl font-bold text-center text-pink-700 mb-2">Book a New Appointment</h2>
                     <p class="text-center text-gray-600 mb-8">Your moment of relaxation is just a few clicks away.</p>
                     <form id="add-appointment-form-landing" class="relative">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div><label for="appointment-client-name-landing" class="block text-sm font-medium text-gray-600">Client Name</label><input type="text" id="appointment-client-name-landing" class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg" required></div>
-                            <div><label for="appointment-phone-landing" class="block text-sm font-medium text-gray-600">Phone</label><input type="tel" id="appointment-phone-landing" class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg"></div>
-                            <div><label for="appointment-people-landing" class="block text-sm font-medium text-gray-600">Group Size</label><select id="appointment-people-landing" class="form-select w-full p-3 mt-1 border border-gray-300 rounded-lg"></select></div>
-                            <div><label for="appointment-technician-select-landing" class="block text-sm font-medium text-gray-600">Technician Request</label><select id="appointment-technician-select-landing" class="form-select w-full p-3 mt-1 border border-gray-300 rounded-lg"><option>Any Technician</option></select></div>
-                            <div class="md:col-span-2"><label for="appointment-services-landing" class="block text-sm font-medium text-gray-600">Services (optional)</label><input type="text" id="appointment-services-landing" class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg" placeholder="e.g., Manicure, Pedicure"></div>
-                            <div class="md:col-span-2"><label for="appointment-datetime-landing" class="block text-sm font-medium text-gray-600">Date & Time</label><input type="datetime-local" id="appointment-datetime-landing" class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg" required></div>
-                            <div class="md:col-span-2"><label for="appointment-notes-landing" class="block text-sm font-medium text-gray-600">Notes (optional)</label><textarea id="appointment-notes-landing" rows="2" class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg"></textarea></div>
+                        <div class="space-y-8">
+                            <div>
+                                <h3 class="text-xl font-semibold text-gray-700 border-b pb-3 mb-6">Your Information</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div><label for="appointment-client-name-landing" class="block text-sm font-medium text-gray-600">Client Name</label><input type="text" id="appointment-client-name-landing" class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg" required></div>
+                                    <div><label for="appointment-phone-landing" class="block text-sm font-medium text-gray-600">Phone</label><input type="tel" id="appointment-phone-landing" class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg"></div>
+                                    <div><label for="appointment-people-landing" class="block text-sm font-medium text-gray-600">Group Size</label><select id="appointment-people-landing" class="form-select w-full p-3 mt-1 border border-gray-300 rounded-lg"></select></div>
+                                    <div><label for="appointment-technician-select-landing" class="block text-sm font-medium text-gray-600">Technician Request</label><select id="appointment-technician-select-landing" class="form-select w-full p-3 mt-1 border border-gray-300 rounded-lg"><option>Any Technician</option></select></div>
+                                    <div class="md:col-span-2"><label for="appointment-datetime-landing" class="block text-sm font-medium text-gray-600">Date & Time</label><input type="datetime-local" id="appointment-datetime-landing" class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg" required></div>
+                                    <div class="md:col-span-2"><label for="appointment-notes-landing" class="block text-sm font-medium text-gray-600">Notes (optional)</label><textarea id="appointment-notes-landing" rows="2" class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg"></textarea></div>
+                                </div>
+                            </div>
+                             <div>
+                                <div class="flex justify-between items-center border-b pb-3 mb-6">
+                                    <h3 class="text-xl font-semibold text-gray-700">Select Your Services</h3>
+                                </div>
+                                <div id="services-container-landing" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    <!-- Category buttons will be injected here -->
+                                </div>
+                                <div id="hidden-checkbox-container-landing" class="hidden">
+                                    <!-- Hidden checkboxes will be injected here -->
+                                </div>
+                            </div>
                         </div>
                         <div class="mt-8 text-center">
                             <label class="flex items-center justify-center">
@@ -177,7 +200,7 @@
         <!-- About Us Section -->
         <section id="about-landing" class="py-20 bg-white">
             <div class="container mx-auto px-6 text-center">
-                <h2 class="text-3xl font-bold mb-4">Your Sanctuary for Beauty & Relaxation</h2>
+                <h2 class="text-3xl font-bold mb-4 text-pink-700">Your Sanctuary for Beauty & Relaxation</h2>
                 <p class="text-gray-600 max-w-3xl mx-auto leading-relaxed">Welcome to Nail Express, your personal retreat for beauty and wellness in Danville. Our passionate team is dedicated to providing exceptional service in a clean, serene, and friendly environment.</p>
                 <p class="text-gray-600 max-w-3xl mx-auto mt-4 leading-relaxed">From classic manicures to luxurious spa pedicures, we use only high-quality products to ensure lasting results. Treat yourself to our signature pedicure experience that will leave you walking on air.</p>
             </div>
@@ -186,7 +209,7 @@
         <!-- Contact Us Section -->
         <section id="contact-landing" class="py-20">
             <div class="container mx-auto px-6 text-center">
-                <h2 class="text-3xl font-bold mb-4">Get In Touch</h2>
+                <h2 class="text-3xl font-bold mb-4 text-pink-700">Get In Touch</h2>
                 <div class="flex flex-col md:flex-row justify-center items-center space-y-6 md:space-y-0 md:space-x-12">
                     <div class="flex items-center"><i class="fas fa-map-marker-alt fa-2x text-pink-600 mr-4"></i><div><h4 class="font-semibold">Our Address</h4><p>1560 Hustonville Rd #345, Danville, KY 40422</p></div></div>
                     <div class="flex items-center"><i class="fas fa-phone fa-2x text-pink-600 mr-4"></i><div><h4 class="font-semibold">Call Us</h4><p>(859) 236-2873</p></div></div>
@@ -211,7 +234,10 @@
                         <input type="password" id="landing-password" name="password" required class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg" placeholder="Enter your password">
                     </div>
                     <div>
-                        <button type="submit" class="w-full bg-pink-600 text-white font-bold py-3 px-12 rounded-full hover:bg-pink-700 transform hover:scale-105">Log In</button>
+                        <button type="submit" id="landing-login-btn" class="w-full bg-pink-600 text-white font-bold py-3 px-12 rounded-full hover:bg-pink-700 transform hover:scale-105 flex items-center justify-center">
+                            <span class="btn-text">Log In</span>
+                            <i class="fas fa-spinner fa-spin ml-2 hidden"></i>
+                        </button>
                     </div>
                 </form>
             </div>
@@ -227,6 +253,18 @@
                 </div>
                 <div id="landing-service-modal-content" class="space-y-2 max-h-[70vh] overflow-y-auto pr-4">
                     <!-- Dynamic service items will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Landing Page Booking Service Modal -->
+        <div id="landing-booking-service-modal" class="modal hidden fixed inset-0 z-[60] items-center justify-center">
+            <div class="modal-overlay absolute inset-0 bg-black opacity-50"></div>
+            <div class="relative bg-white w-full max-w-lg p-6 rounded-2xl shadow-xl m-4">
+                <h3 id="landing-booking-modal-title" class="text-2xl font-bold text-pink-700 mb-4">Select Services</h3>
+                <div id="landing-booking-service-modal-content" class="space-y-3 max-h-96 overflow-y-auto"></div>
+                <div class="mt-6 text-right">
+                    <button id="landing-booking-service-modal-done-btn" type="button" class="bg-pink-600 text-white font-semibold py-2 px-6 rounded-lg">Done</button>
                 </div>
             </div>
         </div>
@@ -795,7 +833,7 @@
             </div>
         </div>
 
-        <div id="policy-modal" class="fixed inset-0 z-[60] hidden items-center justify-center">
+        <div id="policy-modal" class="fixed inset-0 z-[70] hidden items-center justify-center">
             <div class="absolute inset-0 bg-black opacity-50 policy-modal-overlay"></div>
             <div class="relative bg-white w-full max-w-2xl p-6 rounded-2xl shadow-xl m-4">
                 <h3 class="text-2xl font-bold text-pink-700 mb-6">Salon Policy</h3>
@@ -1045,48 +1083,80 @@
         const db = getFirestore(app);
         const auth = getAuth(app);
 
-        // --- DOM Elements ---
+        // --- Global State ---
         const loadingScreen = document.getElementById('loading-screen');
         const landingPageContent = document.getElementById('landing-page-content');
         const appContent = document.getElementById('app-content');
-
-        // --- App Initialization Flags ---
+        const policyModal = document.getElementById('policy-modal');
         let mainAppInitialized = false;
         let landingPageInitialized = false;
+        let anonymousUserId = null; // To track the anonymous user's ID
+
+        // --- Global Modal Logic ---
+        const openPolicyModal = () => {
+            policyModal.classList.add('flex');
+            policyModal.classList.remove('hidden');
+        };
+        const closePolicyModal = () => {
+            policyModal.classList.add('hidden');
+            policyModal.classList.remove('flex');
+        };
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('.view-policy-btn')) {
+                openPolicyModal();
+            }
+        });
+        document.getElementById('policy-close-btn').addEventListener('click', closePolicyModal);
+        document.querySelector('#policy-modal .policy-modal-overlay').addEventListener('click', closePolicyModal);
+
 
         // --- Primary Authentication Router ---
         onAuthStateChanged(auth, async (user) => {
             if (user) {
-                // User is signed in. Check if they are anonymous or a real user.
                 const isAnonymous = user.isAnonymous;
-                const userDocRef = doc(db, "users", user.uid);
-                const userDoc = await getDoc(userDocRef);
-
-                if (!isAnonymous && userDoc.exists()) {
-                    // REAL USER - SHOW MAIN APP
-                    const userRole = userDoc.data().role;
-                    loadingScreen.style.display = 'none';
-                    landingPageContent.style.display = 'none';
-                    appContent.style.display = 'block';
-                    
-                    if (!mainAppInitialized) {
-                        initMainApp(userRole);
-                        mainAppInitialized = true;
-                    }
-                } else {
-                    // ANONYMOUS USER or data inconsistency - SHOW LANDING PAGE
+                
+                if (isAnonymous) {
+                    anonymousUserId = user.uid;
+                    // Show Landing Page for anonymous users
                     loadingScreen.style.display = 'none';
                     appContent.style.display = 'none';
                     landingPageContent.style.display = 'block';
-
                     if (!landingPageInitialized) {
                         initLandingPage();
                         landingPageInitialized = true;
                     }
+                } else {
+                    // This is a real, signed-in user. Check for their document in Firestore.
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+
+                    if (userDoc.exists()) {
+                        // User document exists, show the main app
+                        const userRole = userDoc.data().role;
+                        loadingScreen.style.display = 'none';
+                        landingPageContent.style.display = 'none';
+                        appContent.style.display = 'block';
+                        
+                        // Initialize the main app if it hasn't been already
+                        if (!mainAppInitialized) {
+                            initMainApp(userRole);
+                            mainAppInitialized = true;
+                        }
+                    } else {
+                        // This case handles if a user is authenticated with Firebase Auth
+                        // but doesn't have a corresponding document in the 'users' collection.
+                        // We'll log them out and show an error to prevent being stuck.
+                        console.error("User is authenticated but no user document found. Logging out.");
+                        await signOut(auth);
+                        alert("Login error: User data not found. Please contact support.");
+                    }
                 }
             } else {
-                // NO USER AT ALL - SIGN IN ANONYMOUSLY TO FETCH PUBLIC DATA
-                signInAnonymously(auth).catch((error) => {
+                // No user is signed in at all.
+                signInAnonymously(auth).then(() => {
+                    // After anonymous sign-in, onAuthStateChanged will run again.
+                    // The logic inside the `if (user)` block will handle showing the landing page.
+                }).catch((error) => {
                     console.error("Anonymous sign-in failed:", error);
                     loadingScreen.innerHTML = '<h2 class="text-3xl font-bold text-red-700">Could not connect. Please refresh.</h2>';
                 });
@@ -1096,23 +1166,25 @@
 
         // --- LANDING PAGE SCRIPT ---
         function initLandingPage() {
+            // --- DOM Elements ---
             const userIcon = document.getElementById('user-icon');
             const loginModal = document.getElementById('login-modal');
-            const closeLoginModalBtn = document.getElementById('close-login-modal-btn');
-            const loginModalOverlay = loginModal.querySelector('.modal-overlay');
-            const loginForm = document.getElementById('landing-login-form');
             const bookingForm = document.getElementById('add-appointment-form-landing');
-            const policyModal = document.getElementById('policy-modal');
-            const closePolicyBtn = document.getElementById('policy-close-btn');
-            const policyModalOverlay = policyModal.querySelector('.policy-modal-overlay');
             const landingServiceModal = document.getElementById('landing-service-modal');
-            const closeLandingServiceModalBtn = document.getElementById('close-landing-service-modal-btn');
-            const landingServiceModalOverlay = landingServiceModal.querySelector('.landing-service-modal-overlay');
-            const servicesContainerLanding = document.getElementById('hero-services-container');
             const servicesContainerModal = document.getElementById('landing-service-modal-content');
             const landingServiceModalTitle = document.getElementById('landing-service-modal-title');
+            
+            // Elements for booking form service modal
+            const bookingServiceModal = document.getElementById('landing-booking-service-modal');
+            const bookingServiceModalTitle = document.getElementById('landing-booking-modal-title');
+            const servicesContainerBooking = document.getElementById('services-container-landing');
+            const hiddenCheckboxContainerBooking = document.getElementById('hidden-checkbox-container-landing');
+            const bookingServiceModalContent = document.getElementById('landing-booking-service-modal-content');
+            const bookingServiceModalDoneBtn = document.getElementById('landing-booking-service-modal-done-btn');
+
             let landingServicesData = {};
 
+            // --- Modal Helpers ---
             const openModal = (modal) => {
                 modal.classList.remove('hidden');
                 modal.classList.add('flex');
@@ -1122,6 +1194,7 @@
                 modal.classList.remove('flex');
             }
 
+            // --- Service Loading & Display ---
             const loadLandingServices = async () => {
                 try {
                     const servicesSnapshot = await getDocs(collection(db, "services"));
@@ -1129,54 +1202,83 @@
                     servicesSnapshot.forEach(doc => {
                         landingServicesData[doc.id] = doc.data().items;
                     });
-
-                    servicesContainerLanding.innerHTML = '';
-                    Object.keys(landingServicesData).forEach(categoryName => {
-                        const btn = document.createElement('button');
-                        btn.type = 'button';
-                        btn.className = 'landing-category-button bg-white/50 backdrop-blur-sm border border-white/30 rounded-lg px-4 py-2 flex items-center gap-2 text-gray-700 font-semibold hover:bg-white/80 transition-colors text-sm';
-                        btn.dataset.category = categoryName;
-                        // Simple generic icons for demonstration
-                        const icons = {'manicure': 'fa-hand-sparkles', 'pedicure': 'fa-shoe-prints', 'waxing': 'fa-leaf'};
-                        const iconClass = icons[categoryName.toLowerCase().split(' ')[0]] || 'fa-magic';
-                        btn.innerHTML = `<i class="fas ${iconClass} text-pink-500"></i><span>${categoryName}</span>`;
-                        servicesContainerLanding.appendChild(btn);
-                    });
+                    renderLandingCategoryButtons(); // Render for the booking form
                 } catch (error) {
                     console.error("Landing Page Service Load Error:", error);
-                    servicesContainerLanding.innerHTML = '<p class="text-red-500 text-center">Could not load services.</p>';
+                    servicesContainerBooking.innerHTML = '<p class="text-red-500 text-center">Could not load services.</p>';
                 }
             };
             
-            const openLandingServiceModal = (category) => {
-                landingServiceModalTitle.textContent = category;
-                servicesContainerModal.innerHTML = '';
-                const items = landingServicesData[category] || [];
-                
-                if (items.length === 0) {
-                    servicesContainerModal.innerHTML = '<p class="text-gray-500">No services listed in this category yet.</p>';
-                } else {
-                    items.forEach(item => {
-                        const itemDiv = document.createElement('div');
-                        itemDiv.className = 'flex justify-between items-center py-2 px-2 text-sm border-b';
-                        itemDiv.innerHTML = `
-                            <span>${item.p || ''} ${item.name}</span>
-                            <span class="font-semibold text-gray-700">${item.price}</span>
-                        `;
-                        servicesContainerModal.appendChild(itemDiv);
+            // --- Booking Form Service Logic ---
+            const renderLandingCategoryButtons = () => {
+                servicesContainerBooking.innerHTML = '';
+                hiddenCheckboxContainerBooking.innerHTML = '';
+                Object.keys(landingServicesData).forEach(category => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'category-button p-4 border border-gray-200 rounded-lg text-left bg-white hover:border-pink-300 hover:bg-pink-50 transition-all duration-200 shadow-sm';
+                    btn.dataset.category = category;
+                    btn.innerHTML = `<h3 class="text-lg font-bold text-pink-700">${category}</h3><span class="text-sm text-gray-500 mt-1 block">Click to select</span><span class="selection-count hidden mt-2 bg-pink-600 text-white text-xs font-bold px-2 py-1 rounded-full"></span>`;
+                    servicesContainerBooking.appendChild(btn);
+                    landingServicesData[category].forEach(service => {
+                        const val = `${service.p || ''}${service.name}${service.price ? ' ' + service.price : ''}`;
+                        const cb = document.createElement('input');
+                        cb.type = 'checkbox'; cb.name = 'service-landing'; cb.value = val; cb.dataset.category = category;
+                        hiddenCheckboxContainerBooking.appendChild(cb);
                     });
-                }
-                openModal(landingServiceModal);
+                });
             };
 
-            servicesContainerLanding.addEventListener('click', (e) => {
-                const button = e.target.closest('.landing-category-button');
-                if (button) {
-                    openLandingServiceModal(button.dataset.category);
-                }
+            const updateLandingSelectionCounts = () => {
+                document.querySelectorAll('#services-container-landing .category-button').forEach(button => {
+                    const cat = button.dataset.category;
+                    const count = hiddenCheckboxContainerBooking.querySelectorAll(`input[data-category="${cat}"]:checked`).length;
+                    const badge = button.querySelector('.selection-count');
+                    if (count > 0) {
+                        badge.textContent = `${count} selected`;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                });
+            };
+
+            const openLandingBookingServiceModal = (category) => {
+                bookingServiceModalTitle.textContent = category;
+                bookingServiceModalContent.innerHTML = '';
+                bookingServiceModal.dataset.currentCategory = category;
+
+                landingServicesData[category].forEach(service => {
+                    const val = `${service.p || ''}${service.name}${service.price ? ' ' + service.price : ''}`;
+                    const sourceCb = hiddenCheckboxContainerBooking.querySelector(`input[value="${val}"]`);
+                    const label = document.createElement('label');
+                    label.className = 'flex items-center p-3 hover:bg-pink-50 cursor-pointer rounded-lg';
+                    label.innerHTML = `
+                        <input type="checkbox" class="form-checkbox modal-checkbox" value="${val}" ${sourceCb && sourceCb.checked ? 'checked' : ''}>
+                        <span class="ml-3 text-gray-700 flex-grow">${service.name}</span>
+                        ${service.price ? `<span class="font-semibold">${service.price}</span>` : ''}
+                    `;
+                    bookingServiceModalContent.appendChild(label);
+                });
+                openModal(bookingServiceModal);
+            };
+
+            bookingServiceModalDoneBtn.addEventListener('click', () => {
+                bookingServiceModalContent.querySelectorAll('.modal-checkbox').forEach(modalCb => {
+                    const sourceCb = hiddenCheckboxContainerBooking.querySelector(`input[value="${modalCb.value}"]`);
+                    if (sourceCb) sourceCb.checked = modalCb.checked;
+                });
+                closeModal(bookingServiceModal);
+                updateLandingSelectionCounts();
+            });
+
+            servicesContainerBooking.addEventListener('click', (e) => {
+                const btn = e.target.closest('.category-button');
+                if (btn) openLandingBookingServiceModal(btn.dataset.category);
             });
 
 
+            // --- Initial Data Loading & Event Listeners ---
             const loadBookingTechnicians = async () => {
                 const techSelect = document.getElementById('appointment-technician-select-landing');
                 techSelect.innerHTML = '<option>Any Technician</option>'; // Reset
@@ -1201,47 +1303,70 @@
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             datetimeInput.value = now.toISOString().slice(0, 16);
 
-            userIcon.addEventListener('click', () => openModal(loginModal));
-            closeLoginModalBtn.addEventListener('click', () => closeModal(loginModal));
-            loginModalOverlay.addEventListener('click', () => closeModal(loginModal));
+            // Modal Triggers
+            userIcon.addEventListener('click', () => openModal(document.getElementById('login-modal')));
+            document.getElementById('close-login-modal-btn').addEventListener('click', () => closeModal(document.getElementById('login-modal')));
+            document.querySelector('#login-modal .modal-overlay').addEventListener('click', () => closeModal(document.getElementById('login-modal')));
+            
+            document.getElementById('close-landing-service-modal-btn').addEventListener('click', () => closeModal(landingServiceModal));
+            document.querySelector('#landing-service-modal .landing-service-modal-overlay').addEventListener('click', () => closeModal(landingServiceModal));
+            document.querySelector('#landing-booking-service-modal .modal-overlay').addEventListener('click', () => closeModal(bookingServiceModal));
+
+            // Form Submissions
+            const loginForm = document.getElementById('landing-login-form');
+            const loginBtn = document.getElementById('landing-login-btn');
 
             loginForm.addEventListener('submit', async (event) => {
                 event.preventDefault();
+                const btnText = loginBtn.querySelector('.btn-text');
+                const spinner = loginBtn.querySelector('.fa-spinner');
+                
+                btnText.textContent = 'Logging In...';
+                spinner.classList.remove('hidden');
+                loginBtn.disabled = true;
+
                 try {
                     await signInWithEmailAndPassword(auth, document.getElementById('landing-email').value, document.getElementById('landing-password').value);
+                    // onAuthStateChanged will handle the UI switch automatically.
                 } catch (error) {
                     alert("Login failed: " + error.message);
+                } finally {
+                    btnText.textContent = 'Log In';
+                    spinner.classList.add('hidden');
+                    loginBtn.disabled = false;
                 }
             });
 
             bookingForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
+                const services = Array.from(document.querySelectorAll('#hidden-checkbox-container-landing input:checked')).map(el => el.value);
+                if (services.length === 0) {
+                    alert('Please select at least one service.');
+                    return;
+                }
                 try {
                     await addDoc(collection(db, "appointments"), {
                         name: document.getElementById('appointment-client-name-landing').value,
                         phone: document.getElementById('appointment-phone-landing').value,
                         people: document.getElementById('appointment-people-landing').value,
                         bookingType: 'Online',
-                        services: [document.getElementById('appointment-services-landing').value || 'Not specified'],
+                        services: services,
                         technician: document.getElementById('appointment-technician-select-landing').value,
                         notes: document.getElementById('appointment-notes-landing').value,
-                        appointmentTimestamp: Timestamp.fromDate(new Date(document.getElementById('appointment-datetime-landing').value))
+                        appointmentTimestamp: Timestamp.fromDate(new Date(document.getElementById('appointment-datetime-landing').value)),
+                        anonymousUserId: anonymousUserId // Track which anonymous user made the booking
                     });
                     bookingForm.reset();
+                    hiddenCheckboxContainerBooking.querySelectorAll('input').forEach(cb => cb.checked = false);
+                    updateLandingSelectionCounts();
                     alert('Thank you! Your appointment has been successfully booked.');
                 } catch (err) {
+                    console.error("Booking failed:", err);
                     alert("Could not save appointment. Please try again.");
                 }
             });
 
-            document.body.addEventListener('click', (e) => { if (e.target.closest('.view-policy-btn')) openModal(policyModal); });
-            closePolicyBtn.addEventListener('click', () => closeModal(policyModal));
-            policyModalOverlay.addEventListener('click', () => closeModal(policyModal));
-            
-            closeLandingServiceModalBtn.addEventListener('click', () => closeModal(landingServiceModal));
-            landingServiceModalOverlay.addEventListener('click', () => closeModal(landingServiceModal));
-
-
+            // Page Navigation
             document.querySelectorAll('a[href^="#"]').forEach(anchor => {
                 anchor.addEventListener('click', function (e) {
                     e.preventDefault();
@@ -1273,13 +1398,12 @@
             const modalTitle = document.getElementById('modal-title');
             const modalContent = document.getElementById('modal-content');
             const modalDoneBtn = document.getElementById('modal-done-btn');
-            const modalOverlay = document.querySelector('.modal-overlay');
+            const modalOverlay = document.querySelector('#service-modal .modal-overlay');
 
             // Modals
             const checkoutModal = document.getElementById('checkout-modal');
             const checkoutForm = document.getElementById('checkout-form');
             const viewDetailModal = document.getElementById('view-detail-modal');
-            const policyModal = document.getElementById('policy-modal');
             const addAppointmentModal = document.getElementById('add-appointment-modal');
             const addAppointmentForm = document.getElementById('add-appointment-form');
             const editEarningModal = document.getElementById('edit-earning-modal');
@@ -2086,19 +2210,6 @@
             });
             document.getElementById('checkout-cancel-btn').addEventListener('click', closeCheckoutModal);
             document.querySelector('.checkout-modal-overlay').addEventListener('click', closeCheckoutModal);
-
-            // Salon Policy Modal Logic
-            const openPolicyModal = () => { policyModal.classList.add('flex'); policyModal.classList.remove('hidden'); };
-            const closePolicyModal = () => { policyModal.classList.add('hidden'); policyModal.classList.remove('flex'); };
-            
-            document.body.addEventListener('click', (e) => {
-                if (e.target.closest('.view-policy-btn')) {
-                    openPolicyModal();
-                }
-            });
-
-            document.getElementById('policy-close-btn').addEventListener('click', closePolicyModal);
-            document.querySelector('.policy-modal-overlay').addEventListener('click', closePolicyModal);
 
             // Real-time listeners
             onSnapshot(query(collection(db, "active_queue"), orderBy("checkInTimestamp", "asc")), (snapshot) => {
