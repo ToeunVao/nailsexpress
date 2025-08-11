@@ -674,6 +674,9 @@
                             <li class="mr-2">
                                 <button class="admin-sub-tab-btn inline-block p-4 rounded-t-lg" id="service-management-tab" type="button">Service Management</button>
                             </li>
+                            <li class="mr-2">
+                                <button class="admin-sub-tab-btn inline-block p-4 rounded-t-lg" id="expense-report-tab" type="button">Expense Report</button>
+                            </li>
                         </ul>
                     </div>
 
@@ -743,6 +746,61 @@
                                 <button type="submit" class="bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Save Settings</button>
                             </div>
                         </form>
+                    </div>
+
+                    <!-- Expense Report Content -->
+                    <div id="expense-report-content" class="admin-sub-tab-content hidden">
+                        <h3 class="text-xl font-semibold text-gray-700 mb-4">Monthly Expense Report</h3>
+                        <form id="add-expense-form" class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 p-4 border rounded-lg bg-gray-50 items-end">
+                            <input type="hidden" id="edit-expense-id">
+                            <div>
+                                <label for="expense-name" class="block text-sm font-medium text-gray-600">Expense Name</label>
+                                <input type="text" id="expense-name" class="form-input w-full mt-1" placeholder="e.g., Rent, Supplies" required>
+                            </div>
+                            <div>
+                                <label for="expense-amount" class="block text-sm font-medium text-gray-600">Amount</label>
+                                <input type="number" id="expense-amount" step="0.01" class="form-input w-full mt-1" placeholder="e.g., 1500.00" required>
+                            </div>
+                            <div>
+                                <label for="expense-date" class="block text-sm font-medium text-gray-600">Date</label>
+                                <input type="date" id="expense-date" class="form-input w-full mt-1" required>
+                            </div>
+                            <div>
+                                <label for="expense-attachment" class="block text-sm font-medium text-gray-600">Attachment</label>
+                                <input type="file" id="expense-attachment" class="form-input w-full mt-1 text-sm">
+                            </div>
+                            <div class="self-end flex gap-2">
+                                <button type="submit" id="add-expense-btn" class="w-full bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Add Expense</button>
+                                <button type="button" id="cancel-edit-expense-btn" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 hidden">Cancel</button>
+                            </div>
+                        </form>
+
+                        <div class="flex justify-end items-center mb-4">
+                            <label for="expense-month-filter" class="text-sm font-medium text-gray-700 mr-2">Filter by Month:</label>
+                            <select id="expense-month-filter" class="form-select p-2 border border-gray-300 rounded-lg"></select>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table id="expense-table" class="w-full text-sm text-left text-gray-600">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3">Date</th>
+                                        <th scope="col" class="px-6 py-3">Expense Name</th>
+                                        <th scope="col" class="px-6 py-3">Attachment</th>
+                                        <th scope="col" class="px-6 py-3 text-right">Amount</th>
+                                        <th scope="col" class="px-6 py-3 text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                                <tfoot class="bg-gray-100 font-semibold">
+                                    <tr>
+                                        <td colspan="3" class="px-6 py-3 text-right">Total:</td>
+                                        <td id="total-expense" class="px-6 py-3 text-right"></td>
+                                        <td class="px-6 py-3"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
                     </div>
 
 
@@ -1094,6 +1152,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, doc, getDoc, deleteDoc, serverTimestamp, where, getDocs, orderBy, Timestamp, updateDoc, writeBatch, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAGZBJFVi_o1HeGDmjcSsmCcWxWOkuLc_4",
@@ -1107,6 +1166,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+        const storage = getStorage(app);
 
         // --- Global State ---
         const loadingScreen = document.getElementById('loading-screen');
@@ -1523,6 +1583,7 @@
             let currentEarningRangeFilter = 'daily';
             let currentSalonEarningDateFilter = '';
             let currentSalonEarningRangeFilter = String(new Date().getMonth());
+            let currentExpenseMonthFilter = '';
 
             // Data stores
             let allActiveClients = [];
@@ -1531,6 +1592,7 @@
             let aggregatedClients = [];
             let allEarnings = [];
             let allSalonEarnings = [];
+            let allExpenses = [];
             let servicesData = {}; // Will be loaded from Firestore
             let techniciansAndStaff = []; // Will be loaded from Firestore
             let technicians = []; // Will be loaded from Firestore
@@ -2392,6 +2454,15 @@
                     ...doc.data()
                 }));
                 renderSalonEarnings(applySalonEarningFilters(allSalonEarnings, currentSalonEarningDateFilter, currentSalonEarningRangeFilter));
+            });
+
+            onSnapshot(query(collection(db, "expenses"), orderBy("date", "desc")), (snapshot) => {
+                allExpenses = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                populateExpenseMonthFilter();
+                renderExpenses();
             });
 
             // Search functionality
@@ -3465,6 +3536,150 @@
                 }
             });
 
+            // --- EXPENSE REPORT LOGIC ---
+            const addExpenseForm = document.getElementById('add-expense-form');
+            const expenseMonthFilter = document.getElementById('expense-month-filter');
+            const expenseTableBody = document.querySelector('#expense-table tbody');
+            const totalExpenseEl = document.getElementById('total-expense');
+            const addExpenseBtn = document.getElementById('add-expense-btn');
+            const cancelEditExpenseBtn = document.getElementById('cancel-edit-expense-btn');
+
+            const populateExpenseMonthFilter = () => {
+                const months = new Set();
+                allExpenses.forEach(exp => {
+                    const date = new Date(exp.date.seconds * 1000);
+                    const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+                    months.add(monthYear);
+                });
+
+                const sortedMonths = Array.from(months).sort().reverse();
+                expenseMonthFilter.innerHTML = '<option value="all">All Months</option>';
+                sortedMonths.forEach(monthYear => {
+                    const [year, month] = monthYear.split('-');
+                    const date = new Date(year, month - 1, 1);
+                    const optionText = date.toLocaleString('default', { month: 'long', year: 'numeric' });
+                    expenseMonthFilter.innerHTML += `<option value="${monthYear}">${optionText}</option>`;
+                });
+                expenseMonthFilter.value = currentExpenseMonthFilter || 'all';
+            };
+
+            const renderExpenses = () => {
+                let filteredExpenses = allExpenses;
+                if (currentExpenseMonthFilter && currentExpenseMonthFilter !== 'all') {
+                    const [year, month] = currentExpenseMonthFilter.split('-').map(Number);
+                    filteredExpenses = allExpenses.filter(exp => {
+                        const date = new Date(exp.date.seconds * 1000);
+                        return date.getFullYear() === year && date.getMonth() + 1 === month;
+                    });
+                }
+
+                expenseTableBody.innerHTML = '';
+                if (filteredExpenses.length === 0) {
+                    expenseTableBody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-gray-400">No expenses found for this period.</td></tr>`;
+                } else {
+                    filteredExpenses.forEach(exp => {
+                        const row = expenseTableBody.insertRow();
+                        row.className = 'bg-white border-b';
+                        row.innerHTML = `
+                            <td class="px-6 py-4">${new Date(exp.date.seconds * 1000).toLocaleDateString()}</td>
+                            <td class="px-6 py-4">${exp.name}</td>
+                            <td class="px-6 py-4">${exp.attachmentURL ? `<a href="${exp.attachmentURL}" target="_blank" class="text-blue-500 hover:underline">View</a>` : 'N/A'}</td>
+                            <td class="px-6 py-4 text-right">$${exp.amount.toFixed(2)}</td>
+                            <td class="px-6 py-4 text-center space-x-2">
+                                <button data-id="${exp.id}" class="edit-expense-btn text-blue-500"><i class="fas fa-edit"></i></button>
+                                <button data-id="${exp.id}" class="delete-expense-btn text-red-500"><i class="fas fa-trash"></i></button>
+                            </td>
+                        `;
+                    });
+                }
+                const total = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+                totalExpenseEl.textContent = `$${total.toFixed(2)}`;
+            };
+
+            expenseMonthFilter.addEventListener('change', (e) => {
+                currentExpenseMonthFilter = e.target.value;
+                renderExpenses();
+            });
+
+            addExpenseForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const expenseId = document.getElementById('edit-expense-id').value;
+                const name = document.getElementById('expense-name').value;
+                const amount = parseFloat(document.getElementById('expense-amount').value);
+                const date = document.getElementById('expense-date').value;
+                const file = document.getElementById('expense-attachment').files[0];
+
+                if (!name || isNaN(amount) || !date) {
+                    alert("Please fill out all fields correctly.");
+                    return;
+                }
+                
+                let attachmentURL = null;
+                if (file) {
+                    const storageRef = ref(storage, `expenses/${Date.now()}_${file.name}`);
+                    await uploadBytes(storageRef, file);
+                    attachmentURL = await getDownloadURL(storageRef);
+                }
+
+                const expenseData = {
+                    name,
+                    amount,
+                    date: Timestamp.fromDate(new Date(date + 'T12:00:00'))
+                };
+                if(attachmentURL) {
+                    expenseData.attachmentURL = attachmentURL;
+                }
+
+                try {
+                    if (expenseId) {
+                        // Update
+                        const expenseRef = doc(db, "expenses", expenseId);
+                        await updateDoc(expenseRef, expenseData);
+                        alert("Expense updated!");
+                    } else {
+                        // Add new
+                        await addDoc(collection(db, "expenses"), expenseData);
+                    }
+                    resetExpenseForm();
+                } catch (error) {
+                    console.error("Error saving expense:", error);
+                    alert("Could not save expense.");
+                }
+            });
+
+            const resetExpenseForm = () => {
+                addExpenseForm.reset();
+                document.getElementById('edit-expense-id').value = '';
+                document.getElementById('expense-date').value = getLocalDateString();
+                addExpenseBtn.textContent = 'Add Expense';
+                cancelEditExpenseBtn.classList.add('hidden');
+            };
+
+            cancelEditExpenseBtn.addEventListener('click', resetExpenseForm);
+
+            expenseTableBody.addEventListener('click', async (e) => {
+                const deleteBtn = e.target.closest('.delete-expense-btn');
+                const editBtn = e.target.closest('.edit-expense-btn');
+                
+                if (deleteBtn) {
+                    const expenseId = deleteBtn.dataset.id;
+                    showConfirmModal("Are you sure you want to delete this expense?", async () => {
+                        await deleteDoc(doc(db, "expenses", expenseId));
+                    });
+                } else if (editBtn) {
+                    const expenseId = editBtn.dataset.id;
+                    const expense = allExpenses.find(exp => exp.id === expenseId);
+                    if (expense) {
+                        document.getElementById('edit-expense-id').value = expense.id;
+                        document.getElementById('expense-name').value = expense.name;
+                        document.getElementById('expense-amount').value = expense.amount;
+                        document.getElementById('expense-date').value = new Date(expense.date.seconds * 1000).toISOString().split('T')[0];
+                        addExpenseBtn.textContent = 'Update Expense';
+                        cancelEditExpenseBtn.classList.remove('hidden');
+                    }
+                }
+            });
+
 
             // --- SERVICE MANAGEMENT ---
             const serviceCategoriesAdminContainer = document.getElementById('service-categories-admin');
@@ -3625,6 +3840,9 @@
             currentSalonEarningRangeFilter = String(currentMonthIndex);
             currentSalonEarningDateFilter = ''; // Date input is not used for month filter
             renderSalonEarnings(applySalonEarningFilters(allSalonEarnings, currentSalonEarningDateFilter, currentSalonEarningRangeFilter));
+
+            // Set default date for expense form
+            document.getElementById('expense-date').value = todayString;
 
             // Sign out button
             document.getElementById('sign-out-btn').addEventListener('click', () => {
