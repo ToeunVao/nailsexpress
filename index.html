@@ -668,6 +668,7 @@
                     <div class="mb-4 border-b border-gray-200">
                         <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="admin-sub-tabs">
                             <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg active" id="user-management-tab" type="button">User Management</button></li>
+                            <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="inventory-management-tab" type="button">Inventory Management</button></li>
                             <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="service-management-tab" type="button">Service Management</button></li>
                             <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="settings-management-tab" type="button">Settings</button></li>
                         </ul>
@@ -690,6 +691,38 @@
                                 <thead class="text-xs text-gray-700 uppercase bg-gray-50">
                                     <tr>
                                         <th scope="col" class="px-6 py-3">Name</th><th scope="col" class="px-6 py-3">Email</th><th scope="col" class="px-6 py-3">Phone</th><th scope="col" class="px-6 py-3">Role</th><th scope="col" class="px-6 py-3 text-center">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Inventory Management Content -->
+                    <div id="inventory-management-content" class="sub-tab-content hidden">
+                        <h3 class="text-xl font-semibold text-gray-700 mb-4">Manage Inventory</h3>
+                        <form id="add-product-form" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 p-4 border rounded-lg bg-gray-50 items-end">
+                            <input type="hidden" id="edit-product-id">
+                            <div><label for="product-name" class="block text-sm font-medium text-gray-600">Product Name</label><input type="text" id="product-name" class="form-input w-full mt-1" required></div>
+                            <div><label for="product-category" class="block text-sm font-medium text-gray-600">Category</label><input type="text" id="product-category" class="form-input w-full mt-1"></div>
+                            <div><label for="product-supplier" class="block text-sm font-medium text-gray-600">Supplier</label><select id="product-supplier" class="form-select w-full mt-1"><option value="">Select Supplier</option></select></div>
+                            <div><label for="product-quantity" class="block text-sm font-medium text-gray-600">Quantity</label><input type="number" id="product-quantity" class="form-input w-full mt-1" required></div>
+                            <div><label for="product-price" class="block text-sm font-medium text-gray-600">Price</label><input type="number" step="0.01" id="product-price" class="form-input w-full mt-1" required></div>
+                            <div class="self-end flex gap-2">
+                                <button type="submit" id="add-product-btn" class="w-full bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Add Product</button>
+                                <button type="button" id="cancel-edit-product-btn" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 hidden">Cancel</button>
+                            </div>
+                        </form>
+                        <div class="overflow-x-auto">
+                            <table id="inventory-table" class="w-full text-sm text-left text-gray-600">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3">Product Name</th>
+                                        <th scope="col" class="px-6 py-3">Category</th>
+                                        <th scope="col" class="px-6 py-3">Supplier</th>
+                                        <th scope="col" class="px-6 py-3 text-center">Quantity</th>
+                                        <th scope="col" class="px-6 py-3 text-right">Price</th>
+                                        <th scope="col" class="px-6 py-3 text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
@@ -1283,7 +1316,7 @@
             let currentFinishedDateFilter = '', currentEarningTechFilter = 'All', currentEarningDateFilter = '', currentEarningRangeFilter = 'daily';
             let currentSalonEarningDateFilter = '', currentSalonEarningRangeFilter = String(new Date().getMonth()), currentExpenseMonthFilter = '';
 
-            let allActiveClients = [], allFinishedClients = [], allAppointments = [], aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [];
+            let allActiveClients = [], allFinishedClients = [], allAppointments = [], aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [];
             let servicesData = {}, techniciansAndStaff = [], technicians = [];
             let allExpenseCategories = [], allPaymentAccounts = [], allSuppliers = [];
 
@@ -2222,6 +2255,103 @@
                 if (deleteBtn) { showConfirmModal("Delete this user?", async () => { await deleteDoc(doc(db, "users", deleteBtn.dataset.id)); alert("User role deleted. Login must be deleted from Firebase console."); }); }
             });
 
+            // --- Inventory Management ---
+            const addProductForm = document.getElementById('add-product-form');
+            const inventoryTableBody = document.querySelector('#inventory-table tbody');
+            const productSupplierSelect = document.getElementById('product-supplier');
+
+            const renderInventory = () => {
+                inventoryTableBody.innerHTML = '';
+                if (allInventory.length === 0) {
+                    inventoryTableBody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-400">No products in inventory.</td></tr>`;
+                    return;
+                }
+                allInventory.forEach(product => {
+                    const row = inventoryTableBody.insertRow();
+                    row.className = 'bg-white border-b';
+                    row.innerHTML = `
+                        <td class="px-6 py-4 font-medium text-gray-900">${product.name}</td>
+                        <td class="px-6 py-4">${product.category || ''}</td>
+                        <td class="px-6 py-4">${product.supplier || ''}</td>
+                        <td class="px-6 py-4 text-center">${product.quantity}</td>
+                        <td class="px-6 py-4 text-right">$${product.price.toFixed(2)}</td>
+                        <td class="px-6 py-4 text-center space-x-2">
+                            <button data-id="${product.id}" class="edit-product-btn text-blue-500"><i class="fas fa-edit"></i></button>
+                            <button data-id="${product.id}" class="delete-product-btn text-red-500"><i class="fas fa-trash"></i></button>
+                        </td>`;
+                });
+            };
+
+            const populateProductSupplierDropdown = () => {
+                const first = productSupplierSelect.options[0];
+                productSupplierSelect.innerHTML = '';
+                productSupplierSelect.appendChild(first);
+                allSuppliers.forEach(supplier => {
+                    productSupplierSelect.appendChild(new Option(supplier.name, supplier.name));
+                });
+            };
+
+            onSnapshot(query(collection(db, "inventory"), orderBy("name")), (snapshot) => {
+                allInventory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderInventory();
+            });
+
+            addProductForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const productId = document.getElementById('edit-product-id').value;
+                const productData = {
+                    name: document.getElementById('product-name').value,
+                    category: document.getElementById('product-category').value,
+                    supplier: document.getElementById('product-supplier').value,
+                    quantity: parseInt(document.getElementById('product-quantity').value, 10),
+                    price: parseFloat(document.getElementById('product-price').value)
+                };
+
+                try {
+                    if (productId) {
+                        await updateDoc(doc(db, "inventory", productId), productData);
+                    } else {
+                        await addDoc(collection(db, "inventory"), productData);
+                    }
+                    resetProductForm();
+                } catch (error) {
+                    console.error("Error saving product:", error);
+                    alert("Could not save product.");
+                }
+            });
+
+            const resetProductForm = () => {
+                addProductForm.reset();
+                document.getElementById('edit-product-id').value = '';
+                document.getElementById('add-product-btn').textContent = 'Add Product';
+                document.getElementById('cancel-edit-product-btn').classList.add('hidden');
+            };
+            document.getElementById('cancel-edit-product-btn').addEventListener('click', resetProductForm);
+
+            inventoryTableBody.addEventListener('click', (e) => {
+                const editBtn = e.target.closest('.edit-product-btn');
+                const deleteBtn = e.target.closest('.delete-product-btn');
+
+                if (editBtn) {
+                    const product = allInventory.find(p => p.id === editBtn.dataset.id);
+                    if (product) {
+                        document.getElementById('edit-product-id').value = product.id;
+                        document.getElementById('product-name').value = product.name;
+                        document.getElementById('product-category').value = product.category || '';
+                        document.getElementById('product-supplier').value = product.supplier || '';
+                        document.getElementById('product-quantity').value = product.quantity;
+                        document.getElementById('product-price').value = product.price;
+                        document.getElementById('add-product-btn').textContent = 'Update Product';
+                        document.getElementById('cancel-edit-product-btn').classList.remove('hidden');
+                    }
+                } else if (deleteBtn) {
+                    showConfirmModal("Delete this product from inventory?", async () => {
+                        await deleteDoc(doc(db, "inventory", deleteBtn.dataset.id));
+                    });
+                }
+            });
+
+
             // --- Settings & Expense Management ---
             const settingsForm = document.getElementById('settings-form');
             const minBookingHoursInput = document.getElementById('min-booking-hours');
@@ -2277,6 +2407,7 @@
                     row.innerHTML = `<td class="px-6 py-4">${s.name}</td><td class="px-6 py-4">${s.phone || ''}</td><td class="px-6 py-4">${s.email || ''}</td><td class="px-6 py-4">${s.website ? `<a href="${s.website}" target="_blank" class="text-blue-500">Link</a>` : ''}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${s.id}" class="edit-supplier-btn text-blue-500"><i class="fas fa-edit"></i></button><button data-id="${s.id}" class="delete-supplier-btn text-red-500"><i class="fas fa-trash"></i></button></td>`;
                 });
                 populateExpenseDropdowns();
+                populateProductSupplierDropdown();
             });
 
             addSupplierForm.addEventListener('submit', async (e) => {
