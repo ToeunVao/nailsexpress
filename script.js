@@ -281,7 +281,6 @@ function initMainApp(userRole) {
     const logoLink = document.getElementById('logo-link');
     const topNav = document.getElementById('top-nav');
     const allMainSections = document.querySelectorAll('.main-section');
-    const mainTabsContainer = document.getElementById('main-tabs-container');
     const notificationBell = document.getElementById('notification-bell');
     const notificationCount = document.getElementById('notification-count');
     const notificationDropdown = document.getElementById('notification-dropdown');
