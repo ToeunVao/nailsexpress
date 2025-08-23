@@ -305,9 +305,7 @@ function initMainApp(userRole) {
         
         // Hide all major content blocks initially
         document.getElementById('main-tabs-container').parentElement.classList.add('hidden');
-        document.getElementById('calendar-content').classList.add('hidden');
-        document.getElementById('reports-content').classList.add('hidden');
-        document.getElementById('admin-content').classList.add('hidden');
+        allTabContents.forEach(content => content.classList.add('hidden'));
 
 
         switch (target) {
