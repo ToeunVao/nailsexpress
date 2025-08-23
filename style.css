@@ -113,3 +113,19 @@ body { font-family: 'Poppins', sans-serif; background-color: #FEFBF9; }
         .notification-item:last-child {
             border-bottom: none;
         }
+        
+        /* Top Navigation Styles */
+        .top-nav-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 600; /* Make menu text bold */
+        }
+        .top-nav-btn:hover {
+            background-color: #fdf2f8;
+            color: #d63384;
+        }
+        .top-nav-btn.active {
+            background-color: #d63384;
+            color: white;
+        }
