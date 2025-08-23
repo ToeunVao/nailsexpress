@@ -220,9 +220,12 @@
                         </div>
                     </div>
                 </div>
-                <div class="text-center hidden md:block">
-                     <h2 id="header-title" class="text-3xl font-bold text-gray-800">Dashboard</h2>
-                </div>
+                <nav id="top-nav" class="hidden md:flex items-center gap-2 text-sm font-semibold text-gray-600">
+                    <button class="top-nav-btn" data-target="check-in">Check-in</button>
+                    <button class="top-nav-btn" data-target="booking">Booking</button>
+                    <button class="top-nav-btn" data-target="report">Report</button>
+                    <button class="top-nav-btn" data-target="setting">Setting</button>
+                </nav>
                 <div class="text-right flex items-center gap-4">
                     <div>
                         <div id="live-clock" class="clock text-3xl font-bold text-gray-800"></div>
@@ -287,16 +290,12 @@
 
             <!-- MAIN APP CONTAINER -->
             <div id="main-app-container" class="hidden">
-                <div class="mb-4 border-b border-gray-200 bg-white rounded-t-2xl shadow-md p-2">
+                <div id="main-tabs-container" class="mb-4 border-b border-gray-200 bg-white rounded-t-2xl shadow-md p-2">
                     <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="main-tabs">
                         <li class="mr-2"><button class="tab-btn inline-block p-4 border-b-2 rounded-t-lg active" id="check-in-tab" type="button">Check In</button></li>
                         <li class="mr-2"><button class="tab-btn inline-block p-4 border-b-2 rounded-t-lg" id="queue-tab" type="button">Active Queue <span id="active-count" class="ml-2 bg-pink-100 text-pink-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">0</span></button></li>
                         <li class="mr-2"><button class="tab-btn inline-block p-4 border-b-2 rounded-t-lg" id="processing-tab" type="button">Processing <span id="processing-count" class="ml-2 bg-gray-200 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">0</span></button></li>
                         <li class="mr-2"><button class="tab-btn inline-block p-4 border-b-2 rounded-t-lg" id="finished-tab" type="button">Finished Clients <span id="finished-count" class="ml-2 bg-gray-200 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">0</span></button></li>
-                        <li class="mr-2"><button class="tab-btn inline-block p-4 border-b-2 rounded-t-lg" id="calendar-tab" type="button">Clients Booking <span id="calendar-count" class="ml-2 bg-gray-200 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">0</span></button></li>
-                        <li class="mr-2"><button class="tab-btn inline-block p-4 border-b-2 rounded-t-lg" id="clients-list-tab" type="button">Clients List <span id="clients-list-count" class="ml-2 bg-gray-200 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">0</span></button></li>
-                        <li><button class="tab-btn inline-block p-4 border-b-2 rounded-t-lg" id="reports-tab" type="button">Reports</button></li>
-                        <li><button class="tab-btn inline-block p-4 border-b-2 rounded-t-lg" id="admin-tab" type="button">Admin</button></li>
                     </ul>
                 </div>
 
@@ -479,35 +478,13 @@
                          </div>
                     </div>
 
-                    <div id="clients-list-content" class="tab-content hidden">
-                        <div class="flex justify-between items-center mb-4">
-                            <input type="text" id="search-clients-list" class="w-1/2 p-2 border border-gray-300 rounded-lg" placeholder="Search by client name...">
-                            <button id="export-clients-btn" class="ml-4 bg-green-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors">Export to Excel</button>
-                        </div>
-                        <div class="overflow-x-auto">
-                            <table id="clients-list-table" class="w-full text-sm text-left text-gray-600">
-                                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
-                                    <tr>
-                                        <th scope="col" class="px-6 py-3">Name</th>
-                                        <th scope="col" class="px-6 py-3">Phone</th>
-                                        <th scope="col" class="px-6 py-3">Favorite Tech</th>
-                                        <th scope="col" class="px-6 py-3">Favorite Color</th>
-                                        <th scope="col" class="px-6 py-3">Last Visit</th>
-                                        <th scope="col" class="px-6 py-3 text-center">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody></tbody>
-                            </table>
-                        </div>
-                    </div>
-
                     <div id="reports-content" class="tab-content hidden">
-                        <!-- NEW: Sub-tabs for reports -->
                         <div class="mb-4 border-b border-gray-200">
                             <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="reports-sub-tabs">
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg active" id="salon-earning-report-tab" type="button">Salon Earning</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="staff-earning-report-tab" type="button">Staff Earning</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="expense-report-tab" type="button">Expense Report</button></li>
+                                <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="clients-list-report-tab" type="button">Clients List</button></li>
                             </ul>
                         </div>
 
@@ -599,7 +576,7 @@
                             </div>
                         </div>
 
-                        <!-- MOVED: Expense Report Content -->
+                        <!-- Expense Report Content -->
                         <div id="expense-report-content" class="sub-tab-content hidden">
                             <h3 class="text-xl font-semibold text-gray-700 mb-4">Monthly Expense Report</h3>
                             <form id="add-expense-form" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 p-4 border rounded-lg bg-gray-50 items-end">
@@ -644,6 +621,29 @@
                                             <td class="px-6 py-3"></td>
                                         </tr>
                                     </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Clients List Content -->
+                        <div id="clients-list-report-content" class="sub-tab-content hidden">
+                            <div class="flex justify-between items-center mb-4">
+                                <input type="text" id="search-clients-list" class="w-1/2 p-2 border border-gray-300 rounded-lg" placeholder="Search by client name...">
+                                <button id="export-clients-btn" class="ml-4 bg-green-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors">Export to Excel</button>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table id="clients-list-table" class="w-full text-sm text-left text-gray-600">
+                                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3">Name</th>
+                                            <th scope="col" class="px-6 py-3">Phone</th>
+                                            <th scope="col" class="px-6 py-3">Favorite Tech</th>
+                                            <th scope="col" class="px-6 py-3">Favorite Color</th>
+                                            <th scope="col" class="px-6 py-3">Last Visit</th>
+                                            <th scope="col" class="px-6 py-3 text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
                                 </table>
                             </div>
                         </div>
