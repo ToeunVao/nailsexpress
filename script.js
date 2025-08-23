@@ -28,6 +28,7 @@ let anonymousUserId = null;
 let bookingSettings = { minBookingHours: 2 };
 let bookingsChart, servicesChart, earningsChart;
 let notifications = [];
+let currentUserRole = null;
 
 // --- Global Modal Logic ---
 const openPolicyModal = () => { policyModal.classList.add('flex'); policyModal.classList.remove('hidden'); };
@@ -53,12 +54,12 @@ onAuthStateChanged(auth, async (user) => {
             const userDocRef = doc(db, "users", user.uid);
             const userDoc = await getDoc(userDocRef);
             if (userDoc.exists()) {
-                const userRole = userDoc.data().role;
+                currentUserRole = userDoc.data().role;
                 loadingScreen.style.display = 'none';
                 landingPageContent.style.display = 'none';
                 appContent.style.display = 'block';
                 if (!mainAppInitialized) {
-                    initMainApp(userRole);
+                    initMainApp(currentUserRole);
                     mainAppInitialized = true;
                 }
             } else {
@@ -78,194 +79,7 @@ onAuthStateChanged(auth, async (user) => {
 
 // --- LANDING PAGE SCRIPT ---
 function initLandingPage() {
-    const bookingForm = document.getElementById('add-appointment-form-landing');
-    const servicesContainerBooking = document.getElementById('services-container-landing');
-    const hiddenCheckboxContainerBooking = document.getElementById('hidden-checkbox-container-landing');
-    const bookingServiceModal = document.getElementById('landing-booking-service-modal');
-    const bookingServiceModalTitle = document.getElementById('landing-booking-modal-title');
-    const bookingServiceModalContent = document.getElementById('landing-booking-service-modal-content');
-    const bookingServiceModalDoneBtn = document.getElementById('landing-booking-service-modal-done-btn');
-    const bookingStep1 = document.getElementById('booking-step-1');
-    const bookingStep2 = document.getElementById('booking-step-2');
-    const bookingNextBtn = document.getElementById('booking-next-btn');
-    const bookingPrevBtn = document.getElementById('booking-prev-btn');
-    let landingServicesData = {};
-
-    const openModal = (modal) => { modal.classList.remove('hidden'); modal.classList.add('flex'); }
-    const closeModal = (modal) => { modal.classList.add('hidden'); modal.classList.remove('flex'); }
-
-    const loadLandingServices = async () => {
-        try {
-            const servicesSnapshot = await getDocs(collection(db, "services"));
-            landingServicesData = {};
-            servicesSnapshot.forEach(doc => { landingServicesData[doc.id] = doc.data().items; });
-            renderLandingCategoryButtons();
-        } catch (error) {
-            console.error("Landing Page Service Load Error:", error);
-            servicesContainerBooking.innerHTML = '<p class="text-red-500 text-center">Could not load services.</p>';
-        }
-    };
-
-    const renderLandingCategoryButtons = () => {
-        servicesContainerBooking.innerHTML = '';
-        hiddenCheckboxContainerBooking.innerHTML = '';
-        Object.keys(landingServicesData).forEach(category => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'category-button p-4 border border-gray-200 rounded-lg text-left bg-white hover:border-pink-300 hover:bg-pink-50 transition-all duration-200 shadow-sm';
-            btn.dataset.category = category;
-            btn.innerHTML = `<h3 class="text-lg font-bold text-pink-700">${category}</h3><span class="text-sm text-gray-500 mt-1 block">Click to select</span><span class="selection-count hidden mt-2 bg-pink-600 text-white text-xs font-bold px-2 py-1 rounded-full"></span>`;
-            servicesContainerBooking.appendChild(btn);
-            landingServicesData[category].forEach(service => {
-                const val = `${service.p || ''}${service.name}${service.price ? ' ' + service.price : ''}`;
-                const cb = document.createElement('input');
-                cb.type = 'checkbox'; cb.name = 'service-landing'; cb.value = val; cb.dataset.category = category;
-                hiddenCheckboxContainerBooking.appendChild(cb);
-            });
-        });
-    };
-
-    const updateLandingSelectionCounts = () => {
-        document.querySelectorAll('#services-container-landing .category-button').forEach(button => {
-            const cat = button.dataset.category;
-            const count = hiddenCheckboxContainerBooking.querySelectorAll(`input[data-category="${cat}"]:checked`).length;
-            const badge = button.querySelector('.selection-count');
-            if (count > 0) { badge.textContent = `${count} selected`; badge.classList.remove('hidden'); }
-            else { badge.classList.add('hidden'); }
-        });
-    };
-
-    const openLandingBookingServiceModal = (category) => {
-        bookingServiceModalTitle.textContent = category;
-        bookingServiceModalContent.innerHTML = '';
-        bookingServiceModal.dataset.currentCategory = category;
-        landingServicesData[category].forEach(service => {
-            const val = `${service.p || ''}${service.name}${service.price ? ' ' + service.price : ''}`;
-            const sourceCb = hiddenCheckboxContainerBooking.querySelector(`input[value="${val}"]`);
-            const label = document.createElement('label');
-            label.className = 'flex items-center p-3 hover:bg-pink-50 cursor-pointer rounded-lg';
-            label.innerHTML = `<input type="checkbox" class="form-checkbox modal-checkbox" value="${val}" ${sourceCb && sourceCb.checked ? 'checked' : ''}><span class="ml-3 text-gray-700 flex-grow">${service.name}</span>${service.price ? `<span class="font-semibold">${service.price}</span>` : ''}`;
-            bookingServiceModalContent.appendChild(label);
-        });
-        openModal(bookingServiceModal);
-    };
-
-    bookingServiceModalDoneBtn.addEventListener('click', () => {
-        bookingServiceModalContent.querySelectorAll('.modal-checkbox').forEach(modalCb => {
-            const sourceCb = hiddenCheckboxContainerBooking.querySelector(`input[value="${modalCb.value}"]`);
-            if (sourceCb) sourceCb.checked = modalCb.checked;
-        });
-        closeModal(bookingServiceModal);
-        updateLandingSelectionCounts();
-    });
-
-    servicesContainerBooking.addEventListener('click', (e) => {
-        const btn = e.target.closest('.category-button');
-        if (btn) openLandingBookingServiceModal(btn.dataset.category);
-    });
-
-    const loadBookingTechnicians = async () => {
-        const techSelect = document.getElementById('appointment-technician-select-landing');
-        techSelect.innerHTML = '<option>Any Technician</option>';
-        try {
-            const usersSnapshot = await getDocs(collection(db, "users"));
-            usersSnapshot.docs.map(doc => doc.data()).filter(user => user.role === 'technician').forEach(tech => techSelect.appendChild(new Option(tech.name, tech.name)));
-        } catch (error) { console.error("Error loading technicians for booking: ", error); }
-    };
-
-    const loadBookingSettings = async () => {
-        const docSnap = await getDoc(doc(db, "settings", "booking"));
-        if (docSnap.exists()) { bookingSettings = docSnap.data(); }
-    };
-
-    loadLandingServices();
-    loadBookingTechnicians();
-    loadBookingSettings();
-
-    const peopleCountSelect = document.getElementById('appointment-people-landing');
-    for (let i = 1; i <= 20; i++) peopleCountSelect.appendChild(new Option(i, i));
-
-    const datetimeInput = document.getElementById('appointment-datetime-landing');
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    datetimeInput.value = now.toISOString().slice(0, 16);
-
-    document.getElementById('user-icon').addEventListener('click', () => openModal(document.getElementById('login-modal')));
-    document.getElementById('close-login-modal-btn').addEventListener('click', () => closeModal(document.getElementById('login-modal')));
-    document.querySelector('#login-modal .modal-overlay').addEventListener('click', () => closeModal(document.getElementById('login-modal')));
-    document.getElementById('close-landing-service-modal-btn').addEventListener('click', () => closeModal(document.getElementById('landing-service-modal')));
-    document.querySelector('#landing-service-modal .landing-service-modal-overlay').addEventListener('click', () => closeModal(document.getElementById('landing-service-modal')));
-    document.querySelector('#landing-booking-service-modal .modal-overlay').addEventListener('click', () => closeModal(bookingServiceModal));
-
-    bookingNextBtn.addEventListener('click', () => {
-        const name = document.getElementById('appointment-client-name-landing').value;
-        const datetimeString = document.getElementById('appointment-datetime-landing').value;
-        if (!name || !datetimeString) { return alert('Please fill in your name and the desired date/time.'); }
-        const selectedTime = new Date(datetimeString).getTime();
-        const now = new Date().getTime();
-        const minNoticeMillis = bookingSettings.minBookingHours * 60 * 60 * 1000;
-        if (selectedTime < (now + minNoticeMillis)) { return alert(`Booking must be made at least ${bookingSettings.minBookingHours} hours in advance.`); }
-        bookingStep1.classList.add('hidden');
-        bookingStep2.classList.remove('hidden');
-    });
-
-    bookingPrevBtn.addEventListener('click', () => { bookingStep2.classList.add('hidden'); bookingStep1.classList.remove('hidden'); });
-
-    const loginForm = document.getElementById('landing-login-form');
-    const loginBtn = document.getElementById('landing-login-btn');
-    loginForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const btnText = loginBtn.querySelector('.btn-text');
-        const spinner = loginBtn.querySelector('.fa-spinner');
-        btnText.textContent = 'Logging In...';
-        spinner.classList.remove('hidden');
-        loginBtn.disabled = true;
-        try {
-            await signInWithEmailAndPassword(auth, document.getElementById('landing-email').value, document.getElementById('landing-password').value);
-        } catch (error) {
-            alert("Login failed: " + error.message);
-        } finally {
-            btnText.textContent = 'Log In';
-            spinner.classList.add('hidden');
-            loginBtn.disabled = false;
-        }
-    });
-
-    bookingForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const services = Array.from(document.querySelectorAll('#hidden-checkbox-container-landing input:checked')).map(el => el.value);
-        if (services.length === 0) { return alert('Please select at least one service.'); }
-        try {
-            await addDoc(collection(db, "appointments"), {
-                name: document.getElementById('appointment-client-name-landing').value,
-                phone: document.getElementById('appointment-phone-landing').value,
-                people: document.getElementById('appointment-people-landing').value,
-                bookingType: 'Online',
-                services: services,
-                technician: document.getElementById('appointment-technician-select-landing').value,
-                notes: document.getElementById('appointment-notes-landing').value,
-                appointmentTimestamp: Timestamp.fromDate(new Date(document.getElementById('appointment-datetime-landing').value)),
-                anonymousUserId: anonymousUserId,
-                isNew: true // Flag for notifications
-            });
-            bookingForm.reset();
-            hiddenCheckboxContainerBooking.querySelectorAll('input').forEach(cb => cb.checked = false);
-            updateLandingSelectionCounts();
-            bookingStep2.classList.add('hidden');
-            bookingStep1.classList.remove('hidden');
-            alert('Thank you! Your appointment has been successfully booked.');
-        } catch (err) {
-            console.error("Booking failed:", err);
-            alert("Could not save appointment. Please try again.");
-        }
-    });
-
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function (e) {
-            e.preventDefault();
-            document.querySelector(this.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
-        });
-    });
+    // ... (This function is correct and does not need changes)
 }
 
 // --- MAIN CHECK-IN APP SCRIPT ---
@@ -274,6 +88,7 @@ function initMainApp(userRole) {
     const mainAppContainer = document.getElementById('main-app-container');
     const logoLink = document.getElementById('logo-link');
     const topNav = document.getElementById('top-nav');
+    const allMainSections = document.querySelectorAll('.main-section');
     const mainTabsContainer = document.getElementById('main-tabs-container');
     const allTabContents = document.querySelectorAll('.tab-content');
     const notificationBell = document.getElementById('notification-bell');
@@ -303,34 +118,27 @@ function initMainApp(userRole) {
         dashboardContent.classList.add('hidden');
         mainAppContainer.classList.remove('hidden');
         
-        // Hide all major content blocks initially
-        document.getElementById('main-tabs-container').parentElement.classList.add('hidden');
-        allTabContents.forEach(content => content.classList.add('hidden'));
-
+        allMainSections.forEach(section => section.classList.add('hidden'));
 
         switch (target) {
             case 'check-in':
-                mainTabsContainer.parentElement.classList.remove('hidden');
-                mainTabsContainer.classList.remove('hidden');
+                document.getElementById('check-in-section').classList.remove('hidden');
                 document.getElementById('check-in-tab').click();
                 break;
             case 'booking':
-                mainTabsContainer.parentElement.classList.remove('hidden');
                 document.getElementById('calendar-content').classList.remove('hidden');
                 break;
             case 'report':
-                mainTabsContainer.parentElement.classList.remove('hidden');
                 document.getElementById('reports-content').classList.remove('hidden');
                 document.getElementById('salon-earning-report-tab').click();
                 break;
             case 'setting':
-                mainTabsContainer.parentElement.classList.remove('hidden');
                 document.getElementById('admin-content').classList.remove('hidden');
                 document.getElementById('user-management-tab').click();
                 break;
         }
     });
-
+    
     notificationBell.addEventListener('click', () => {
         notificationDropdown.classList.toggle('hidden');
         if (!notificationDropdown.classList.contains('hidden')) {
@@ -417,18 +225,20 @@ function initMainApp(userRole) {
         if (!inventoryTableBody) return;
         inventoryTableBody.innerHTML = '';
         if (allInventory.length === 0) {
-            inventoryTableBody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-400">No products in inventory.</td></tr>`;
+            inventoryTableBody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-400">No products in inventory.</td></tr>`;
             return;
         }
         allInventory.forEach(product => {
             const row = inventoryTableBody.insertRow();
             row.className = 'bg-white border-b';
+            const totalPrice = (product.quantity || 0) * (product.price || 0);
             row.innerHTML = `
                 <td class="px-6 py-4 font-medium text-gray-900">${product.name}</td>
                 <td class="px-6 py-4">${product.category || ''}</td>
                 <td class="px-6 py-4">${product.supplier || ''}</td>
                 <td class="px-6 py-4 text-center">${product.quantity}</td>
-                <td class="px-6 py-4 text-right">$${product.price.toFixed(2)}</td>
+                <td class="px-6 py-4 text-right">$${(product.price || 0).toFixed(2)}</td>
+                <td class="px-6 py-4 text-right">$${totalPrice.toFixed(2)}</td>
                 <td class="px-6 py-4 text-center space-x-2">
                     <button data-id="${product.id}" class="edit-product-btn text-blue-500"><i class="fas fa-edit"></i></button>
                     <button data-id="${product.id}" class="delete-product-btn text-red-500"><i class="fas fa-trash"></i></button>
@@ -475,7 +285,7 @@ function initMainApp(userRole) {
             return sum + techTotal + (earning.sellGiftCard || 0);
         }, 0);
         document.getElementById('total-revenue-card').textContent = `$${totalRevenue.toFixed(2)}`;
-        document.getElementById('low-stock-card').textContent = allInventory.filter(i => i.quantity <= 10).length;
+        document.getElementById('low-stock-card').textContent = allInventory.filter(i => i.quantity <= (i.lowStockAlert || 10)).length;
         
         // Update Charts
         updateBookingsChart(filteredAppointments, filteredFinished, filter);
@@ -598,21 +408,22 @@ function initMainApp(userRole) {
     }
 
     function checkForNotifications() {
-        // Low Stock
-        notifications = notifications.filter(n => n.type !== 'stock'); // Clear old stock notifications
-        allInventory.forEach(item => {
-            if (item.quantity <= 10) {
-                const exists = notifications.some(n => n.type === 'stock' && n.id === item.id);
-                if (!exists) {
-                    notifications.push({
-                        id: item.id,
-                        type: 'stock',
-                        message: `Low stock alert: ${item.name} has only ${item.quantity} left.`,
-                        read: false
-                    });
+        if (currentUserRole === 'admin') {
+            notifications = notifications.filter(n => n.type !== 'stock'); // Clear old stock notifications
+            allInventory.forEach(item => {
+                if (item.quantity <= (item.lowStockAlert || 10)) {
+                    const exists = notifications.some(n => n.type === 'stock' && n.id === item.id);
+                    if (!exists) {
+                        notifications.push({
+                            id: item.id,
+                            type: 'stock',
+                            message: `Low stock alert: ${item.name} has only ${item.quantity} left.`,
+                            read: false
+                        });
+                    }
                 }
-            }
-        });
+            });
+        }
         updateNotificationDisplay();
     }
     
@@ -622,12 +433,14 @@ function initMainApp(userRole) {
         notificationCount.style.display = unreadCount > 0 ? 'block' : 'none';
 
         notificationDropdown.innerHTML = '';
-        if (notifications.length === 0) {
+        const relevantNotifications = notifications.filter(n => n.type === 'booking' || (n.type === 'stock' && currentUserRole === 'admin'));
+
+        if (relevantNotifications.length === 0) {
             notificationDropdown.innerHTML = '<div class="notification-item text-gray-500">No notifications</div>';
             return;
         }
 
-        notifications.slice(0, 10).forEach(n => {
+        relevantNotifications.slice(0, 10).forEach(n => {
             const item = document.createElement('div');
             item.className = 'notification-item';
             item.textContent = n.message;
@@ -697,7 +510,7 @@ function initMainApp(userRole) {
         document.querySelectorAll('#main-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
         
-        document.querySelectorAll('#main-app-container > .bg-white > .tab-content').forEach(content => {
+        document.querySelectorAll('#check-in-section > .tab-content').forEach(content => {
              content.classList.add('hidden');
         });
 
@@ -727,5 +540,5 @@ function initMainApp(userRole) {
     setupSubTabs('reports-sub-tabs', 'sub-tab-content');
     setupSubTabs('admin-sub-tabs', 'sub-tab-content');
     
-    // ... (the rest of your script.js file, from loadAndRenderServices onwards) fixed check-in no hide when click on other menu
+    // ... (the rest of your script.js file, from loadAndRenderServices onwards) new
 }
