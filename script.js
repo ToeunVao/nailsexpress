@@ -282,7 +282,7 @@ function initMainApp(userRole) {
     // Show dashboard by default
     dashboardContent.classList.remove('hidden');
     mainAppContainer.classList.add('hidden');
-    headerTitle.textContent = 'Dashboard';
+    // --- headerTitle.textContent = 'Dashboard';
 
     logoLink.addEventListener('click', () => {
         const isDashboardVisible = !dashboardContent.classList.contains('hidden');
@@ -293,7 +293,7 @@ function initMainApp(userRole) {
         } else {
             dashboardContent.classList.remove('hidden');
             mainAppContainer.classList.add('hidden');
-            headerTitle.textContent = 'Dashboard';
+        // ---    headerTitle.textContent = 'Dashboard';
         }
     });
 
