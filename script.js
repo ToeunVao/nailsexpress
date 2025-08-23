@@ -275,7 +275,7 @@ function initMainApp(userRole) {
     const logoLink = document.getElementById('logo-link');
     const topNav = document.getElementById('top-nav');
     const mainTabsContainer = document.getElementById('main-tabs-container');
-    const allMainContent = document.querySelectorAll('#main-app-container .tab-content, #main-app-container .sub-tab-content');
+    const allTabContents = document.querySelectorAll('.tab-content');
     const notificationBell = document.getElementById('notification-bell');
     const notificationCount = document.getElementById('notification-count');
     const notificationDropdown = document.getElementById('notification-dropdown');
@@ -413,6 +413,31 @@ function initMainApp(userRole) {
     confirmCancelBtn.addEventListener('click', closeConfirmModal);
     document.querySelector('.confirm-modal-overlay').addEventListener('click', closeConfirmModal);
     
+    // --- RENDER FUNCTIONS ---
+    const renderInventory = () => {
+        const inventoryTableBody = document.querySelector('#inventory-table tbody');
+        if (!inventoryTableBody) return;
+        inventoryTableBody.innerHTML = '';
+        if (allInventory.length === 0) {
+            inventoryTableBody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-400">No products in inventory.</td></tr>`;
+            return;
+        }
+        allInventory.forEach(product => {
+            const row = inventoryTableBody.insertRow();
+            row.className = 'bg-white border-b';
+            row.innerHTML = `
+                <td class="px-6 py-4 font-medium text-gray-900">${product.name}</td>
+                <td class="px-6 py-4">${product.category || ''}</td>
+                <td class="px-6 py-4">${product.supplier || ''}</td>
+                <td class="px-6 py-4 text-center">${product.quantity}</td>
+                <td class="px-6 py-4 text-right">$${product.price.toFixed(2)}</td>
+                <td class="px-6 py-4 text-center space-x-2">
+                    <button data-id="${product.id}" class="edit-product-btn text-blue-500"><i class="fas fa-edit"></i></button>
+                    <button data-id="${product.id}" class="delete-product-btn text-red-500"><i class="fas fa-trash"></i></button>
+                </td>`;
+        });
+    };
+
     initDashboard();
     
     // --- Dashboard and Notification Logic ---
@@ -531,11 +556,13 @@ function initMainApp(userRole) {
     function updateServicesChart(finished) {
         const serviceCounts = {};
         finished.forEach(client => {
-            const services = client.services.split(', ');
-            services.forEach(service => {
-                const cleanService = service.replace(/\s\$?\d+$/, '').trim();
-                serviceCounts[cleanService] = (serviceCounts[cleanService] || 0) + 1;
-            });
+            if (typeof client.services === 'string') {
+                const services = client.services.split(', ');
+                services.forEach(service => {
+                    const cleanService = service.replace(/\s\$?\d+$/, '').trim();
+                    if(cleanService) serviceCounts[cleanService] = (serviceCounts[cleanService] || 0) + 1;
+                });
+            }
         });
 
         const sortedServices = Object.entries(serviceCounts).sort((a, b) => b[1] - a[1]).slice(0, 7);
@@ -560,7 +587,7 @@ function initMainApp(userRole) {
         });
         
         const topTechnician = Object.entries(techEarnings).sort((a, b) => b[1] - a[1])[0];
-        document.getElementById('top-technician-card').textContent = topTechnician ? `${topTechnician[0]} ($${topTechnician[1].toFixed(2)})` : '-';
+        document.getElementById('top-technician-card').textContent = topTechnician && topTechnician[1] > 0 ? `${topTechnician[0]} ($${topTechnician[1].toFixed(2)})` : '-';
 
 
         earningsChart.data.labels = Object.keys(techEarnings);
@@ -574,6 +601,7 @@ function initMainApp(userRole) {
 
     function checkForNotifications() {
         // Low Stock
+        notifications = notifications.filter(n => n.type !== 'stock'); // Clear old stock notifications
         allInventory.forEach(item => {
             if (item.quantity <= 10) {
                 const exists = notifications.some(n => n.type === 'stock' && n.id === item.id);
@@ -582,7 +610,7 @@ function initMainApp(userRole) {
                         id: item.id,
                         type: 'stock',
                         message: `Low stock alert: ${item.name} has only ${item.quantity} left.`,
-                        read: true // Mark as read by default for now to avoid persistence issues
+                        read: false
                     });
                 }
             }
@@ -617,26 +645,39 @@ function initMainApp(userRole) {
         if (mainAppInitialized) updateDashboard();
     });
 
-    onSnapshot(query(collection(db, "appointments"), where("isNew", "==", true)), (snapshot) => {
+    onSnapshot(query(collection(db, "appointments")), (snapshot) => {
+        const newBookings = [];
         snapshot.docChanges().forEach(async (change) => {
-            if (change.type === "added") {
+            if (change.type === "added" && change.doc.data().isNew) {
                 const booking = change.doc.data();
-                notifications.push({
+                newBookings.push({
                     id: change.doc.id,
                     type: 'booking',
                     message: `New online booking from ${booking.name}.`,
                     read: false
                 });
-                updateNotificationDisplay();
-                // Remove the 'isNew' flag
                 await updateDoc(doc(db, "appointments", change.doc.id), { isNew: false });
             }
         });
+        if (newBookings.length > 0) {
+            notifications = [...newBookings, ...notifications];
+            updateNotificationDisplay();
+        }
     });
     
     // Existing onSnapshot listeners need to call updateDashboard
      onSnapshot(query(collection(db, "finished_clients"), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
-        allFinishedClients = snapshot.docs.map(doc => ({ id: doc.id, checkInTime: doc.data().checkInTimestamp ? new Date(doc.data().checkInTimestamp.seconds * 1000).toLocaleString() : 'N/A', checkOutTimestamp: doc.data().checkOutTimestamp, services: (doc.data().services || []).join(', '), ...doc.data() }));
+        const finishedData = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                ...data,
+                id: doc.id,
+                checkInTime: data.checkInTimestamp ? new Date(data.checkInTimestamp.seconds * 1000).toLocaleString() : 'N/A',
+                services: Array.isArray(data.services) ? data.services.join(', ') : data.services,
+                checkOutTimestamp: data.checkOutTimestamp
+            };
+        });
+        allFinishedClients = finishedData;
         if(mainAppInitialized) updateDashboard();
         // ... (rest of the existing logic)
     });
