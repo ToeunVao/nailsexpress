@@ -270,51 +270,81 @@ function initLandingPage() {
 
 // --- MAIN CHECK-IN APP SCRIPT ---
 function initMainApp(userRole) {
-    // ... (rest of the existing initMainApp code)
     const dashboardContent = document.getElementById('dashboard-content');
     const mainAppContainer = document.getElementById('main-app-container');
     const logoLink = document.getElementById('logo-link');
-    const headerTitle = document.getElementById('header-title');
+    const topNav = document.getElementById('top-nav');
+    const mainTabsContainer = document.getElementById('main-tabs-container');
+    const allMainContent = document.querySelectorAll('#main-app-container .tab-content, #main-app-container .sub-tab-content');
     const notificationBell = document.getElementById('notification-bell');
     const notificationCount = document.getElementById('notification-count');
     const notificationDropdown = document.getElementById('notification-dropdown');
 
-    // Show dashboard by default
+    // --- Initial View Setup ---
     dashboardContent.classList.remove('hidden');
     mainAppContainer.classList.add('hidden');
-    // --- headerTitle.textContent = 'Dashboard';
 
+    // --- Navigation Logic ---
     logoLink.addEventListener('click', () => {
-        const isDashboardVisible = !dashboardContent.classList.contains('hidden');
-        if (isDashboardVisible) {
-            dashboardContent.classList.add('hidden');
-            mainAppContainer.classList.remove('hidden');
-            headerTitle.textContent = 'Welcome!';
-        } else {
-            dashboardContent.classList.remove('hidden');
-            mainAppContainer.classList.add('hidden');
-        // ---    headerTitle.textContent = 'Dashboard';
+        dashboardContent.classList.remove('hidden');
+        mainAppContainer.classList.add('hidden');
+        topNav.querySelectorAll('.top-nav-btn').forEach(btn => btn.classList.remove('active'));
+    });
+
+    topNav.addEventListener('click', (e) => {
+        const button = e.target.closest('.top-nav-btn');
+        if (!button) return;
+
+        const target = button.dataset.target;
+
+        topNav.querySelectorAll('.top-nav-btn').forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+
+        dashboardContent.classList.add('hidden');
+        mainAppContainer.classList.remove('hidden');
+        
+        // Hide all major content blocks initially
+        document.getElementById('main-tabs-container').parentElement.classList.add('hidden');
+        document.getElementById('calendar-content').classList.add('hidden');
+        document.getElementById('reports-content').classList.add('hidden');
+        document.getElementById('admin-content').classList.add('hidden');
+
+
+        switch (target) {
+            case 'check-in':
+                mainTabsContainer.parentElement.classList.remove('hidden');
+                mainTabsContainer.classList.remove('hidden');
+                document.getElementById('check-in-tab').click();
+                break;
+            case 'booking':
+                mainTabsContainer.parentElement.classList.remove('hidden');
+                document.getElementById('calendar-content').classList.remove('hidden');
+                break;
+            case 'report':
+                mainTabsContainer.parentElement.classList.remove('hidden');
+                document.getElementById('reports-content').classList.remove('hidden');
+                document.getElementById('salon-earning-report-tab').click();
+                break;
+            case 'setting':
+                mainTabsContainer.parentElement.classList.remove('hidden');
+                document.getElementById('admin-content').classList.remove('hidden');
+                document.getElementById('user-management-tab').click();
+                break;
         }
     });
 
     notificationBell.addEventListener('click', () => {
         notificationDropdown.classList.toggle('hidden');
         if (!notificationDropdown.classList.contains('hidden')) {
-            // Mark notifications as read
-            notifications = notifications.map(n => ({ ...n, read: true }));
+            notifications.forEach(n => { if (n.type === 'booking') n.read = true; });
             updateNotificationDisplay();
         }
     });
 
 
     if (userRole === 'technician' || userRole === 'staff') {
-        document.getElementById('reports-tab').style.display = 'none';
-        document.getElementById('admin-tab').style.display = 'none';
-        document.getElementById('clients-list-tab').style.display = 'none';
-    } else {
-        document.getElementById('reports-tab').style.display = 'inline-block';
-        document.getElementById('admin-tab').style.display = 'inline-block';
-        document.getElementById('clients-list-tab').style.display = 'inline-block';
+        document.querySelector('[data-target="report"]').style.display = 'none';
+        document.querySelector('[data-target="setting"]').style.display = 'none';
     }
 
     const checkInForm = document.getElementById('check-in-form');
@@ -385,7 +415,6 @@ function initMainApp(userRole) {
     
     initDashboard();
     
-    // ... (rest of the existing initMainApp code from line 273 to 1475)
     // --- Dashboard and Notification Logic ---
     function initDashboard() {
         const dateFilter = document.getElementById('dashboard-date-filter');
@@ -553,7 +582,7 @@ function initMainApp(userRole) {
                         id: item.id,
                         type: 'stock',
                         message: `Low stock alert: ${item.name} has only ${item.quantity} left.`,
-                        read: false
+                        read: true // Mark as read by default for now to avoid persistence issues
                     });
                 }
             }
@@ -608,19 +637,56 @@ function initMainApp(userRole) {
     // Existing onSnapshot listeners need to call updateDashboard
      onSnapshot(query(collection(db, "finished_clients"), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
         allFinishedClients = snapshot.docs.map(doc => ({ id: doc.id, checkInTime: doc.data().checkInTimestamp ? new Date(doc.data().checkInTimestamp.seconds * 1000).toLocaleString() : 'N/A', checkOutTimestamp: doc.data().checkOutTimestamp, services: (doc.data().services || []).join(', '), ...doc.data() }));
-        // ... (rest of the existing logic)
         if(mainAppInitialized) updateDashboard();
+        // ... (rest of the existing logic)
     });
      onSnapshot(query(collection(db, "earnings"), orderBy("date", "desc")), (snapshot) => {
         allEarnings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // ... (rest of existing logic)
         if(mainAppInitialized) updateDashboard();
+        // ... (rest of existing logic)
     });
      onSnapshot(query(collection(db, "salon_earnings"), orderBy("date", "desc")), (snapshot) => {
         allSalonEarnings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // ... (rest of existing logic)
         if(mainAppInitialized) updateDashboard();
+        // ... (rest of existing logic)
+    });
+    
+    document.getElementById('main-tabs').addEventListener('click', (e) => {
+        const button = e.target.closest('button.tab-btn');
+        if (!button) return;
+
+        document.querySelectorAll('#main-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        
+        document.querySelectorAll('#main-app-container > .bg-white > .tab-content').forEach(content => {
+             content.classList.add('hidden');
+        });
+
+        const contentId = button.id.replace('-tab', '-content');
+        const contentToShow = document.getElementById(contentId);
+        if (contentToShow) {
+            contentToShow.classList.remove('hidden');
+        }
     });
 
-    // ... (the rest of your script.js file)
+    const setupSubTabs = (tabsId, contentClass) => {
+        document.getElementById(tabsId).addEventListener('click', (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+            document.querySelectorAll(`#${tabsId} .sub-tab-btn`).forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            document.querySelectorAll(`.${contentClass}`).forEach(content => content.classList.add('hidden'));
+            
+            let contentId = button.id.replace('-tab', '-content');
+            if (button.id === 'clients-list-report-tab') {
+                contentId = 'clients-list-report-content';
+            }
+            
+            document.getElementById(contentId).classList.remove('hidden');
+        });
+    };
+    setupSubTabs('reports-sub-tabs', 'sub-tab-content');
+    setupSubTabs('admin-sub-tabs', 'sub-tab-content');
+    
+    // ... (the rest of your script.js file, from loadAndRenderServices onwards)
 }
