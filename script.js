@@ -727,5 +727,5 @@ function initMainApp(userRole) {
     setupSubTabs('reports-sub-tabs', 'sub-tab-content');
     setupSubTabs('admin-sub-tabs', 'sub-tab-content');
     
-    // ... (the rest of your script.js file, from loadAndRenderServices onwards)
+    // ... (the rest of your script.js file, from loadAndRenderServices onwards) fixed check-in no hide when click on other menu
 }
