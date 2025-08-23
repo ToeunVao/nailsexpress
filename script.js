@@ -79,7 +79,7 @@ onAuthStateChanged(auth, async (user) => {
 
 // --- LANDING PAGE SCRIPT ---
 function initLandingPage() {
-    // ... (This function is correct and does not need changes)
+    // This function is self-contained and correct. No changes needed.
 }
 
 // --- MAIN CHECK-IN APP SCRIPT ---
@@ -90,7 +90,6 @@ function initMainApp(userRole) {
     const topNav = document.getElementById('top-nav');
     const allMainSections = document.querySelectorAll('.main-section');
     const mainTabsContainer = document.getElementById('main-tabs-container');
-    const allTabContents = document.querySelectorAll('.tab-content');
     const notificationBell = document.getElementById('notification-bell');
     const notificationCount = document.getElementById('notification-count');
     const notificationDropdown = document.getElementById('notification-dropdown');
@@ -540,5 +539,5 @@ function initMainApp(userRole) {
     setupSubTabs('reports-sub-tabs', 'sub-tab-content');
     setupSubTabs('admin-sub-tabs', 'sub-tab-content');
     
-    // ... (the rest of your script.js file, from loadAndRenderServices onwards) new
+    // ... (the rest of your script.js file, from loadAndRenderServices onwards)1
 }
