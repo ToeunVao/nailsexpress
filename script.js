@@ -218,6 +218,192 @@ function initMainApp(userRole) {
     confirmCancelBtn.addEventListener('click', closeConfirmModal);
     document.querySelector('.confirm-modal-overlay').addEventListener('click', closeConfirmModal);
 
+    // --- DASHBOARD LOGIC ---
+    const dashboardDateFilter = document.getElementById('dashboard-date-filter');
+
+    const updateDashboard = () => {
+        const filter = dashboardDateFilter.value;
+        const now = new Date();
+        let startDate, endDate;
+
+        // 1. Set Date Range based on filter
+        switch (filter) {
+            case 'today':
+                startDate = new Date(now.setHours(0, 0, 0, 0));
+                endDate = new Date(now.setHours(23, 59, 59, 999));
+                break;
+            case 'this_week':
+                const firstDayOfWeek = now.getDate() - now.getDay();
+                startDate = new Date(now.setDate(firstDayOfWeek));
+                startDate.setHours(0, 0, 0, 0);
+                endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + 6);
+                endDate.setHours(23, 59, 59, 999);
+                break;
+            case 'this_month':
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+                break;
+            case 'this_year':
+                startDate = new Date(now.getFullYear(), 0, 1);
+                endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+                break;
+        }
+
+        // 2. Filter Data
+        const filteredBookings = allAppointments.filter(a => {
+            const apptDate = a.appointmentTimestamp.toDate();
+            return apptDate >= startDate && apptDate <= endDate;
+        });
+        const filteredFinished = allFinishedClients.filter(f => {
+            const finDate = f.checkOutTimestamp.toDate();
+            return finDate >= startDate && finDate <= endDate;
+        });
+        const filteredEarnings = allEarnings.filter(e => {
+            const earnDate = e.date.toDate();
+            return earnDate >= startDate && earnDate <= endDate;
+        });
+
+        // 3. Update Summary Cards
+        document.getElementById('total-bookings-card').textContent = filteredBookings.length + filteredFinished.length;
+        
+        const totalRevenue = filteredEarnings.reduce((sum, e) => sum + e.earning, 0);
+        document.getElementById('total-revenue-card').textContent = `$${totalRevenue.toFixed(2)}`;
+
+        const lowStockItems = allInventory.filter(item => item.quantity <= item.lowStockAlert).length;
+        document.getElementById('low-stock-card').textContent = lowStockItems;
+
+        const techEarnings = filteredEarnings.reduce((acc, curr) => {
+            acc[curr.staffName] = (acc[curr.staffName] || 0) + curr.earning;
+            return acc;
+        }, {});
+        const topTechnician = Object.keys(techEarnings).reduce((a, b) => techEarnings[a] > techEarnings[b] ? a : b, '-');
+        document.getElementById('top-technician-card').textContent = topTechnician;
+
+        // 4. Update Charts
+        updateBookingsChart(filteredBookings.concat(filteredFinished), filter);
+        updateServicesChart(filteredFinished);
+        updateEarningsChart(techEarnings);
+    };
+
+    const initializeChart = (chartInstance, ctx, type, data, options) => {
+        if (chartInstance) {
+            chartInstance.data = data;
+            chartInstance.options = options;
+            chartInstance.update();
+        } else {
+            chartInstance = new Chart(ctx, { type, data, options });
+        }
+        return chartInstance;
+    };
+    
+    const updateBookingsChart = (data, filter) => {
+        const ctx = document.getElementById('bookings-chart').getContext('2d');
+        let labels = [];
+        let chartData = [];
+        const counts = {};
+
+        if (filter === 'today') {
+            labels = Array.from({ length: 12 }, (_, i) => `${i * 2}:00`); // 2-hour intervals
+            chartData = Array(12).fill(0);
+            data.forEach(item => {
+                const date = item.appointmentTimestamp?.toDate() || item.checkOutTimestamp?.toDate();
+                if (date) {
+                    const hour = Math.floor(date.getHours() / 2);
+                    chartData[hour]++;
+                }
+            });
+        } else if (filter === 'this_week') {
+            labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            chartData = Array(7).fill(0);
+            data.forEach(item => {
+                const date = item.appointmentTimestamp?.toDate() || item.checkOutTimestamp?.toDate();
+                if (date) {
+                    chartData[date.getDay()]++;
+                }
+            });
+        } else { // Month or Year
+            const format = filter === 'this_month' ? 'numeric' : 'short';
+            data.forEach(item => {
+                const date = item.appointmentTimestamp?.toDate() || item.checkOutTimestamp?.toDate();
+                if (date) {
+                    const key = filter === 'this_month' ? date.getDate() : date.toLocaleString('default', { month: format });
+                    counts[key] = (counts[key] || 0) + 1;
+                }
+            });
+            labels = Object.keys(counts).sort((a,b) => (filter === 'this_month' ? a-b : new Date(a + ' 1, 2000') - new Date(b + ' 1, 2000')) );
+            chartData = labels.map(label => counts[label]);
+        }
+
+        const chartConfig = {
+            labels: labels,
+            datasets: [{
+                label: 'Bookings',
+                data: chartData,
+                backgroundColor: 'rgba(219, 39, 119, 0.5)',
+                borderColor: 'rgba(219, 39, 119, 1)',
+                borderWidth: 1,
+                tension: 0.1
+            }]
+        };
+        bookingsChart = initializeChart(bookingsChart, ctx, 'line', chartConfig, { responsive: true, maintainAspectRatio: false });
+    };
+
+    const updateServicesChart = (data) => {
+        const ctx = document.getElementById('services-chart').getContext('2d');
+        const serviceCounts = data.reduce((acc, client) => {
+            const services = typeof client.services === 'string' ? client.services.split(', ') : (client.services || []);
+            services.forEach(service => {
+                const serviceName = service.split(' $')[0].replace(/Gel Polish - /g, '').trim();
+                acc[serviceName] = (acc[serviceName] || 0) + 1;
+            });
+            return acc;
+        }, {});
+
+        const sortedServices = Object.entries(serviceCounts).sort(([, a], [, b]) => b - a).slice(0, 5);
+        const labels = sortedServices.map(item => item[0]);
+        const chartData = sortedServices.map(item => item[1]);
+
+        const chartConfig = {
+            labels: labels,
+            datasets: [{
+                label: 'Top Services',
+                data: chartData,
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)', 'rgba(255, 206, 86, 0.5)',
+                    'rgba(75, 192, 192, 0.5)', 'rgba(153, 102, 255, 0.5)'
+                ],
+                borderColor: [
+                    'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)',
+                    'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)'
+                ],
+                borderWidth: 1
+            }]
+        };
+        servicesChart = initializeChart(servicesChart, ctx, 'doughnut', chartConfig, { responsive: true, maintainAspectRatio: false });
+    };
+
+    const updateEarningsChart = (techEarnings) => {
+        const ctx = document.getElementById('earnings-chart').getContext('2d');
+        const labels = Object.keys(techEarnings);
+        const chartData = Object.values(techEarnings);
+
+        const chartConfig = {
+            labels: labels,
+            datasets: [{
+                label: 'Technician Earnings',
+                data: chartData,
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        };
+        earningsChart = initializeChart(earningsChart, ctx, 'bar', chartConfig, { responsive: true, maintainAspectRatio: false, indexAxis: 'y' });
+    };
+
+    dashboardDateFilter.addEventListener('change', updateDashboard);
+    // --- END DASHBOARD LOGIC ---
+
     const loadAndRenderServices = async () => {
         const servicesSnapshot = await getDocs(collection(db, "services"));
         servicesData = {};
@@ -619,17 +805,20 @@ function initMainApp(userRole) {
         if(checkinClientList) checkinClientList.innerHTML = nameOptionsHtml;
         if(appointmentPhoneList) appointmentPhoneList.innerHTML = phoneOptionsHtml;
         if(checkinPhoneList) checkinPhoneList.innerHTML = phoneOptionsHtml;
+        updateDashboard(); // Update dashboard when finished clients data changes
     });
 
      onSnapshot(query(collection(db, "appointments"), orderBy("appointmentTimestamp", "asc")), (snapshot) => {
         allAppointments = snapshot.docs.map(doc => ({ id: doc.id, appointmentTime: doc.data().appointmentTimestamp ? new Date(doc.data().appointmentTimestamp.seconds * 1000).toLocaleString() : 'N/A', ...doc.data() }));
         renderCalendar(currentYear, currentMonth, currentTechFilterCalendar);
         renderAllBookingsList();
+        updateDashboard(); // Update dashboard when appointments data changes
     });
 
     onSnapshot(query(collection(db, "earnings"), orderBy("date", "desc")), (snapshot) => {
         allEarnings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderStaffEarnings(applyEarningFilters(allEarnings, currentEarningTechFilter, currentEarningDateFilter, currentEarningRangeFilter));
+        updateDashboard(); // Update dashboard when earnings data changes
     });
 
     onSnapshot(query(collection(db, "salon_earnings"), orderBy("date", "desc")), (snapshot) => {
@@ -1152,6 +1341,29 @@ function initMainApp(userRole) {
             productSupplierSelect.appendChild(new Option(supplier.name, supplier.name));
         });
     };
+    
+    const renderInventory = () => {
+        inventoryTableBody.innerHTML = '';
+        allInventory.forEach(product => {
+            const row = inventoryTableBody.insertRow();
+            const isLowStock = product.quantity <= product.lowStockAlert;
+            row.className = isLowStock ? 'bg-yellow-100' : 'bg-white';
+            row.innerHTML = `
+                <td class="px-6 py-4">${product.name} ${isLowStock ? '<span class="text-xs font-bold text-yellow-700 ml-2">LOW</span>' : ''}</td>
+                <td class="px-6 py-4">${product.category || ''}</td>
+                <td class="px-6 py-4">${product.supplier || ''}</td>
+                <td class="px-6 py-4 text-center">${product.quantity}</td>
+                <td class="px-6 py-4 text-right">$${product.price.toFixed(2)}</td>
+                <td class="px-6 py-4 text-right">$${(product.quantity * product.price).toFixed(2)}</td>
+                <td class="px-6 py-4 text-center space-x-2">
+                    <button data-id="${product.id}" class="edit-product-btn text-blue-500"><i class="fas fa-edit"></i></button>
+                    <button data-id="${product.id}" class="delete-product-btn text-red-500"><i class="fas fa-trash"></i></button>
+                </td>
+            `;
+        });
+        updateDashboard(); // Update dashboard when inventory changes
+    };
+
 
     onSnapshot(query(collection(db, "inventory"), orderBy("name")), (snapshot) => {
         allInventory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
