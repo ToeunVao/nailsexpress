@@ -29,6 +29,9 @@ let bookingSettings = { minBookingHours: 2 };
 let bookingsChart, servicesChart, earningsChart;
 let notifications = [];
 let currentUserRole = null;
+let initialAppointmentsLoaded = false;
+let initialInventoryLoaded = false;
+
 
 // --- Global Modal Logic ---
 const openPolicyModal = () => { policyModal.classList.add('flex'); policyModal.classList.remove('hidden'); };
@@ -94,6 +97,37 @@ function initMainApp(userRole) {
     const notificationCount = document.getElementById('notification-count');
     const notificationDropdown = document.getElementById('notification-dropdown');
 
+    // --- NOTIFICATION LOGIC ---
+    const updateNotificationDisplay = () => {
+        const unreadCount = notifications.filter(n => !n.read).length;
+        notificationCount.textContent = unreadCount;
+        notificationCount.style.display = unreadCount > 0 ? 'block' : 'none';
+
+        notificationDropdown.innerHTML = notifications.length === 0 
+            ? '<div class="p-4 text-center text-sm text-gray-500">No new notifications</div>' 
+            : '';
+        
+        [...notifications].reverse().forEach(n => {
+            const item = document.createElement('div');
+            item.className = `notification-item ${!n.read ? 'font-bold bg-pink-50' : ''}`;
+            item.innerHTML = `<p class="text-gray-800">${n.message}</p><p class="text-xs text-gray-400 mt-1">${n.timestamp.toLocaleString()}</p>`;
+            notificationDropdown.appendChild(item);
+        });
+    };
+
+    const addNotification = (type, message, itemId = null) => {
+        const newNotification = {
+            id: Date.now() + Math.random(),
+            type: type,
+            message: message,
+            timestamp: new Date(),
+            read: false,
+            itemId: itemId
+        };
+        notifications.push(newNotification);
+        updateNotificationDisplay();
+    };
+    
     // --- Initial View Setup ---
     dashboardContent.classList.remove('hidden');
     mainAppContainer.classList.add('hidden');
@@ -141,7 +175,7 @@ function initMainApp(userRole) {
     notificationBell.addEventListener('click', () => {
         notificationDropdown.classList.toggle('hidden');
         if (!notificationDropdown.classList.contains('hidden')) {
-            notifications.forEach(n => { if (n.type === 'booking') n.read = true; });
+            notifications.forEach(n => n.read = true);
             updateNotificationDisplay();
         }
     });
@@ -809,6 +843,15 @@ function initMainApp(userRole) {
     });
 
      onSnapshot(query(collection(db, "appointments"), orderBy("appointmentTimestamp", "asc")), (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === "added" && initialAppointmentsLoaded) {
+                const data = change.doc.data();
+                const apptTime = new Date(data.appointmentTimestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                addNotification('booking', `New booking for ${data.name} at ${apptTime}`);
+            }
+        });
+        initialAppointmentsLoaded = true;
+
         allAppointments = snapshot.docs.map(doc => ({ id: doc.id, appointmentTime: doc.data().appointmentTimestamp ? new Date(doc.data().appointmentTimestamp.seconds * 1000).toLocaleString() : 'N/A', ...doc.data() }));
         renderCalendar(currentYear, currentMonth, currentTechFilterCalendar);
         renderAllBookingsList();
@@ -1366,6 +1409,25 @@ function initMainApp(userRole) {
 
 
     onSnapshot(query(collection(db, "inventory"), orderBy("name")), (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if ((change.type === "added" || change.type === "modified") && initialInventoryLoaded) {
+                const product = { id: change.doc.id, ...change.doc.data() };
+                if (currentUserRole === 'admin' && product.quantity <= product.lowStockAlert) {
+                     if (!notifications.some(n => n.itemId === product.id)) {
+                        addNotification('stock', `${product.name} is low in stock (${product.quantity} left).`, product.id);
+                    }
+                } else {
+                    // Remove notification if stock is replenished
+                    const existingNotifIndex = notifications.findIndex(n => n.itemId === product.id);
+                    if (existingNotifIndex > -1) {
+                        notifications.splice(existingNotifIndex, 1);
+                        updateNotificationDisplay();
+                    }
+                }
+            }
+        });
+        initialInventoryLoaded = true;
+
         allInventory = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderInventory();
     });
