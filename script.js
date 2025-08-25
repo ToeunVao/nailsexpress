@@ -1113,11 +1113,15 @@ function initMainApp(userRole) {
         if (client) {
              try {
                 // Ensure client exists in the main 'clients' collection
-                const clientsRef = collection(db, "clients");
-                const q = query(clientsRef, where("name", "==", client.name));
-                const querySnapshot = await getDocs(q);
-                if (querySnapshot.empty) {
-                    await addDoc(clientsRef, { name: client.name, phone: client.phone || '', dob: '' });
+                const clientNameLower = client.name.toLowerCase();
+                const existingClient = allClients.find(c => c.name.toLowerCase() === clientNameLower);
+
+                if (!existingClient) {
+                    await addDoc(collection(db, "clients"), { 
+                        name: client.name, 
+                        phone: client.phone || '', 
+                        dob: '' 
+                    });
                 }
 
                 const finishedClientData = { ...client };
