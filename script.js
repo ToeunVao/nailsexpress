@@ -592,11 +592,51 @@ function initMainApp(userRole) {
         });
     };
 
-    const renderClientsList = (clients) => {
+    const renderClientsList = () => {
+        if (!allClients || !allFinishedClients) return;
+
+        const enrichedClients = allClients.map(client => {
+            const visits = allFinishedClients.filter(visit => visit.name && client.name && visit.name.toLowerCase() === client.name.toLowerCase());
+            
+            if (visits.length === 0) {
+                return { ...client, lastVisit: null, favoriteTech: 'N/A', favoriteColor: 'N/A' };
+            }
+
+            const latestVisit = visits.sort((a,b) => b.checkOutTimestamp.toMillis() - a.checkOutTimestamp.toMillis())[0];
+            
+            const techCounts = visits.reduce((acc, visit) => {
+                if(visit.technician) acc[visit.technician] = (acc[visit.technician] || 0) + 1;
+                return acc;
+            }, {});
+
+            const colorCounts = visits.reduce((acc, visit) => {
+                if(visit.colorCode) acc[visit.colorCode] = (acc[visit.colorCode] || 0) + 1;
+                return acc;
+            }, {});
+
+            const findFavorite = (counts) => Object.keys(counts).length > 0 ? Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b) : 'N/A';
+
+            return {
+                ...client,
+                lastVisit: latestVisit.checkOutTimestamp.toMillis(),
+                favoriteTech: findFavorite(techCounts),
+                favoriteColor: findFavorite(colorCounts)
+            };
+        });
+        
+        aggregatedClients = enrichedClients;
+        const searchTerm = document.getElementById('search-clients-list').value.toLowerCase();
+        const filteredClients = aggregatedClients.filter(c => c.name.toLowerCase().includes(searchTerm));
+
         const tbody = document.querySelector('#clients-list-table tbody');
         if (!tbody) return;
-        tbody.innerHTML = clients.length === 0 ? `<tr><td colspan="7" class="py-6 text-center text-gray-400">No client history found.</td></tr>` : '';
-        clients.forEach(client => {
+        tbody.innerHTML = '';
+        if (filteredClients.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-400">No clients found.</td></tr>`;
+            return;
+        }
+
+        filteredClients.forEach(client => {
             const row = tbody.insertRow();
             row.className = 'bg-white border-b';
             row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900">${client.name}</td>
@@ -863,6 +903,14 @@ function initMainApp(userRole) {
         const client = allActiveClients.find(c => c.id === clientId);
         if (client) {
              try {
+                // Ensure client exists in the main 'clients' collection
+                const clientsRef = collection(db, "clients");
+                const q = query(clientsRef, where("name", "==", client.name));
+                const querySnapshot = await getDocs(q);
+                if (querySnapshot.empty) {
+                    await addDoc(clientsRef, { name: client.name, phone: client.phone || '', dob: '' });
+                }
+
                 const finishedClientData = { ...client };
                 delete finishedClientData.id;
                 finishedClientData.checkOutTimestamp = serverTimestamp();
@@ -906,6 +954,7 @@ function initMainApp(userRole) {
         finishedCountSpan.textContent = allFinishedClients.length;
         
         renderFinishedClients(applyClientFilters(allFinishedClients, document.getElementById('search-finished').value.toLowerCase(), currentTechFilterFinished, currentFinishedDateFilter));
+        renderClientsList();
         
         const clientList = document.getElementById('client-names-list'), checkinClientList = document.getElementById('checkin-client-names');
         const appointmentPhoneList = document.getElementById('appointment-client-phones'), checkinPhoneList = document.getElementById('checkin-client-phones');
@@ -957,41 +1006,14 @@ function initMainApp(userRole) {
     // --- CLIENTS LIST LOGIC ---
     onSnapshot(query(collection(db, "clients"), orderBy("name")), (snapshot) => {
         allClients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        // Combine client data with visit history
-        const enrichedClients = allClients.map(client => {
-            const visits = allFinishedClients.filter(visit => visit.name.toLowerCase() === client.name.toLowerCase());
-            if (visits.length === 0) {
-                return client;
-            }
-            const latestVisit = visits.sort((a,b) => b.checkOutTimestamp.toMillis() - a.checkOutTimestamp.toMillis())[0];
-            const techCounts = visits.reduce((acc, visit) => {
-                if(visit.technician) acc[visit.technician] = (acc[visit.technician] || 0) + 1;
-                return acc;
-            }, {});
-            const colorCounts = visits.reduce((acc, visit) => {
-                if(visit.colorCode) acc[visit.colorCode] = (acc[visit.colorCode] || 0) + 1;
-                return acc;
-            }, {});
-
-            const findFavorite = (counts) => Object.keys(counts).length > 0 ? Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b) : 'N/A';
-
-            return {
-                ...client,
-                lastVisit: latestVisit.checkOutTimestamp.toMillis(),
-                favoriteTech: findFavorite(techCounts),
-                favoriteColor: findFavorite(colorCounts)
-            };
-        });
-        aggregatedClients = enrichedClients;
-        renderClientsList(aggregatedClients);
+        renderClientsList();
     });
 
     document.getElementById('search-active').addEventListener('input', (e) => { renderActiveClients(applyClientFilters(allActiveClients.filter(c => c.status === 'waiting'), e.target.value.toLowerCase(), currentTechFilterActive, null)); });
     document.getElementById('search-processing').addEventListener('input', (e) => { renderProcessingClients(applyClientFilters(allActiveClients.filter(c => c.status === 'processing'), e.target.value.toLowerCase(), currentTechFilterProcessing, null)); });
     document.getElementById('search-finished').addEventListener('input', (e) => { renderFinishedClients(applyClientFilters(allFinishedClients, e.target.value.toLowerCase(), currentTechFilterFinished, currentFinishedDateFilter)); });
     document.getElementById('finished-date-filter').addEventListener('input', (e) => { currentFinishedDateFilter = e.target.value; renderFinishedClients(applyClientFilters(allFinishedClients, document.getElementById('search-finished').value.toLowerCase(), currentTechFilterFinished, currentFinishedDateFilter)); });
-    document.getElementById('search-clients-list').addEventListener('input', (e) => { renderClientsList(aggregatedClients.filter(c => c.name.toLowerCase().includes(e.target.value.toLowerCase()))); });
+    document.getElementById('search-clients-list').addEventListener('input', () => renderClientsList());
     
     document.getElementById('export-clients-btn').addEventListener('click', () => {
         const dataToExport = aggregatedClients.map(c => ({
