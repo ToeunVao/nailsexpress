@@ -205,8 +205,8 @@ function initMainApp(userRole) {
     const editEarningForm = document.getElementById('edit-earning-form');
     const editSalonEarningModal = document.getElementById('edit-salon-earning-modal');
     const editSalonEarningForm = document.getElementById('edit-salon-earning-form');
-    const editClientModal = document.getElementById('edit-client-modal');
-    const editClientForm = document.getElementById('edit-client-form');
+    const clientFormModal = document.getElementById('client-form-modal');
+    const clientForm = document.getElementById('client-form');
     const geminiSmsModal = document.getElementById('gemini-sms-modal');
     const confirmModal = document.getElementById('confirm-modal');
     const confirmModalMessage = document.getElementById('confirm-modal-message');
@@ -234,7 +234,7 @@ function initMainApp(userRole) {
     let currentFinishedDateFilter = '', currentEarningTechFilter = 'All', currentEarningDateFilter = '', currentEarningRangeFilter = 'daily';
     let currentSalonEarningDateFilter = '', currentSalonEarningRangeFilter = String(new Date().getMonth()), currentExpenseMonthFilter = '';
 
-    let allActiveClients = [], allFinishedClients = [], allAppointments = [], aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [];
+    let allActiveClients = [], allFinishedClients = [], allAppointments = [], allClients = [], aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [];
     let servicesData = {}, techniciansAndStaff = [], technicians = [];
     let allExpenseCategories = [], allPaymentAccounts = [], allSuppliers = [];
 
@@ -595,11 +595,21 @@ function initMainApp(userRole) {
     const renderClientsList = (clients) => {
         const tbody = document.querySelector('#clients-list-table tbody');
         if (!tbody) return;
-        tbody.innerHTML = clients.length === 0 ? `<tr><td colspan="6" class="py-6 text-center text-gray-400">No client history found.</td></tr>` : '';
+        tbody.innerHTML = clients.length === 0 ? `<tr><td colspan="7" class="py-6 text-center text-gray-400">No client history found.</td></tr>` : '';
         clients.forEach(client => {
             const row = tbody.insertRow();
             row.className = 'bg-white border-b';
-            row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900">${client.name}</td><td class="px-6 py-4">${client.phone}</td><td class="px-6 py-4">${client.favoriteTech}</td><td class="px-6 py-4">${client.favoriteColor}</td><td class="px-6 py-4">${new Date(client.lastVisit).toLocaleDateString()}</td><td class="px-6 py-4 text-center space-x-2"><button data-name="${client.name}" class="text-purple-500 hover:text-purple-700 draft-sms-btn" title="Draft SMS with Gemini"><i class="fas fa-sms text-lg"></i></button><button data-name="${client.name}" class="text-blue-500 hover:text-blue-700 edit-client-btn" title="Edit Client"><i class="fas fa-edit text-lg"></i></button><button data-name="${client.name}" class="text-red-500 hover:text-red-700 delete-client-btn" title="Delete Client"><i class="fas fa-trash-alt text-lg"></i></button></td>`;
+            row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900">${client.name}</td>
+                             <td class="px-6 py-4">${client.phone || 'N/A'}</td>
+                             <td class="px-6 py-4">${client.dob || 'N/A'}</td>
+                             <td class="px-6 py-4">${client.favoriteTech || 'N/A'}</td>
+                             <td class="px-6 py-4">${client.favoriteColor || 'N/A'}</td>
+                             <td class="px-6 py-4">${client.lastVisit ? new Date(client.lastVisit).toLocaleDateString() : 'N/A'}</td>
+                             <td class="px-6 py-4 text-center space-x-2">
+                                <button data-id="${client.id}" class="text-purple-500 hover:text-purple-700 draft-sms-btn" title="Draft SMS with Gemini"><i class="fas fa-sms text-lg"></i></button>
+                                <button data-id="${client.id}" class="text-blue-500 hover:text-blue-700 edit-client-btn" title="Edit Client"><i class="fas fa-edit text-lg"></i></button>
+                                <button data-id="${client.id}" class="text-red-500 hover:text-red-700 delete-client-btn" title="Delete Client"><i class="fas fa-trash-alt text-lg"></i></button>
+                             </td>`;
         });
     };
 
@@ -894,22 +904,9 @@ function initMainApp(userRole) {
     onSnapshot(query(collection(db, "finished_clients"), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
         allFinishedClients = snapshot.docs.map(doc => ({ id: doc.id, checkInTime: doc.data().checkInTimestamp ? new Date(doc.data().checkInTimestamp.seconds * 1000).toLocaleString() : 'N/A', checkOutTimestamp: doc.data().checkOutTimestamp, services: (doc.data().services || []).join(', '), ...doc.data() }));
         finishedCountSpan.textContent = allFinishedClients.length;
-        const clientsMap = new Map();
-        allFinishedClients.forEach(client => {
-            const clientKey = client.name.toLowerCase();
-            if (!clientsMap.has(clientKey)) { clientsMap.set(clientKey, { name: client.name, phone: client.phone, lastVisit: client.checkOutTimestamp.toMillis(), techCounts: {}, colorCounts: {} }); }
-            const existingClient = clientsMap.get(clientKey);
-            if (client.checkOutTimestamp.toMillis() > existingClient.lastVisit) { existingClient.lastVisit = client.checkOutTimestamp.toMillis(); }
-            if (client.technician) { existingClient.techCounts[client.technician] = (existingClient.techCounts[client.technician] || 0) + 1; }
-            if (client.colorCode) { existingClient.colorCounts[client.colorCode] = (existingClient.colorCounts[client.colorCode] || 0) + 1; }
-        });
-        aggregatedClients = Array.from(clientsMap.values()).map(client => {
-            const findFavorite = (counts) => Object.keys(counts).length > 0 ? Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b) : 'N/A';
-            return { ...client, favoriteTech: findFavorite(client.techCounts), favoriteColor: findFavorite(client.colorCounts) };
-        });
-        clientsListCountSpan.textContent = aggregatedClients.length;
+        
         renderFinishedClients(applyClientFilters(allFinishedClients, document.getElementById('search-finished').value.toLowerCase(), currentTechFilterFinished, currentFinishedDateFilter));
-        renderClientsList(aggregatedClients);
+        
         const clientList = document.getElementById('client-names-list'), checkinClientList = document.getElementById('checkin-client-names');
         const appointmentPhoneList = document.getElementById('appointment-client-phones'), checkinPhoneList = document.getElementById('checkin-client-phones');
         const uniqueNames = [...new Set(allFinishedClients.map(c => c.name))];
@@ -920,6 +917,7 @@ function initMainApp(userRole) {
         if(checkinClientList) checkinClientList.innerHTML = nameOptionsHtml;
         if(appointmentPhoneList) appointmentPhoneList.innerHTML = phoneOptionsHtml;
         if(checkinPhoneList) checkinPhoneList.innerHTML = phoneOptionsHtml;
+        
         updateDashboard(); // Update dashboard when finished clients data changes
     });
 
@@ -956,6 +954,39 @@ function initMainApp(userRole) {
         renderExpenses();
     });
 
+    // --- CLIENTS LIST LOGIC ---
+    onSnapshot(query(collection(db, "clients"), orderBy("name")), (snapshot) => {
+        allClients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Combine client data with visit history
+        const enrichedClients = allClients.map(client => {
+            const visits = allFinishedClients.filter(visit => visit.name.toLowerCase() === client.name.toLowerCase());
+            if (visits.length === 0) {
+                return client;
+            }
+            const latestVisit = visits.sort((a,b) => b.checkOutTimestamp.toMillis() - a.checkOutTimestamp.toMillis())[0];
+            const techCounts = visits.reduce((acc, visit) => {
+                if(visit.technician) acc[visit.technician] = (acc[visit.technician] || 0) + 1;
+                return acc;
+            }, {});
+            const colorCounts = visits.reduce((acc, visit) => {
+                if(visit.colorCode) acc[visit.colorCode] = (acc[visit.colorCode] || 0) + 1;
+                return acc;
+            }, {});
+
+            const findFavorite = (counts) => Object.keys(counts).length > 0 ? Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b) : 'N/A';
+
+            return {
+                ...client,
+                lastVisit: latestVisit.checkOutTimestamp.toMillis(),
+                favoriteTech: findFavorite(techCounts),
+                favoriteColor: findFavorite(colorCounts)
+            };
+        });
+        aggregatedClients = enrichedClients;
+        renderClientsList(aggregatedClients);
+    });
+
     document.getElementById('search-active').addEventListener('input', (e) => { renderActiveClients(applyClientFilters(allActiveClients.filter(c => c.status === 'waiting'), e.target.value.toLowerCase(), currentTechFilterActive, null)); });
     document.getElementById('search-processing').addEventListener('input', (e) => { renderProcessingClients(applyClientFilters(allActiveClients.filter(c => c.status === 'processing'), e.target.value.toLowerCase(), currentTechFilterProcessing, null)); });
     document.getElementById('search-finished').addEventListener('input', (e) => { renderFinishedClients(applyClientFilters(allFinishedClients, e.target.value.toLowerCase(), currentTechFilterFinished, currentFinishedDateFilter)); });
@@ -963,15 +994,18 @@ function initMainApp(userRole) {
     document.getElementById('search-clients-list').addEventListener('input', (e) => { renderClientsList(aggregatedClients.filter(c => c.name.toLowerCase().includes(e.target.value.toLowerCase()))); });
     
     document.getElementById('export-clients-btn').addEventListener('click', () => {
-        let csvContent = "data:text/csv;charset=utf-8,Name,Phone,Favorite Tech,Favorite Color,Last Visit\r\n";
-        aggregatedClients.forEach(client => { csvContent += [client.name, client.phone, client.favoriteTech, client.favoriteColor, new Date(client.lastVisit).toLocaleDateString()].join(",") + "\r\n"; });
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "clients_list.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const dataToExport = aggregatedClients.map(c => ({
+            Name: c.name,
+            Phone: c.phone || '',
+            DOB: c.dob || '',
+            'Favorite Tech': c.favoriteTech || '',
+            'Favorite Color': c.favoriteColor || '',
+            'Last Visit': c.lastVisit ? new Date(c.lastVisit).toLocaleDateString() : ''
+        }));
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Clients");
+        XLSX.writeFile(workbook, "clients_list.xlsx");
     });
 
     document.getElementById('full-name').addEventListener('input', (e) => { const client = allFinishedClients.find(c => c.name === e.target.value); if (client) { document.getElementById('phone-number').value = client.phone; } });
@@ -1306,48 +1340,31 @@ function initMainApp(userRole) {
         const editBtn = e.target.closest('.edit-client-btn');
         const deleteBtn = e.target.closest('.delete-client-btn');
         if (draftSmsBtn) {
-            const client = aggregatedClients.find(c => c.name === draftSmsBtn.dataset.name);
+            const client = aggregatedClients.find(c => c.id === draftSmsBtn.dataset.id);
             if (client) {
-                const lastFinishedClient = allFinishedClients.filter(c => c.name === client.name).sort((a,b) => b.checkOutTimestamp.toMillis() - a.checkOutTimestamp.toMillis())[0];
+                const lastFinishedClient = allFinishedClients.filter(c => c.name.toLowerCase() === client.name.toLowerCase()).sort((a,b) => b.checkOutTimestamp.toMillis() - a.checkOutTimestamp.toMillis())[0];
                 if (lastFinishedClient) { generateSmsMessage(lastFinishedClient); } 
-                else { alert("No recent service record found."); }
+                else { alert("No recent service record found to generate message."); }
             }
         } else if (editBtn) {
-            const client = aggregatedClients.find(c => c.name === editBtn.dataset.name);
+            const client = aggregatedClients.find(c => c.id === editBtn.dataset.id);
             if(client) {
-                document.getElementById('edit-client-original-name').value = client.name;
-                document.getElementById('edit-client-name').value = client.name;
-                document.getElementById('edit-client-phone').value = client.phone;
-                editClientModal.classList.remove('hidden'); editClientModal.classList.add('flex');
+                openClientModal(client);
             }
         } else if (deleteBtn) {
-            const clientName = deleteBtn.dataset.name;
-            showConfirmModal(`Delete all records for ${clientName}?`, () => {
-               const clientsToDelete = allFinishedClients.filter(c => c.name === clientName);
-               if (clientsToDelete.length > 0) {
-                    const batch = writeBatch(db);
-                    clientsToDelete.forEach(c => { batch.delete(doc(db, "finished_clients", c.id)); });
-                    batch.commit().catch(err => { console.error("Error deleting client records:", err); alert("Could not delete client records."); });
-               }
-            });
+            const clientId = deleteBtn.dataset.id;
+            const client = aggregatedClients.find(c => c.id === clientId);
+            if (client) {
+                showConfirmModal(`Delete all records for ${client.name}? This cannot be undone.`, async () => {
+                   await deleteDoc(doc(db, "clients", clientId));
+                   // Optional: clean up finished_clients as well, though it might be better to keep history
+                });
+            }
         }
     });
 
     document.getElementById('gemini-sms-close-btn').addEventListener('click', () => { geminiSmsModal.classList.add('hidden'); geminiSmsModal.classList.remove('flex'); });
     document.querySelector('.gemini-sms-modal-overlay').addEventListener('click', () => { geminiSmsModal.classList.add('hidden'); geminiSmsModal.classList.remove('flex'); });
-    document.getElementById('edit-client-cancel-btn').addEventListener('click', () => { editClientModal.classList.add('hidden'); editClientModal.classList.remove('flex'); });
-    document.querySelector('.edit-client-modal-overlay').addEventListener('click', () => { editClientModal.classList.add('hidden'); editClientModal.classList.remove('flex'); });
-
-    editClientForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const originalName = document.getElementById('edit-client-original-name').value;
-        const newName = document.getElementById('edit-client-name').value;
-        const newPhone = document.getElementById('edit-client-phone').value;
-        const batch = writeBatch(db);
-        allFinishedClients.filter(c => c.name === originalName).forEach(c => { batch.update(doc(db, "finished_clients", c.id), { name: newName, phone: newPhone }); });
-        await batch.commit();
-        editClientModal.classList.add('hidden'); editClientModal.classList.remove('flex');
-    });
     
     document.getElementById('floating-booking-btn').addEventListener('click', () => { openAddAppointmentModal(getLocalDateString()); });
 
@@ -1778,6 +1795,105 @@ function initMainApp(userRole) {
         await updateDoc(doc(db, "services", category), { items: updatedItems });
         addServiceForm.reset(); editServiceSection.classList.add('hidden');
     });
+
+    // --- CLIENT FORM MODAL LOGIC ---
+    const openClientModal = (client = null) => {
+        clientForm.reset();
+        const modalTitle = document.getElementById('client-form-title');
+        if (client) {
+            modalTitle.textContent = 'Edit Client Information';
+            document.getElementById('edit-client-id').value = client.id;
+            document.getElementById('client-form-name').value = client.name;
+            document.getElementById('client-form-phone').value = client.phone || '';
+            document.getElementById('client-form-dob').value = client.dob || '';
+        } else {
+            modalTitle.textContent = 'Create New Client';
+            document.getElementById('edit-client-id').value = '';
+        }
+        clientFormModal.classList.remove('hidden');
+        clientFormModal.classList.add('flex');
+    };
+
+    const closeClientModal = () => {
+        clientFormModal.classList.add('hidden');
+        clientFormModal.classList.remove('flex');
+    };
+
+    document.getElementById('create-new-client-btn').addEventListener('click', () => openClientModal());
+    document.getElementById('client-form-cancel-btn').addEventListener('click', closeClientModal);
+    document.querySelector('.client-form-modal-overlay').addEventListener('click', closeClientModal);
+
+    clientForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const clientId = document.getElementById('edit-client-id').value;
+        const clientData = {
+            name: document.getElementById('client-form-name').value,
+            phone: document.getElementById('client-form-phone').value,
+            dob: document.getElementById('client-form-dob').value,
+        };
+
+        if (!clientData.name) {
+            alert('Client name is required.');
+            return;
+        }
+
+        try {
+            if (clientId) {
+                await updateDoc(doc(db, "clients", clientId), clientData);
+            } else {
+                await addDoc(collection(db, "clients"), clientData);
+            }
+            closeClientModal();
+        } catch (error) {
+            console.error("Error saving client:", error);
+            alert("Could not save client data.");
+        }
+    });
+
+    // --- CLIENT IMPORT LOGIC ---
+    const importClientsBtn = document.getElementById('import-clients-btn');
+    const importClientsInput = document.getElementById('import-clients-input');
+
+    importClientsBtn.addEventListener('click', () => importClientsInput.click());
+
+    importClientsInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const data = new Uint8Array(event.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const clientsToImport = XLSX.utils.sheet_to_json(firstSheet);
+
+            if (clientsToImport.length === 0) {
+                alert('No clients found in the file.');
+                return;
+            }
+
+            const batch = writeBatch(db);
+            clientsToImport.forEach(client => {
+                const newClientRef = doc(collection(db, "clients"));
+                batch.set(newClientRef, {
+                    name: client.Name || 'N/A',
+                    phone: client.Phone || '',
+                    dob: client.DOB || ''
+                });
+            });
+
+            try {
+                await batch.commit();
+                alert(`${clientsToImport.length} clients imported successfully!`);
+            } catch (error) {
+                console.error("Error importing clients: ", error);
+                alert("An error occurred during import.");
+            }
+        };
+        reader.readAsArrayBuffer(file);
+        e.target.value = ''; // Reset file input
+    });
+
 
     // --- INITIALIZATION ---
     loadAndRenderServices();
