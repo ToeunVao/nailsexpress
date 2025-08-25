@@ -129,3 +129,9 @@ body { font-family: 'Poppins', sans-serif; background-color: #FEFBF9; }
             background-color: #d63384;
             color: white;
         }
+
+        /* New styles for scrollable modals */
+        .modal {
+            overflow-y: auto; /* Enable vertical scrolling for the modal container */
+            padding: 2rem 1rem; /* Add padding for small screens to prevent touching edges */
+        }
