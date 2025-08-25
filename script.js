@@ -82,7 +82,171 @@ onAuthStateChanged(auth, async (user) => {
 
 // --- LANDING PAGE SCRIPT ---
 function initLandingPage() {
-    // This function is self-contained and correct. No changes needed.
+    const loginModal = document.getElementById('login-modal');
+    const userIcon = document.getElementById('user-icon');
+    const closeLoginModalBtn = document.getElementById('close-login-modal-btn');
+    const landingLoginForm = document.getElementById('landing-login-form');
+    const addAppointmentFormLanding = document.getElementById('add-appointment-form-landing');
+
+    // Modal handling
+    const openLoginModal = () => { loginModal.classList.remove('hidden'); loginModal.classList.add('flex'); };
+    const closeLoginModal = () => { loginModal.classList.add('hidden'); loginModal.classList.remove('flex'); };
+    userIcon.addEventListener('click', openLoginModal);
+    closeLoginModalBtn.addEventListener('click', closeLoginModal);
+    loginModal.querySelector('.modal-overlay').addEventListener('click', closeLoginModal);
+
+    // Login form submission
+    landingLoginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('landing-email').value;
+        const password = document.getElementById('landing-password').value;
+        const loginBtn = document.getElementById('landing-login-btn');
+        const btnText = loginBtn.querySelector('.btn-text');
+        const spinner = loginBtn.querySelector('i');
+
+        btnText.textContent = 'Logging In...';
+        spinner.classList.remove('hidden');
+
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            // onAuthStateChanged will handle the redirect
+        } catch (error) {
+            alert(`Login Failed: ${error.message}`);
+            btnText.textContent = 'Log In';
+            spinner.classList.add('hidden');
+        }
+    });
+
+    // Populate booking form dropdowns
+    const peopleSelect = document.getElementById('appointment-people-landing');
+    for (let i = 1; i <= 20; i++) {
+        peopleSelect.appendChild(new Option(i, i));
+    }
+
+    const technicianSelect = document.getElementById('appointment-technician-select-landing');
+    onSnapshot(collection(db, "users"), (snapshot) => {
+        const users = snapshot.docs.map(doc => doc.data());
+        const technicians = users.filter(user => user.role === 'technician');
+        technicianSelect.innerHTML = '<option>Any Technician</option>';
+        technicians.forEach(tech => {
+            technicianSelect.appendChild(new Option(tech.name, tech.name));
+        });
+    });
+    
+    // Booking form multi-step logic
+    const step1 = document.getElementById('booking-step-1');
+    const step2 = document.getElementById('booking-step-2');
+    document.getElementById('booking-next-btn').addEventListener('click', () => {
+        step1.classList.add('hidden');
+        step2.classList.remove('hidden');
+    });
+    document.getElementById('booking-prev-btn').addEventListener('click', () => {
+        step2.classList.add('hidden');
+        step1.classList.remove('hidden');
+    });
+
+    // Load and render services for booking form
+    const servicesContainerLanding = document.getElementById('services-container-landing');
+    const hiddenCheckboxContainerLanding = document.getElementById('hidden-checkbox-container-landing');
+    let landingServicesData = {};
+    
+    getDocs(collection(db, "services")).then(servicesSnapshot => {
+        landingServicesData = {};
+        servicesSnapshot.forEach(doc => { landingServicesData[doc.id] = doc.data().items; });
+        
+        servicesContainerLanding.innerHTML = '';
+        hiddenCheckboxContainerLanding.innerHTML = '';
+        Object.keys(landingServicesData).forEach(category => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'category-button p-4 border border-gray-200 rounded-lg text-left bg-white hover:border-pink-300 hover:bg-pink-50 transition-all duration-200 shadow-sm';
+            btn.dataset.category = category;
+            btn.innerHTML = `<h3 class="text-lg font-bold text-pink-700">${category}</h3><span class="text-sm text-gray-500 mt-1 block">Click to select</span><span class="selection-count hidden mt-2 bg-pink-600 text-white text-xs font-bold px-2 py-1 rounded-full"></span>`;
+            servicesContainerLanding.appendChild(btn);
+            landingServicesData[category].forEach(service => {
+                const val = `${service.p || ''}${service.name}${service.price ? ' ' + service.price : ''}`;
+                const cb = document.createElement('input');
+                cb.type = 'checkbox'; cb.name = 'service-landing'; cb.value = val; cb.dataset.category = category;
+                hiddenCheckboxContainerLanding.appendChild(cb);
+            });
+        });
+    });
+
+    // Service selection modal for landing page
+    const serviceModalLanding = document.getElementById('landing-booking-service-modal');
+    const serviceModalContentLanding = document.getElementById('landing-booking-service-modal-content');
+    
+    servicesContainerLanding.addEventListener('click', (e) => {
+        const btn = e.target.closest('.category-button');
+        if (btn) {
+            const category = btn.dataset.category;
+            document.getElementById('landing-booking-modal-title').textContent = category;
+            serviceModalContentLanding.innerHTML = '';
+            landingServicesData[category].forEach(service => {
+                const val = `${service.p || ''}${service.name}${service.price ? ' ' + service.price : ''}`;
+                const sourceCb = hiddenCheckboxContainerLanding.querySelector(`input[value="${val}"]`);
+                const label = document.createElement('label');
+                label.className = 'flex items-center p-3 hover:bg-pink-50 cursor-pointer rounded-lg';
+                label.innerHTML = `<input type="checkbox" class="form-checkbox modal-checkbox-landing" value="${val}" ${sourceCb && sourceCb.checked ? 'checked' : ''}><span class="ml-3 text-gray-700 flex-grow">${service.name}</span>${service.price ? `<span class="font-semibold">${service.price}</span>` : ''}`;
+                serviceModalContentLanding.appendChild(label);
+            });
+            serviceModalLanding.classList.remove('hidden');
+            serviceModalLanding.classList.add('flex');
+        }
+    });
+
+    document.getElementById('landing-booking-service-modal-done-btn').addEventListener('click', () => {
+        serviceModalContentLanding.querySelectorAll('.modal-checkbox-landing').forEach(modalCb => {
+            const sourceCb = hiddenCheckboxContainerLanding.querySelector(`input[value="${modalCb.value}"]`);
+            if (sourceCb) sourceCb.checked = modalCb.checked;
+        });
+        serviceModalLanding.classList.add('hidden');
+        serviceModalLanding.classList.remove('flex');
+        
+        document.querySelectorAll('#services-container-landing .category-button').forEach(button => {
+            const cat = button.dataset.category;
+            const count = hiddenCheckboxContainerLanding.querySelectorAll(`input[data-category="${cat}"]:checked`).length;
+            const badge = button.querySelector('.selection-count');
+            if (count > 0) {
+                badge.textContent = `${count} selected`;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        });
+    });
+
+    // Final booking submission on landing page
+    addAppointmentFormLanding.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const services = Array.from(document.querySelectorAll('input[name="service-landing"]:checked')).map(el => el.value);
+        if (services.length === 0) {
+            alert('Please select at least one service.');
+            return;
+        }
+
+        const appointmentData = {
+            name: document.getElementById('appointment-client-name-landing').value,
+            phone: document.getElementById('appointment-phone-landing').value,
+            people: document.getElementById('appointment-people-landing').value,
+            technician: document.getElementById('appointment-technician-select-landing').value,
+            appointmentTimestamp: Timestamp.fromDate(new Date(document.getElementById('appointment-datetime-landing').value)),
+            notes: document.getElementById('appointment-notes-landing').value,
+            services: services,
+            bookingType: 'Online'
+        };
+
+        try {
+            await addDoc(collection(db, "appointments"), appointmentData);
+            alert('Appointment booked successfully!');
+            addAppointmentFormLanding.reset();
+            step2.classList.add('hidden');
+            step1.classList.remove('hidden');
+        } catch (error) {
+            console.error("Error booking appointment:", error);
+            alert("Could not book appointment. Please try again.");
+        }
+    });
 }
 
 // --- MAIN CHECK-IN APP SCRIPT ---
@@ -691,7 +855,7 @@ function initMainApp(userRole) {
                              <td class="px-6 py-4">${client.favoriteColor || 'N/A'}</td>
                              <td class="px-6 py-4">${client.lastVisit ? new Date(client.lastVisit).toLocaleDateString() : 'N/A'}</td>
                              <td class="px-6 py-4 text-center space-x-2">
-                                <button data-id="${client.id}" class="text-purple-500 hover:text-purple-700 draft-sms-btn" title="Draft SMS with Gemini"><i class="fas fa-sms text-lg"></i></button>
+                                <button data-id="${client.id}" data-name="${client.name}" class="text-purple-500 hover:text-purple-700 draft-sms-btn" title="Draft SMS with Gemini"><i class="fas fa-sms text-lg"></i></button>
                                 <button data-id="${client.id}" class="text-blue-500 hover:text-blue-700 edit-client-btn" title="Edit Client"><i class="fas fa-edit text-lg"></i></button>
                                 <button data-id="${client.id}" class="text-red-500 hover:text-red-700 delete-client-btn" title="Delete Client"><i class="fas fa-trash-alt text-lg"></i></button>
                              </td>`;
@@ -1342,7 +1506,7 @@ function initMainApp(userRole) {
         e.preventDefault();
         const earningId = document.getElementById('edit-salon-earning-id').value;
         if (!earningId) return;
-        const updatedData = { date: Timestamp.fromDate(new Date(document.getElementById('edit-salon-earning-date').value + 'T12:00:00')), sellGiftCard: parseFloat(document.getElementById('edit-sell-gift-card').value) || 0, returnGiftCard: parseFloat(document.getElementById('edit-return-gift-card').value) || 0, check: parseFloat(document.getElementById('edit-check-payment').value) || 0, noOfCredit: parseInt(document.getElementById('edit-no-of-credit').value) || 0, totalCredit: parseFloat(document.getElementById('edit-total-credit').value) || 0, venmo: parseFloat(document.getElementById('edit-venmo-payment').value) || 0, square: parseFloat(document.getElementById('edit-square-payment').value) || 0 };
+        const updatedData = { date: Timestamp.fromDate(new Date(document.getElementById('edit-salon-earning-date').value + 'T12:00:00')), sellGiftCard: parseFloat(document.getElementById('edit-sell-gift-card').value) || 0, returnGiftCard: parseFloat(document.getElementById('edit-return-gift-card').value) || 0, check: parseFloat(document.getElementById('check-payment').value) || 0, noOfCredit: parseInt(document.getElementById('edit-no-of-credit').value) || 0, totalCredit: parseFloat(document.getElementById('edit-total-credit').value) || 0, venmo: parseFloat(document.getElementById('edit-venmo-payment').value) || 0, square: parseFloat(document.getElementById('edit-square-payment').value) || 0 };
         techniciansAndStaff.forEach(tech => { const input = document.getElementById(`edit-${tech.name.toLowerCase()}-earning`); if(input) { updatedData[tech.name.toLowerCase()] = parseFloat(input.value) || 0; } });
         try {
             await updateDoc(doc(db, "salon_earnings", earningId), updatedData);
@@ -1407,7 +1571,8 @@ function initMainApp(userRole) {
         const editBtn = e.target.closest('.edit-client-btn');
         const deleteBtn = e.target.closest('.delete-client-btn');
         if (draftSmsBtn) {
-            const client = aggregatedClients.find(c => c.id === draftSmsBtn.dataset.id);
+            const clientName = draftSmsBtn.dataset.name;
+            const client = aggregatedClients.find(c => c.name === clientName);
             if (client) {
                 const lastFinishedClient = allFinishedClients.filter(c => c.name.toLowerCase() === client.name.toLowerCase()).sort((a,b) => b.checkOutTimestamp.toMillis() - a.checkOutTimestamp.toMillis())[0];
                 if (lastFinishedClient) { generateSmsMessage(lastFinishedClient); } 
