@@ -593,41 +593,86 @@ function initMainApp(userRole) {
     };
 
     const renderClientsList = () => {
-        if (!allClients || !allFinishedClients) return;
-
-        const enrichedClients = allClients.map(client => {
-            const visits = allFinishedClients.filter(visit => visit.name && client.name && visit.name.toLowerCase() === client.name.toLowerCase());
+        if (!allFinishedClients || !allClients) {
+            const tbody = document.querySelector('#clients-list-table tbody');
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-400">Loading client data...</td></tr>`;
+            return;
+        }
+    
+        const clientsMap = new Map();
+    
+        // 1. Aggregate data from service history (finished_clients)
+        allFinishedClients.forEach(visit => {
+            if (!visit.name) return;
+            const clientKey = visit.name.toLowerCase();
             
-            if (visits.length === 0) {
-                return { ...client, lastVisit: null, favoriteTech: 'N/A', favoriteColor: 'N/A' };
+            if (!clientsMap.has(clientKey)) {
+                clientsMap.set(clientKey, {
+                    name: visit.name,
+                    phone: visit.phone || '',
+                    lastVisit: visit.checkOutTimestamp.toMillis(),
+                    techCounts: {},
+                    colorCounts: {}
+                });
             }
-
-            const latestVisit = visits.sort((a,b) => b.checkOutTimestamp.toMillis() - a.checkOutTimestamp.toMillis())[0];
-            
-            const techCounts = visits.reduce((acc, visit) => {
-                if(visit.technician) acc[visit.technician] = (acc[visit.technician] || 0) + 1;
-                return acc;
-            }, {});
-
-            const colorCounts = visits.reduce((acc, visit) => {
-                if(visit.colorCode) acc[visit.colorCode] = (acc[visit.colorCode] || 0) + 1;
-                return acc;
-            }, {});
-
+    
+            const clientData = clientsMap.get(clientKey);
+    
+            if (visit.checkOutTimestamp.toMillis() > clientData.lastVisit) {
+                clientData.lastVisit = visit.checkOutTimestamp.toMillis();
+                clientData.phone = visit.phone || clientData.phone;
+            }
+    
+            if (visit.technician) {
+                clientData.techCounts[visit.technician] = (clientData.techCounts[visit.technician] || 0) + 1;
+            }
+            if (visit.colorCode) {
+                clientData.colorCounts[visit.colorCode] = (clientData.colorCounts[visit.colorCode] || 0) + 1;
+            }
+        });
+    
+        // 2. Process the aggregated data
+        let processedClients = Array.from(clientsMap.values()).map(client => {
             const findFavorite = (counts) => Object.keys(counts).length > 0 ? Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b) : 'N/A';
-
             return {
                 ...client,
-                lastVisit: latestVisit.checkOutTimestamp.toMillis(),
-                favoriteTech: findFavorite(techCounts),
-                favoriteColor: findFavorite(colorCounts)
+                favoriteTech: findFavorite(client.techCounts),
+                favoriteColor: findFavorite(client.colorCounts)
             };
         });
+    
+        // 3. Merge DOB and ID from the master 'clients' collection
+        const clientInfoMap = new Map(allClients.map(c => [c.name.toLowerCase(), { dob: c.dob, id: c.id, phone: c.phone }]));
+    
+        let finalClientList = processedClients.map(aggClient => {
+            const key = aggClient.name.toLowerCase();
+            const masterInfo = clientInfoMap.get(key);
+            return {
+                ...aggClient,
+                id: masterInfo ? masterInfo.id : null, 
+                dob: masterInfo ? masterInfo.dob : '',
+                phone: masterInfo && masterInfo.phone ? masterInfo.phone : aggClient.phone
+            };
+        });
+    
+        // 4. Add clients from master list who have NO visit history
+        allClients.forEach(masterClient => {
+            if (!clientsMap.has(masterClient.name.toLowerCase())) {
+                finalClientList.push({
+                    ...masterClient,
+                    lastVisit: null,
+                    favoriteTech: 'N/A',
+                    favoriteColor: 'N/A'
+                });
+            }
+        });
         
-        aggregatedClients = enrichedClients;
+        aggregatedClients = finalClientList;
+    
+        // 5. Render the table
         const searchTerm = document.getElementById('search-clients-list').value.toLowerCase();
         const filteredClients = aggregatedClients.filter(c => c.name.toLowerCase().includes(searchTerm));
-
+    
         const tbody = document.querySelector('#clients-list-table tbody');
         if (!tbody) return;
         tbody.innerHTML = '';
@@ -635,7 +680,7 @@ function initMainApp(userRole) {
             tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-400">No clients found.</td></tr>`;
             return;
         }
-
+    
         filteredClients.forEach(client => {
             const row = tbody.insertRow();
             row.className = 'bg-white border-b';
