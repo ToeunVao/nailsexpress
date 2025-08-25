@@ -643,7 +643,12 @@
                         <div id="clients-list-report-content" class="sub-tab-content hidden">
                             <div class="flex justify-between items-center mb-4">
                                 <input type="text" id="search-clients-list" class="w-1/2 p-2 border border-gray-300 rounded-lg" placeholder="Search by client name...">
-                                <button id="export-clients-btn" class="ml-4 bg-green-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors">Export to Excel</button>
+                                <div class="flex gap-2">
+                                    <button id="create-new-client-btn" class="bg-pink-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-pink-700 transition-colors"><i class="fas fa-plus mr-2"></i>Create New</button>
+                                    <input type="file" id="import-clients-input" class="hidden" accept=".xlsx, .xls">
+                                    <button id="import-clients-btn" class="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"><i class="fas fa-file-import mr-2"></i>Import</button>
+                                    <button id="export-clients-btn" class="bg-green-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-600 transition-colors"><i class="fas fa-file-export mr-2"></i>Export</button>
+                                </div>
                             </div>
                             <div class="overflow-x-auto">
                                 <table id="clients-list-table" class="w-full text-sm text-left text-gray-600">
@@ -651,6 +656,7 @@
                                         <tr>
                                             <th scope="col" class="px-6 py-3">Name</th>
                                             <th scope="col" class="px-6 py-3">Phone</th>
+                                            <th scope="col" class="px-6 py-3">Date of Birth</th>
                                             <th scope="col" class="px-6 py-3">Favorite Tech</th>
                                             <th scope="col" class="px-6 py-3">Favorite Color</th>
                                             <th scope="col" class="px-6 py-3">Last Visit</th>
@@ -954,15 +960,29 @@
             </form>
         </div>
 
-        <div id="edit-client-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
-            <div class="absolute inset-0 bg-black opacity-50 edit-client-modal-overlay"></div>
-            <form id="edit-client-form" class="relative bg-white w-full max-w-lg p-6 rounded-2xl shadow-xl m-4">
-                <h3 class="text-2xl font-bold text-pink-700 mb-6">Edit Client Information</h3><input type="hidden" id="edit-client-original-name">
+        <div id="client-form-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
+            <div class="absolute inset-0 bg-black opacity-50 client-form-modal-overlay"></div>
+            <form id="client-form" class="relative bg-white w-full max-w-lg p-6 rounded-2xl shadow-xl m-4">
+                <h3 id="client-form-title" class="text-2xl font-bold text-pink-700 mb-6">Client Information</h3>
+                <input type="hidden" id="edit-client-id">
                 <div class="space-y-4">
-                    <div><label for="edit-client-name" class="block text-sm font-medium text-gray-600 mb-1">Client Name</label><input type="text" id="edit-client-name" class="form-input w-full p-3 border border-gray-300 rounded-lg" required></div>
-                    <div><label for="edit-client-phone" class="block text-sm font-medium text-gray-600 mb-1">Phone Number</label><input type="tel" id="edit-client-phone" class="form-input w-full p-3 border border-gray-300 rounded-lg"></div>
+                    <div>
+                        <label for="client-form-name" class="block text-sm font-medium text-gray-600 mb-1">Client Name</label>
+                        <input type="text" id="client-form-name" class="form-input w-full p-3 border border-gray-300 rounded-lg" required>
+                    </div>
+                    <div>
+                        <label for="client-form-phone" class="block text-sm font-medium text-gray-600 mb-1">Phone Number</label>
+                        <input type="tel" id="client-form-phone" class="form-input w-full p-3 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label for="client-form-dob" class="block text-sm font-medium text-gray-600 mb-1">Date of Birth</label>
+                        <input type="date" id="client-form-dob" class="form-input w-full p-3 border border-gray-300 rounded-lg">
+                    </div>
                 </div>
-                <div class="mt-6 flex justify-end gap-3"><button type="button" id="edit-client-cancel-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-6 rounded-lg">Cancel</button><button type="submit" class="bg-pink-600 text-white font-semibold py-2 px-6 rounded-lg">Save Changes</button></div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" id="client-form-cancel-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-6 rounded-lg">Cancel</button>
+                    <button type="submit" class="bg-pink-600 text-white font-semibold py-2 px-6 rounded-lg">Save Client</button>
+                </div>
             </form>
         </div>
         
