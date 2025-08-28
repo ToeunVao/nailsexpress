@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, collection, addDoc, onSnapshot, query, doc, getDoc, deleteDoc, serverTimestamp, where, getDocs, orderBy, Timestamp, updateDoc, writeBatch, setDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAGZBJFVi_o1HeGDmjcSsmCcWxWOkuLc_4",
@@ -325,6 +325,9 @@ function initMainApp(userRole) {
             case 'booking':
                 document.getElementById('calendar-content').classList.remove('hidden');
                 break;
+            case 'nails-idea':
+                document.getElementById('nails-idea-content').classList.remove('hidden');
+                break;
             case 'report':
                 document.getElementById('reports-content').classList.remove('hidden');
                 document.getElementById('salon-earning-report-tab').click();
@@ -398,7 +401,7 @@ function initMainApp(userRole) {
     let currentFinishedDateFilter = '', currentEarningTechFilter = 'All', currentEarningDateFilter = '', currentEarningRangeFilter = 'daily';
     let currentSalonEarningDateFilter = '', currentSalonEarningRangeFilter = String(new Date().getMonth()), currentExpenseMonthFilter = '';
 
-    let allActiveClients = [], allFinishedClients = [], allAppointments = [], allClients = [], aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [];
+    let allActiveClients = [], allFinishedClients = [], allAppointments = [], allClients = [], aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [];
     let servicesData = {}, techniciansAndStaff = [], technicians = [];
     let allExpenseCategories = [], allPaymentAccounts = [], allSuppliers = [];
 
@@ -2031,6 +2034,178 @@ function initMainApp(userRole) {
         await updateDoc(doc(db, "services", category), { items: updatedItems });
         addServiceForm.reset(); editServiceSection.classList.add('hidden');
     });
+
+    // --- NAIL IDEAS LOGIC ---
+    const nailsIdeaGallery = document.getElementById('nails-idea-gallery');
+    const addNailIdeaForm = document.getElementById('add-nail-idea-form');
+    const nailIdeasTableBody = document.querySelector('#nail-ideas-table tbody');
+
+    const renderNailIdeasGallery = (ideas) => {
+        nailsIdeaGallery.innerHTML = '';
+        if (ideas.length === 0) {
+            nailsIdeaGallery.innerHTML = '<p class="text-gray-500 col-span-full text-center">No nail ideas found. Check back later!</p>';
+            return;
+        }
+        ideas.forEach(idea => {
+            const ideaEl = document.createElement('div');
+            ideaEl.className = 'break-inside-avoid mb-4';
+            ideaEl.innerHTML = `
+                <img class="w-full rounded-lg shadow-md" src="${idea.imageURL}" alt="${idea.name}">
+                <div class="p-2">
+                    <h5 class="font-bold text-sm">${idea.name}</h5>
+                    <p class="text-xs text-gray-600">${idea.categories.join(', ')}</p>
+                </div>
+            `;
+            nailsIdeaGallery.appendChild(ideaEl);
+        });
+    };
+
+    const renderNailIdeasAdminTable = (ideas) => {
+        nailIdeasTableBody.innerHTML = '';
+        ideas.forEach(idea => {
+            const row = nailIdeasTableBody.insertRow();
+            row.innerHTML = `
+                <td class="px-6 py-4"><img src="${idea.imageURL}" alt="${idea.name}" class="w-16 h-16 object-cover rounded"></td>
+                <td class="px-6 py-4">${idea.name}</td>
+                <td class="px-6 py-4">${idea.shape}</td>
+                <td class="px-6 py-4">${idea.categories.join(', ')}</td>
+                <td class="px-6 py-4 text-center space-x-2">
+                    <button data-id="${idea.id}" class="edit-nail-idea-btn text-blue-500"><i class="fas fa-edit"></i></button>
+                    <button data-id="${idea.id}" class="delete-nail-idea-btn text-red-500"><i class="fas fa-trash"></i></button>
+                </td>
+            `;
+        });
+    };
+
+    const applyNailIdeaFilters = () => {
+        const searchTerm = document.getElementById('nail-idea-search').value.toLowerCase();
+        const shapeFilter = document.getElementById('nail-idea-shape-filter').value;
+        const categoryFilter = document.getElementById('nail-idea-category-filter').value;
+
+        const filteredIdeas = allNailIdeas.filter(idea => {
+            const matchesSearch = idea.name.toLowerCase().includes(searchTerm) || idea.categories.some(cat => cat.toLowerCase().includes(searchTerm));
+            const matchesShape = !shapeFilter || idea.shape === shapeFilter;
+            const matchesCategory = !categoryFilter || idea.categories.includes(categoryFilter);
+            return matchesSearch && matchesShape && matchesCategory;
+        });
+        renderNailIdeasGallery(filteredIdeas);
+    };
+
+    onSnapshot(query(collection(db, "nail_ideas"), orderBy("createdAt", "desc")), (snapshot) => {
+        allNailIdeas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Populate filters
+        const shapes = [...new Set(allNailIdeas.map(i => i.shape).filter(Boolean))];
+        const categories = [...new Set(allNailIdeas.flatMap(i => i.categories).filter(Boolean))];
+        const shapeFilter = document.getElementById('nail-idea-shape-filter');
+        const categoryFilter = document.getElementById('nail-idea-category-filter');
+        shapeFilter.innerHTML = '<option value="">All Shapes</option>' + shapes.map(s => `<option value="${s}">${s}</option>`).join('');
+        categoryFilter.innerHTML = '<option value="">All Categories</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join('');
+
+        // Render views
+        applyNailIdeaFilters(); // For the public gallery
+        renderNailIdeasAdminTable(allNailIdeas); // For the admin table
+    });
+
+    document.getElementById('nail-idea-search').addEventListener('input', applyNailIdeaFilters);
+    document.getElementById('nail-idea-shape-filter').addEventListener('change', applyNailIdeaFilters);
+    document.getElementById('nail-idea-category-filter').addEventListener('change', applyNailIdeaFilters);
+
+    addNailIdeaForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const ideaId = document.getElementById('edit-nail-idea-id').value;
+        const file = document.getElementById('nail-idea-image').files[0];
+
+        if (!ideaId && !file) {
+            alert('Please select an image to upload.');
+            return;
+        }
+
+        const btn = document.getElementById('add-nail-idea-btn');
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        try {
+            let imageURL = null;
+            if (file) {
+                const storageRef = ref(storage, `nail_ideas/${Date.now()}_${file.name}`);
+                await uploadBytes(storageRef, file);
+                imageURL = await getDownloadURL(storageRef);
+            }
+
+            const ideaData = {
+                name: document.getElementById('nail-idea-name').value,
+                color: document.getElementById('nail-idea-color').value,
+                shape: document.getElementById('nail-idea-shape').value,
+                categories: document.getElementById('nail-idea-categories').value.split(',').map(s => s.trim()).filter(Boolean),
+            };
+
+            if (ideaId) { // Update existing
+                const existingIdea = allNailIdeas.find(i => i.id === ideaId);
+                if (imageURL) {
+                    ideaData.imageURL = imageURL;
+                    // Optional: Delete old image from storage if it exists
+                    if (existingIdea.imageURL) {
+                        try {
+                            const oldImageRef = ref(storage, existingIdea.imageURL);
+                            await deleteObject(oldImageRef);
+                        } catch (storageError) {
+                            console.warn("Could not delete old image, it might not exist:", storageError);
+                        }
+                    }
+                }
+                await updateDoc(doc(db, "nail_ideas", ideaId), ideaData);
+            } else { // Create new
+                ideaData.imageURL = imageURL;
+                ideaData.createdAt = serverTimestamp();
+                await addDoc(collection(db, "nail_ideas"), ideaData);
+            }
+            resetNailIdeaForm();
+        } catch (error) {
+            console.error("Error saving nail idea:", error);
+            alert("Could not save nail idea.");
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Add Idea';
+        }
+    });
+
+    const resetNailIdeaForm = () => {
+        addNailIdeaForm.reset();
+        document.getElementById('edit-nail-idea-id').value = '';
+        document.getElementById('add-nail-idea-btn').textContent = 'Add Idea';
+        document.getElementById('cancel-edit-nail-idea-btn').classList.add('hidden');
+    };
+    document.getElementById('cancel-edit-nail-idea-btn').addEventListener('click', resetNailIdeaForm);
+
+    nailIdeasTableBody.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.edit-nail-idea-btn');
+        const deleteBtn = e.target.closest('.delete-nail-idea-btn');
+
+        if (editBtn) {
+            const idea = allNailIdeas.find(i => i.id === editBtn.dataset.id);
+            if (idea) {
+                document.getElementById('edit-nail-idea-id').value = idea.id;
+                document.getElementById('nail-idea-name').value = idea.name;
+                document.getElementById('nail-idea-color').value = idea.color;
+                document.getElementById('nail-idea-shape').value = idea.shape;
+                document.getElementById('nail-idea-categories').value = idea.categories.join(', ');
+                document.getElementById('add-nail-idea-btn').textContent = 'Update Idea';
+                document.getElementById('cancel-edit-nail-idea-btn').classList.remove('hidden');
+            }
+        } else if (deleteBtn) {
+            const ideaId = deleteBtn.dataset.id;
+            showConfirmModal("Delete this nail idea? This will also delete the image.", async () => {
+                const ideaToDelete = allNailIdeas.find(i => i.id === ideaId);
+                if (ideaToDelete.imageURL) {
+                    const imageRef = ref(storage, ideaToDelete.imageURL);
+                    await deleteObject(imageRef).catch(err => console.error("Error deleting image from storage", err));
+                }
+                await deleteDoc(doc(db, "nail_ideas", ideaId));
+            });
+        }
+    });
+
 
     // --- CLIENT FORM MODAL LOGIC ---
     const openClientModal = (client = null) => {
