@@ -38,6 +38,7 @@
             <div class="container mx-auto px-6 py-4 flex justify-between items-center">
                 <div id="landing-logo" class="text-2xl font-bold text-pink-700 tracking-wider"><h2><a href="#">NailsXpress</a></h2></div>
                 <nav class="hidden md:flex space-x-8 text-sm font-semibold text-gray-600">
+                    <a href="#nails-idea-landing" class="hover:text-pink-600">Nails Idea</a>
                     <a href="#booking-landing" class="hover:text-pink-600">Booking</a>
                     <a href="#about-landing" class="hover:text-pink-600">About Us</a>
                     <a href="#contact-landing" class="hover:text-pink-600">Contact Us</a>
@@ -75,6 +76,24 @@
                             Book your appointment now
                         </a>
                     </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Nails Idea Section -->
+        <section id="nails-idea-landing" class="py-20 bg-pink-50">
+            <div class="container mx-auto px-6">
+                <h2 class="text-3xl font-bold text-center text-pink-700 mb-8">Nail Art Inspiration</h2>
+                <div class="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
+                    <!-- Placeholder Images for Pinterest-style board -->
+                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x600/d63384/FFFFFF?text=Nail+Art+1" alt="Nail Art Idea 1"></div>
+                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x500/d63384/FFFFFF?text=Nail+Art+2" alt="Nail Art Idea 2"></div>
+                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x700/d63384/FFFFFF?text=Nail+Art+3" alt="Nail Art Idea 3"></div>
+                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x450/d63384/FFFFFF?text=Nail+Art+4" alt="Nail Art Idea 4"></div>
+                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x550/d63384/FFFFFF?text=Nail+Art+5" alt="Nail Art Idea 5"></div>
+                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x650/d63384/FFFFFF?text=Nail+Art+6" alt="Nail Art Idea 6"></div>
+                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x500/d63384/FFFFFF?text=Nail+Art+7" alt="Nail Art Idea 7"></div>
+                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x600/d63384/FFFFFF?text=Nail+Art+8" alt="Nail Art Idea 8"></div>
                 </div>
             </div>
         </section>
@@ -223,6 +242,7 @@
                 <nav id="top-nav" class="hidden md:flex items-center gap-2 text-sm font-semibold text-gray-600">
                     <button class="top-nav-btn" data-target="check-in">Check-in</button>
                     <button class="top-nav-btn" data-target="booking">Booking</button>
+                    <button class="top-nav-btn" data-target="nails-idea">Nails Idea</button>
                     <button class="top-nav-btn" data-target="report">Report</button>
                     <button class="top-nav-btn" data-target="setting">Setting</button>
                 </nav>
@@ -492,6 +512,34 @@
                          </div>
                     </div>
 
+                    <!-- NEW: Nails Idea Section -->
+                    <div id="nails-idea-content" class="main-section hidden">
+                        <div class="mb-6 border-b pb-3">
+                            <h3 class="text-xl font-semibold text-gray-700">Nail Art Gallery</h3>
+                        </div>
+                        <!-- Filters -->
+                        <div class="flex flex-wrap gap-4 mb-8">
+                            <input type="text" id="nail-idea-search" placeholder="Search by name or category..." class="form-input p-2 border border-gray-300 rounded-lg flex-grow">
+                            <select id="nail-idea-shape-filter" class="form-select p-2 border border-gray-300 rounded-lg">
+                                <option value="">All Shapes</option>
+                                <!-- JS will populate this -->
+                            </select>
+                            <select id="nail-idea-category-filter" class="form-select p-2 border border-gray-300 rounded-lg">
+                                <option value="">All Categories</option>
+                                <!-- JS will populate this -->
+                            </select>
+                        </div>
+                        <!-- Gallery -->
+                        <div id="nails-idea-gallery" class="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
+                             <!-- Placeholder Images for Pinterest-style board -->
+                            <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x600/d63384/FFFFFF?text=Nail+Art+1" alt="Nail Art Idea 1"></div>
+                            <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x500/d63384/FFFFFF?text=Nail+Art+2" alt="Nail Art Idea 2"></div>
+                            <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x700/d63384/FFFFFF?text=Nail+Art+3" alt="Nail Art Idea 3"></div>
+                            <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x450/d63384/FFFFFF?text=Nail+Art+4" alt="Nail Art Idea 4"></div>
+                        </div>
+                    </div>
+
+
                     <div id="reports-content" class="main-section hidden">
                         <div class="mb-4 border-b border-gray-200">
                             <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="reports-sub-tabs">
@@ -675,6 +723,7 @@
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg active" id="user-management-tab" type="button">User Management</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="inventory-management-tab" type="button">Inventory Management</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="service-management-tab" type="button">Service Management</button></li>
+                                <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="nail-ideas-management-tab" type="button">Nail Ideas Management</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="settings-management-tab" type="button">Settings</button></li>
                             </ul>
                         </div>
@@ -733,6 +782,39 @@
                                         </tr>
                                     </thead>
                                     <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- NEW: Nail Ideas Management Content -->
+                        <div id="nail-ideas-management-content" class="sub-tab-content hidden">
+                            <h3 class="text-xl font-semibold text-gray-700 mb-4">Manage Nail Ideas</h3>
+                            <form id="add-nail-idea-form" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 p-4 border rounded-lg bg-gray-50 items-end">
+                                <input type="hidden" id="edit-nail-idea-id">
+                                <div><label for="nail-idea-name" class="block text-sm font-medium text-gray-600">Image Name</label><input type="text" id="nail-idea-name" class="form-input w-full mt-1" required></div>
+                                <div><label for="nail-idea-color" class="block text-sm font-medium text-gray-600">Color Code</label><input type="text" id="nail-idea-color" class="form-input w-full mt-1" placeholder="e.g., #FFC0CB, Red"></div>
+                                <div><label for="nail-idea-shape" class="block text-sm font-medium text-gray-600">Nail Shape</label><input type="text" id="nail-idea-shape" class="form-input w-full mt-1" placeholder="e.g., Almond, Square"></div>
+                                <div class="md:col-span-2"><label for="nail-idea-categories" class="block text-sm font-medium text-gray-600">Categories</label><input type="text" id="nail-idea-categories" class="form-input w-full mt-1" placeholder="e.g., minimalist, glitter, holiday (comma-separated)"></div>
+                                <div class="md:col-span-3"><label for="nail-idea-image" class="block text-sm font-medium text-gray-600">Image</label><input type="file" id="nail-idea-image" class="form-input w-full mt-1 text-sm" accept="image/*"></div>
+                                <div class="self-end flex gap-2">
+                                    <button type="submit" id="add-nail-idea-btn" class="w-full bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Add Idea</button>
+                                    <button type="button" id="cancel-edit-nail-idea-btn" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 hidden">Cancel</button>
+                                </div>
+                            </form>
+                            <div class="overflow-x-auto">
+                                <table id="nail-ideas-table" class="w-full text-sm text-left text-gray-600">
+                                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3">Image</th>
+                                            <th scope="col" class="px-6 py-3">Name</th>
+                                            <th scope="col" class="px-6 py-3">Shape</th>
+                                            <th scope="col" class="px-6 py-3">Categories</th>
+                                            <th scope="col" class="px-6 py-3 text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- JS will populate this -->
+                                    </tbody>
                                 </table>
                             </div>
                         </div>
