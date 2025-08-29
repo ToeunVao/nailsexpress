@@ -21,8 +21,15 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <link rel="stylesheet" href="style.css">
-
-   
+  <style>
+    .gallery-item .overlay {
+        opacity: 0;
+        transition: opacity 0.3s ease-in-out;
+    }
+    .gallery-item:hover .overlay {
+        opacity: 1;
+    }
+  </style>
 </head>
 <body class="bg-gray-100">
 
@@ -110,10 +117,12 @@
                 <h2 class="text-3xl font-bold text-center text-pink-700 mb-8">Nail Art Inspiration</h2>
                 <div class="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
                     <!-- Placeholder Images for Pinterest-style board -->
-                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x600/d63384/FFFFFF?text=Nail+Art+1" alt="Nail Art Idea 1"></div>
-                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x500/d63384/FFFFFF?text=Nail+Art+2" alt="Nail Art Idea 2"></div>
-                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x700/d63384/FFFFFF?text=Nail+Art+3" alt="Nail Art Idea 3"></div>
-                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x450/d63384/FFFFFF?text=Nail+Art+4" alt="Nail Art Idea 4"></div>
+                    <div class="break-inside-avoid relative gallery-item">
+                        <img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x600/d63384/FFFFFF?text=Nail+Art+1" alt="Nail Art Idea 1">
+                        <div class="overlay absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-lg">
+                            <button class="share-nail-idea-btn text-white text-3xl"><i class="fas fa-share-alt"></i></button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -608,10 +617,12 @@
                         <!-- Gallery -->
                         <div id="nails-idea-gallery" class="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
                              <!-- Placeholder Images for Pinterest-style board -->
-                            <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x600/d63384/FFFFFF?text=Nail+Art+1" alt="Nail Art Idea 1"></div>
-                            <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x500/d63384/FFFFFF?text=Nail+Art+2" alt="Nail Art Idea 2"></div>
-                            <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x700/d63384/FFFFFF?text=Nail+Art+3" alt="Nail Art Idea 3"></div>
-                            <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x450/d63384/FFFFFF?text=Nail+Art+4" alt="Nail Art Idea 4"></div>
+                            <div class="break-inside-avoid relative gallery-item">
+                                <img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x600/d63384/FFFFFF?text=Nail+Art+1" alt="Nail Art Idea 1">
+                                <div class="overlay absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-lg">
+                                    <button class="share-nail-idea-btn text-white text-3xl"><i class="fas fa-share-alt"></i></button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -1262,6 +1273,22 @@
                     <button type="submit" class="bg-pink-600 text-white font-semibold py-2 px-6 rounded-lg">Log Usage</button>
                 </div>
             </form>
+        </div>
+
+        <div id="share-modal" class="fixed inset-0 z-[70] hidden items-center justify-center">
+            <div class="absolute inset-0 bg-black opacity-50 share-modal-overlay"></div>
+            <div class="relative bg-white w-full max-w-sm p-6 rounded-2xl shadow-xl m-4 text-center">
+                <h3 class="text-2xl font-bold text-pink-700 mb-6">Share this Design</h3>
+                <div class="flex justify-center gap-4 text-4xl">
+                    <a href="#" id="share-facebook" target="_blank" class="text-blue-600 hover:text-blue-800"><i class="fab fa-facebook-square"></i></a>
+                    <a href="#" id="share-pinterest" target="_blank" class="text-red-600 hover:text-red-800"><i class="fab fa-pinterest-square"></i></a>
+                    <a href="#" id="share-twitter" target="_blank" class="text-blue-400 hover:text-blue-600"><i class="fab fa-twitter-square"></i></a>
+                    <button id="share-copy-link" class="text-gray-600 hover:text-gray-800"><i class="fas fa-link"></i></button>
+                </div>
+                <div class="mt-6">
+                    <button type="button" id="share-close-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-6 rounded-lg">Close</button>
+                </div>
+            </div>
         </div>
 
     </div>
