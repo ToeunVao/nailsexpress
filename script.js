@@ -444,6 +444,7 @@ function initMainApp(userRole) {
     const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
     const logUsageModal = document.getElementById('log-usage-modal');
     const logUsageForm = document.getElementById('log-usage-form');
+    const shareModal = document.getElementById('share-modal');
 
     const rebookOtherInput = document.getElementById('rebook-other-input');
     const rebookSelect = document.getElementById('rebook-select');
@@ -2215,29 +2216,76 @@ function initMainApp(userRole) {
         addServiceForm.reset(); editServiceSection.classList.add('hidden');
     });
 
-    // --- NAIL IDEAS LOGIC ---
+    // --- NAIL IDEAS & SHARING LOGIC ---
     const nailsIdeaGallery = document.getElementById('nails-idea-gallery');
     const addNailIdeaForm = document.getElementById('add-nail-idea-form');
     const nailIdeasTableBody = document.querySelector('#nail-ideas-table tbody');
 
-    const renderNailIdeasGallery = (ideas) => {
-        nailsIdeaGallery.innerHTML = '';
-        if (ideas.length === 0) {
-            nailsIdeaGallery.innerHTML = '<p class="text-gray-500 col-span-full text-center">No nail ideas found. Check back later!</p>';
-            return;
+    const openShareModal = (idea) => {
+        const salonUrl = "http://www.nailsxpressky.com";
+        const shareText = `Check out this amazing nail design: ${idea.name}!`;
+        document.getElementById('share-facebook').href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(salonUrl)}`;
+        document.getElementById('share-pinterest').href = `http://pinterest.com/pin/create/button/?url=${encodeURIComponent(salonUrl)}&media=${encodeURIComponent(idea.imageURL)}&description=${encodeURIComponent(shareText)}`;
+        document.getElementById('share-twitter').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(salonUrl)}`;
+        document.getElementById('share-copy-link').onclick = () => {
+            navigator.clipboard.writeText(salonUrl).then(() => alert('Link copied to clipboard!'));
+        };
+        shareModal.classList.remove('hidden');
+        shareModal.classList.add('flex');
+    };
+
+    const closeShareModal = () => {
+        shareModal.classList.add('hidden');
+        shareModal.classList.remove('flex');
+    };
+    document.getElementById('share-close-btn').addEventListener('click', closeShareModal);
+    document.querySelector('.share-modal-overlay').addEventListener('click', closeShareModal);
+    
+    const galleryClickHandler = (e) => {
+        const shareBtn = e.target.closest('.share-nail-idea-btn');
+        if (shareBtn) {
+            const ideaId = shareBtn.dataset.id;
+            const idea = allNailIdeas.find(i => i.id === ideaId);
+            if (idea) {
+                openShareModal(idea);
+            }
         }
-        ideas.forEach(idea => {
-            const ideaEl = document.createElement('div');
-            ideaEl.className = 'break-inside-avoid mb-4';
-            ideaEl.innerHTML = `
-                <img class="w-full rounded-lg shadow-md" src="${idea.imageURL}" alt="${idea.name}">
-                <div class="p-2">
-                    <h5 class="font-bold text-sm">${idea.name}</h5>
-                    <p class="text-xs text-gray-600">${idea.categories.join(', ')}</p>
-                </div>
-            `;
-            nailsIdeaGallery.appendChild(ideaEl);
-        });
+    };
+    
+    document.getElementById('nails-idea-gallery').addEventListener('click', galleryClickHandler);
+    document.getElementById('nails-idea-landing').addEventListener('click', galleryClickHandler);
+
+
+    const renderNailIdeasGallery = (ideas) => {
+        const landingGallery = document.querySelector('#nails-idea-landing .columns-2');
+        const appGallery = document.getElementById('nails-idea-gallery');
+        
+        const renderTo = (container, isLanding) => {
+            container.innerHTML = '';
+            if (ideas.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 col-span-full text-center">No nail ideas found. Check back later!</p>';
+                return;
+            }
+            const ideasToRender = isLanding ? ideas.slice(0, 8) : ideas;
+            ideasToRender.forEach(idea => {
+                const ideaEl = document.createElement('div');
+                ideaEl.className = 'break-inside-avoid mb-4 relative gallery-item';
+                ideaEl.innerHTML = `
+                    <img class="w-full rounded-lg shadow-md" src="${idea.imageURL}" alt="${idea.name}">
+                    <div class="overlay absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-lg">
+                        <button data-id="${idea.id}" class="share-nail-idea-btn text-white text-3xl"><i class="fas fa-share-alt"></i></button>
+                    </div>
+                    ${!isLanding ? `<div class="p-2">
+                        <h5 class="font-bold text-sm">${idea.name}</h5>
+                        <p class="text-xs text-gray-600">${idea.categories.join(', ')}</p>
+                    </div>` : ''}
+                `;
+                container.appendChild(ideaEl);
+            });
+        };
+
+        renderTo(landingGallery, true);
+        renderTo(appGallery, false);
     };
 
     const renderNailIdeasAdminTable = (ideas) => {
