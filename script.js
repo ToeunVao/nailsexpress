@@ -379,6 +379,8 @@ function initMainApp(userRole) {
     const confirmModalMessage = document.getElementById('confirm-modal-message');
     const confirmConfirmBtn = document.getElementById('confirm-confirm-btn');
     const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+    const logUsageModal = document.getElementById('log-usage-modal');
+    const logUsageForm = document.getElementById('log-usage-form');
 
     const rebookOtherInput = document.getElementById('rebook-other-input');
     const rebookSelect = document.getElementById('rebook-select');
@@ -401,7 +403,7 @@ function initMainApp(userRole) {
     let currentFinishedDateFilter = '', currentEarningTechFilter = 'All', currentEarningDateFilter = '', currentEarningRangeFilter = 'daily';
     let currentSalonEarningDateFilter = '', currentSalonEarningRangeFilter = String(new Date().getMonth()), currentExpenseMonthFilter = '';
 
-    let allActiveClients = [], allFinishedClients = [], allAppointments = [], allClients = [], aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [];
+    let allActiveClients = [], allFinishedClients = [], allAppointments = [], allClients = [], aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [], allInventoryUsage = [];
     let servicesData = {}, techniciansAndStaff = [], technicians = [];
     let allExpenseCategories = [], allPaymentAccounts = [], allSuppliers = [];
 
@@ -1266,7 +1268,10 @@ function initMainApp(userRole) {
             document.querySelectorAll(`#${tabsId} .sub-tab-btn`).forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
             document.querySelectorAll(`.${contentClass}`).forEach(content => content.classList.add('hidden'));
-            document.getElementById(button.id.replace('-tab', '-content')).classList.remove('hidden');
+            const targetContent = document.getElementById(button.id.replace('-tab', '-content'));
+            if (targetContent) {
+                targetContent.classList.remove('hidden');
+            }
         });
     };
     setupSubTabs('reports-sub-tabs', 'sub-tab-content');
@@ -1708,10 +1713,57 @@ function initMainApp(userRole) {
         if (deleteBtn) { showConfirmModal("Delete this user?", async () => { await deleteDoc(doc(db, "users", deleteBtn.dataset.id)); alert("User role deleted. Login must be deleted from Firebase console."); }); }
     });
 
-    // --- Inventory Management ---
+    // --- Inventory Management & Reporting ---
     const addProductForm = document.getElementById('add-product-form');
     const inventoryTableBody = document.querySelector('#inventory-table tbody');
     const productSupplierSelect = document.getElementById('product-supplier');
+    const inventoryReportTableBody = document.querySelector('#inventory-report-table tbody');
+
+    // Listen for inventory usage changes
+    onSnapshot(query(collection(db, "inventory_usage"), orderBy("timestamp", "desc")), (snapshot) => {
+        allInventoryUsage = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // We might not need to do anything here immediately, but it keeps the data fresh
+        // The report is generated on demand when the tab is clicked.
+    });
+
+
+    const renderInventoryReport = () => {
+        const lowStockItems = allInventory.filter(item => item.quantity <= item.lowStockAlert);
+        inventoryReportTableBody.innerHTML = '';
+
+        if(lowStockItems.length === 0) {
+            inventoryReportTableBody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-gray-400">No items are currently low on stock.</td></tr>`;
+            return;
+        }
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const thirtyDaysAgoTimestamp = Timestamp.fromDate(thirtyDaysAgo);
+
+        const recentUsage = allInventoryUsage.filter(usage => usage.timestamp >= thirtyDaysAgoTimestamp);
+
+        lowStockItems.forEach(item => {
+            const usageLast30d = recentUsage
+                .filter(usage => usage.productId === item.id)
+                .reduce((sum, usage) => sum + usage.quantityUsed, 0);
+            
+            const suggestedReorder = Math.max(0, usageLast30d - item.quantity);
+
+            const row = inventoryReportTableBody.insertRow();
+            row.className = 'bg-white border-b hover:bg-yellow-50';
+            row.innerHTML = `
+                <td class="px-6 py-4 font-medium text-gray-900">${item.name}</td>
+                <td class="px-6 py-4 text-center text-red-600 font-bold">${item.quantity}</td>
+                <td class="px-6 py-4 text-center">${item.lowStockAlert}</td>
+                <td class="px-6 py-4 text-center">${usageLast30d}</td>
+                <td class="px-6 py-4 text-center font-bold text-blue-600">${suggestedReorder}</td>
+            `;
+        });
+    };
+
+    // Add event listener for the new report tab
+    document.getElementById('inventory-report-tab').addEventListener('click', renderInventoryReport);
+
 
     const populateProductSupplierDropdown = () => {
         const first = productSupplierSelect.options[0];
@@ -1823,6 +1875,71 @@ function initMainApp(userRole) {
             showConfirmModal("Delete this product from inventory?", async () => {
                 await deleteDoc(doc(db, "inventory", deleteBtn.dataset.id));
             });
+        }
+    });
+
+    // --- Log Usage Modal Logic ---
+    const openLogUsageModal = () => {
+        const select = document.getElementById('log-usage-product-select');
+        select.innerHTML = '<option value="">Select a product...</option>';
+        allInventory.forEach(item => {
+            select.appendChild(new Option(item.name, item.id));
+        });
+        logUsageModal.classList.remove('hidden');
+        logUsageModal.classList.add('flex');
+    };
+    const closeLogUsageModal = () => {
+        logUsageForm.reset();
+        logUsageModal.classList.add('hidden');
+        logUsageModal.classList.remove('flex');
+    };
+
+    document.getElementById('log-usage-btn').addEventListener('click', openLogUsageModal);
+    document.getElementById('log-usage-cancel-btn').addEventListener('click', closeLogUsageModal);
+    document.querySelector('.log-usage-modal-overlay').addEventListener('click', closeLogUsageModal);
+
+    logUsageForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const productId = document.getElementById('log-usage-product-select').value;
+        const quantityUsed = parseInt(document.getElementById('log-usage-quantity').value, 10);
+
+        if (!productId || isNaN(quantityUsed) || quantityUsed <= 0) {
+            alert('Please select a product and enter a valid quantity.');
+            return;
+        }
+
+        const product = allInventory.find(p => p.id === productId);
+        if (!product) {
+            alert('Product not found.');
+            return;
+        }
+
+        if (product.quantity < quantityUsed) {
+            alert(`Not enough stock. Only ${product.quantity} units available.`);
+            return;
+        }
+
+        try {
+            // Log the usage
+            await addDoc(collection(db, "inventory_usage"), {
+                productId: productId,
+                productName: product.name,
+                quantityUsed: quantityUsed,
+                timestamp: serverTimestamp()
+            });
+
+            // Decrement the inventory count
+            const newQuantity = product.quantity - quantityUsed;
+            await updateDoc(doc(db, "inventory", productId), {
+                quantity: newQuantity
+            });
+
+            alert('Usage logged successfully.');
+            closeLogUsageModal();
+
+        } catch (error) {
+            console.error("Error logging usage:", error);
+            alert("Could not log usage.");
         }
     });
 
