@@ -722,6 +722,7 @@
                             <ul class="flex flex-wrap -mb-px text-sm font-medium text-center" id="admin-sub-tabs">
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg active" id="user-management-tab" type="button">User Management</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="inventory-management-tab" type="button">Inventory Management</button></li>
+                                <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="inventory-report-tab" type="button">Inventory Report</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="service-management-tab" type="button">Service Management</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="nail-ideas-management-tab" type="button">Nail Ideas Management</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="settings-management-tab" type="button">Settings</button></li>
@@ -754,7 +755,10 @@
 
                         <!-- Inventory Management Content -->
                         <div id="inventory-management-content" class="sub-tab-content hidden">
-                            <h3 class="text-xl font-semibold text-gray-700 mb-4">Manage Inventory</h3>
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xl font-semibold text-gray-700">Manage Inventory</h3>
+                                <button id="log-usage-btn" class="bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-600"><i class="fas fa-dolly-flatbed mr-2"></i>Log Product Usage</button>
+                            </div>
                             <form id="add-product-form" class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6 p-4 border rounded-lg bg-gray-50 items-end">
                                 <input type="hidden" id="edit-product-id">
                                 <div><label for="product-name" class="block text-sm font-medium text-gray-600">Product Name</label><input type="text" id="product-name" class="form-input w-full mt-1" required></div>
@@ -786,7 +790,27 @@
                             </div>
                         </div>
 
-                        <!-- NEW: Nail Ideas Management Content -->
+                        <!-- Inventory Report Content -->
+                        <div id="inventory-report-content" class="sub-tab-content hidden">
+                            <h3 class="text-xl font-semibold text-gray-700 mb-4">Inventory Reorder Suggestions</h3>
+                            <p class="text-sm text-gray-600 mb-6">This report shows items that are below their low stock threshold and suggests reorder quantities based on usage in the last 30 days.</p>
+                            <div class="overflow-x-auto">
+                                <table id="inventory-report-table" class="w-full text-sm text-left text-gray-600">
+                                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3">Product Name</th>
+                                            <th scope="col" class="px-6 py-3 text-center">Current Qty</th>
+                                            <th scope="col" class="px-6 py-3 text-center">Low Stock At</th>
+                                            <th scope="col" class="px-6 py-3 text-center">Usage (Last 30d)</th>
+                                            <th scope="col" class="px-6 py-3 text-center font-bold">Suggested Reorder</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Nail Ideas Management Content -->
                         <div id="nail-ideas-management-content" class="sub-tab-content hidden">
                             <h3 class="text-xl font-semibold text-gray-700 mb-4">Manage Nail Ideas</h3>
                             <form id="add-nail-idea-form" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 p-4 border rounded-lg bg-gray-50 items-end">
@@ -1087,6 +1111,27 @@
                 <p id="confirm-modal-message" class="text-gray-600 mb-6"></p>
                 <div class="flex justify-end gap-3"><button type="button" id="confirm-cancel-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-6 rounded-lg">Cancel</button><button type="button" id="confirm-confirm-btn" class="bg-red-600 text-white font-semibold py-2 px-6 rounded-lg">Delete</button></div>
             </div>
+        </div>
+
+        <div id="log-usage-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
+            <div class="absolute inset-0 bg-black opacity-50 log-usage-modal-overlay"></div>
+            <form id="log-usage-form" class="relative bg-white w-full max-w-lg p-6 rounded-2xl shadow-xl m-4">
+                <h3 class="text-2xl font-bold text-pink-700 mb-6">Log Inventory Usage</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label for="log-usage-product-select" class="block text-sm font-medium text-gray-600 mb-1">Product</label>
+                        <select id="log-usage-product-select" class="form-select w-full p-3 border border-gray-300 rounded-lg" required></select>
+                    </div>
+                    <div>
+                        <label for="log-usage-quantity" class="block text-sm font-medium text-gray-600 mb-1">Quantity Used</label>
+                        <input type="number" id="log-usage-quantity" class="form-input w-full p-3 border border-gray-300 rounded-lg" min="1" required>
+                    </div>
+                </div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button" id="log-usage-cancel-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-6 rounded-lg">Cancel</button>
+                    <button type="submit" class="bg-pink-600 text-white font-semibold py-2 px-6 rounded-lg">Log Usage</button>
+                </div>
+            </form>
         </div>
 
     </div>
