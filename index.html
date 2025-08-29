@@ -39,6 +39,7 @@
                 <div id="landing-logo" class="text-2xl font-bold text-pink-700 tracking-wider"><h2><a href="#">NailsXpress</a></h2></div>
                 <nav class="hidden md:flex space-x-8 text-sm font-semibold text-gray-600">
                     <a href="#nails-idea-landing" class="hover:text-pink-600">Nails Idea</a>
+                    <a href="#gift-card-landing" class="hover:text-pink-600">Gift Cards</a>
                     <a href="#booking-landing" class="hover:text-pink-600">Booking</a>
                     <a href="#about-landing" class="hover:text-pink-600">About Us</a>
                     <a href="#contact-landing" class="hover:text-pink-600">Contact Us</a>
@@ -90,11 +91,20 @@
                     <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x500/d63384/FFFFFF?text=Nail+Art+2" alt="Nail Art Idea 2"></div>
                     <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x700/d63384/FFFFFF?text=Nail+Art+3" alt="Nail Art Idea 3"></div>
                     <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x450/d63384/FFFFFF?text=Nail+Art+4" alt="Nail Art Idea 4"></div>
-                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x550/d63384/FFFFFF?text=Nail+Art+5" alt="Nail Art Idea 5"></div>
-                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x650/d63384/FFFFFF?text=Nail+Art+6" alt="Nail Art Idea 6"></div>
-                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x500/d63384/FFFFFF?text=Nail+Art+7" alt="Nail Art Idea 7"></div>
-                    <div class="break-inside-avoid"><img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x600/d63384/FFFFFF?text=Nail+Art+8" alt="Nail Art Idea 8"></div>
                 </div>
+            </div>
+        </section>
+        
+        <!-- Gift Card Section -->
+        <section id="gift-card-landing" class="py-20 bg-white">
+            <div class="container mx-auto px-6 text-center">
+                <h2 class="text-3xl font-bold mb-4 text-pink-700">Give the Gift of Glamour</h2>
+                <p class="text-gray-600 max-w-3xl mx-auto leading-relaxed mb-8">
+                    Treat your loved ones to a relaxing and beautifying experience with a NailsXpress digital gift card. Perfect for birthdays, holidays, or just because!
+                </p>
+                <button id="buy-gift-card-btn" class="bg-pink-600 text-white font-semibold py-3 px-8 rounded-lg hover:bg-pink-700 transition-colors">
+                    Buy a Gift Card
+                </button>
             </div>
         </section>
 
@@ -218,6 +228,49 @@
                 <div class="mt-6 text-right">
                     <button id="landing-booking-service-modal-done-btn" type="button" class="bg-pink-600 text-white font-semibold py-2 px-6 rounded-lg">Done</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- Gift Card Purchase Modal -->
+        <div id="gift-card-modal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
+            <div class="modal-overlay absolute inset-0 bg-black opacity-50"></div>
+            <div class="relative bg-white w-full max-w-lg p-8 rounded-2xl shadow-xl m-4">
+                <button id="close-gift-card-modal-btn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800"><i class="fas fa-times fa-lg"></i></button>
+                <h2 class="text-3xl font-bold text-center text-pink-700 mb-6">Purchase a Gift Card</h2>
+                <form id="gift-card-form" class="space-y-4">
+                    <div>
+                        <label for="gift-card-amount" class="block text-sm font-medium text-gray-700">Amount</label>
+                        <select id="gift-card-amount" class="form-select w-full p-3 mt-1 border border-gray-300 rounded-lg">
+                            <option value="25">$25</option>
+                            <option value="50">$50</option>
+                            <option value="75">$75</option>
+                            <option value="100">$100</option>
+                            <option value="custom">Custom Amount</option>
+                        </select>
+                        <input type="number" id="gift-card-custom-amount" class="form-input w-full p-3 mt-2 border border-gray-300 rounded-lg hidden" placeholder="Enter custom amount">
+                    </div>
+                    <div>
+                        <label for="gift-card-recipient-name" class="block text-sm font-medium text-gray-700">Recipient's Name</label>
+                        <input type="text" id="gift-card-recipient-name" required class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label for="gift-card-recipient-email" class="block text-sm font-medium text-gray-700">Recipient's Email</label>
+                        <input type="email" id="gift-card-recipient-email" required class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label for="gift-card-sender-name" class="block text-sm font-medium text-gray-700">Your Name</label>
+                        <input type="text" id="gift-card-sender-name" required class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg">
+                    </div>
+                     <div>
+                        <label for="gift-card-message" class="block text-sm font-medium text-gray-700">Message (optional)</label>
+                        <textarea id="gift-card-message" rows="2" class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg"></textarea>
+                    </div>
+                    <div>
+                        <button type="submit" class="w-full bg-pink-600 text-white font-bold py-3 px-12 rounded-full hover:bg-pink-700">
+                            Proceed to Payment
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -725,6 +778,7 @@
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="inventory-report-tab" type="button">Inventory Report</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="service-management-tab" type="button">Service Management</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="nail-ideas-management-tab" type="button">Nail Ideas Management</button></li>
+                                <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="gift-card-management-tab" type="button">Gift Card Management</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="settings-management-tab" type="button">Settings</button></li>
                             </ul>
                         </div>
@@ -834,6 +888,28 @@
                                             <th scope="col" class="px-6 py-3">Shape</th>
                                             <th scope="col" class="px-6 py-3">Categories</th>
                                             <th scope="col" class="px-6 py-3 text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- JS will populate this -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Gift Card Management Content -->
+                        <div id="gift-card-management-content" class="sub-tab-content hidden">
+                            <h3 class="text-xl font-semibold text-gray-700 mb-4">Gift Card Sales</h3>
+                            <div class="overflow-x-auto">
+                                <table id="gift-cards-table" class="w-full text-sm text-left text-gray-600">
+                                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3">Date</th>
+                                            <th scope="col" class="px-6 py-3">Code</th>
+                                            <th scope="col" class="px-6 py-3">Amount</th>
+                                            <th scope="col" class="px-6 py-3">Recipient</th>
+                                            <th scope="col" class="px-6 py-3">Sender</th>
+                                            <th scope="col" class="px-6 py-3">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
