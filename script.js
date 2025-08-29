@@ -519,6 +519,13 @@ function initClientDashboard(clientId, clientData) {
         }
     });
 
+    // Handle "Book New Appointment" button
+    document.getElementById('client-book-new-btn').addEventListener('click', () => {
+        clientDashboardContent.style.display = 'none';
+        landingPageContent.style.display = 'block';
+        document.getElementById('booking-landing').scrollIntoView({ behavior: 'smooth' });
+    });
+
     setupClientTabs();
 }
 
@@ -1038,7 +1045,7 @@ function initMainApp(userRole) {
     const renderClientsList = () => {
         if (!allFinishedClients || !allClients) {
             const tbody = document.querySelector('#clients-list-table tbody');
-            if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-400">Loading client data...</td></tr>`;
+            if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-gray-400">Loading client data...</td></tr>`;
             return;
         }
     
