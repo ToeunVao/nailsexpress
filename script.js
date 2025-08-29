@@ -390,6 +390,33 @@ function initLandingPage() {
             alert("Could not book appointment. Please try again.");
         }
     });
+
+     // --- Feature Toggle Visibility ---
+    const updateFeatureVisibility = (settings) => {
+        const showPromos = settings.showPromotions !== false; // default to true
+        const showGiftCards = settings.showGiftCards !== false; // default to true
+        const showNailArt = settings.showNailArt !== false; // default to true
+
+        document.getElementById('promotions-landing').style.display = showPromos ? '' : 'none';
+        document.querySelector('.nav-item-promotions').style.display = showPromos ? '' : 'none';
+        
+        document.getElementById('gift-card-landing').style.display = showGiftCards ? '' : 'none';
+        document.querySelector('.nav-item-gift-card').style.display = showGiftCards ? '' : 'none';
+
+        document.getElementById('nails-idea-landing').style.display = showNailArt ? '' : 'none';
+        document.querySelector('.nav-item-nails-idea').style.display = showNailArt ? '' : 'none';
+    };
+
+    const loadFeatureToggles = async () => {
+        const settingsDoc = await getDoc(doc(db, "settings", "features"));
+        if (settingsDoc.exists()) {
+            updateFeatureVisibility(settingsDoc.data());
+        } else {
+            // Default settings if nothing is in the database
+            updateFeatureVisibility({ showPromotions: true, showGiftCards: true, showNailArt: true });
+        }
+    };
+    loadFeatureToggles();
 }
 
 // --- CLIENT DASHBOARD SCRIPT ---
@@ -2220,11 +2247,46 @@ function initMainApp(userRole) {
     });
 
 
-    // --- Settings & Expense Management ---
+    // --- Settings, Toggles & Expense Management ---
     const settingsForm = document.getElementById('settings-form');
     const minBookingHoursInput = document.getElementById('min-booking-hours');
-    const loadSettings = async () => { const docSnap = await getDoc(doc(db, "settings", "booking")); if (docSnap.exists()) { minBookingHoursInput.value = docSnap.data().minBookingHours || 2; } };
+    const featureTogglesForm = document.getElementById('feature-toggles-form');
+
+    const loadFeatureToggles = async () => {
+        const settingsDoc = await getDoc(doc(db, "settings", "features"));
+        if (settingsDoc.exists()) {
+            const settings = settingsDoc.data();
+            document.getElementById('toggle-promotions').checked = settings.showPromotions !== false;
+            document.getElementById('toggle-gift-card').checked = settings.showGiftCards !== false;
+            document.getElementById('toggle-nails-idea').checked = settings.showNailArt !== false;
+        } else {
+             // Default to on if not set
+            document.getElementById('toggle-promotions').checked = true;
+            document.getElementById('toggle-gift-card').checked = true;
+            document.getElementById('toggle-nails-idea').checked = true;
+        }
+    };
+    
+    featureTogglesForm.addEventListener('change', async (e) => {
+        if (e.target.type === 'checkbox') {
+            const settings = {
+                showPromotions: document.getElementById('toggle-promotions').checked,
+                showGiftCards: document.getElementById('toggle-gift-card').checked,
+                showNailArt: document.getElementById('toggle-nails-idea').checked
+            };
+            await setDoc(doc(db, "settings", "features"), settings, { merge: true });
+        }
+    });
+
+    const loadSettings = async () => { 
+        const docSnap = await getDoc(doc(db, "settings", "booking")); 
+        if (docSnap.exists()) { 
+            minBookingHoursInput.value = docSnap.data().minBookingHours || 2; 
+        } 
+    };
     loadSettings();
+    loadFeatureToggles();
+
     settingsForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const hours = parseInt(minBookingHoursInput.value, 10);
@@ -2905,7 +2967,6 @@ function initMainApp(userRole) {
         reader.readAsArrayBuffer(file);
         e.target.value = ''; // Reset file input
     });
-    
 
 
     // --- INITIALIZATION ---
