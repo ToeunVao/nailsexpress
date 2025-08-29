@@ -2905,6 +2905,7 @@ function initMainApp(userRole) {
         reader.readAsArrayBuffer(file);
         e.target.value = ''; // Reset file input
     });
+    
 
 
     // --- INITIALIZATION ---
