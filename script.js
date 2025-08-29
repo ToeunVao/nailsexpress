@@ -394,8 +394,132 @@ function initLandingPage() {
 
 // --- CLIENT DASHBOARD SCRIPT ---
 function initClientDashboard(clientId, clientData) {
-    console.log("Initializing Client Dashboard for:", clientData.name);
-    // Add logic for client dashboard here
+    document.getElementById('client-welcome-name').textContent = `Welcome back, ${clientData.name}!`;
+    document.getElementById('client-sign-out-btn').addEventListener('click', () => signOut(auth));
+
+    const setupClientTabs = () => {
+        const tabs = document.getElementById('client-dashboard-tabs');
+        tabs.addEventListener('click', (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+            document.querySelectorAll('#client-dashboard-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            document.querySelectorAll('.client-tab-content').forEach(content => content.classList.add('hidden'));
+            document.getElementById(button.id.replace('-tab', '-content')).classList.remove('hidden');
+        });
+    };
+
+    const renderClientAppointments = (appointments) => {
+        const container = document.getElementById('client-upcoming-appointments');
+        container.innerHTML = '';
+        const upcoming = appointments.filter(a => a.appointmentTimestamp.toDate() > new Date());
+        if (upcoming.length === 0) {
+            container.innerHTML = '<p class="text-gray-500">You have no upcoming appointments.</p>';
+            return;
+        }
+        upcoming.forEach(appt => {
+            const el = document.createElement('div');
+            el.className = 'bg-white p-4 rounded-lg shadow';
+            el.innerHTML = `
+                <p class="font-bold">${new Date(appt.appointmentTimestamp.seconds * 1000).toLocaleString()}</p>
+                <p>${appt.services.join(', ')}</p>
+                <p class="text-sm text-gray-600">With: ${appt.technician}</p>
+            `;
+            container.appendChild(el);
+        });
+    };
+
+    const renderClientHistory = (history) => {
+         const container = document.getElementById('client-appointment-history');
+        container.innerHTML = '';
+        if (history.length === 0) {
+            container.innerHTML = '<p class="text-gray-500">You have no past appointments.</p>';
+            return;
+        }
+        history.forEach(visit => {
+            const el = document.createElement('div');
+            el.className = 'bg-white p-4 rounded-lg shadow';
+            el.innerHTML = `
+                <p class="font-bold">${new Date(visit.checkOutTimestamp.seconds * 1000).toLocaleDateString()}</p>
+                <p>${visit.services}</p>
+                <p class="text-sm text-gray-600">With: ${visit.technician}</p>
+                ${visit.colorCode ? `<p class="text-sm text-gray-600">Color: ${visit.colorCode}</p>` : ''}
+            `;
+            container.appendChild(el);
+        });
+    };
+
+    const calculateAndRenderFavorites = (history) => {
+        if (history.length === 0) return;
+        const techCounts = history.reduce((acc, visit) => {
+            acc[visit.technician] = (acc[visit.technician] || 0) + 1;
+            return acc;
+        }, {});
+        const colorCounts = history.reduce((acc, visit) => {
+            if(visit.colorCode) acc[visit.colorCode] = (acc[visit.colorCode] || 0) + 1;
+            return acc;
+        }, {});
+
+        const favTech = Object.keys(techCounts).reduce((a, b) => techCounts[a] > techCounts[b] ? a : b, 'N/A');
+        const favColor = Object.keys(colorCounts).reduce((a, b) => colorCounts[a] > colorCounts[b] ? a : b, 'N/A');
+
+        document.getElementById('favorite-technician').textContent = favTech;
+        document.getElementById('favorite-color').textContent = favColor;
+    };
+
+    const renderClientGallery = (photos) => {
+        const container = document.getElementById('client-photo-gallery');
+        container.innerHTML = '';
+        if (!photos || photos.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 col-span-full">You haven\'t uploaded any photos yet.</p>';
+            return;
+        }
+        photos.forEach(photoURL => {
+            const imgContainer = document.createElement('div');
+            imgContainer.className = 'relative';
+            imgContainer.innerHTML = `<img src="${photoURL}" class="w-full h-48 object-cover rounded-lg shadow">`;
+            container.appendChild(imgContainer);
+        });
+    };
+
+    // Listen to client's data for gallery updates
+    onSnapshot(doc(db, "clients", clientId), (docSnap) => {
+        if (docSnap.exists()) {
+            renderClientGallery(docSnap.data().photoGallery);
+        }
+    });
+
+    // Listen to appointments and history
+    onSnapshot(query(collection(db, "appointments"), where("name", "==", clientData.name)), (snapshot) => {
+        const appointments = snapshot.docs.map(doc => doc.data());
+        renderClientAppointments(appointments);
+    });
+     onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
+        const history = snapshot.docs.map(doc => doc.data());
+        renderClientHistory(history);
+        calculateAndRenderFavorites(history);
+    });
+
+    // Handle photo upload
+    document.getElementById('client-photo-upload').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const storageRef = ref(storage, `client_galleries/${clientId}/${Date.now()}_${file.name}`);
+        try {
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+            await updateDoc(doc(db, "clients", clientId), {
+                photoGallery: arrayUnion(downloadURL)
+            });
+            alert('Photo uploaded successfully!');
+        } catch (error) {
+            console.error("Error uploading photo:", error);
+            alert("Could not upload photo.");
+        }
+    });
+
+    setupClientTabs();
 }
 
 // --- MAIN CHECK-IN APP SCRIPT ---
@@ -996,7 +1120,7 @@ function initMainApp(userRole) {
         if (!tbody) return;
         tbody.innerHTML = '';
         if (filteredClients.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-gray-400">No clients found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-gray-400">No clients found.</td></tr>`;
             return;
         }
     
@@ -1676,7 +1800,7 @@ function initMainApp(userRole) {
     const renderAllBookingsList = () => {
         let filteredAppointments = [...allAppointments];
         if (currentTechFilterCalendar !== 'All' && currentTechFilterCalendar !== 'Any Technician') { filteredAppointments = filteredAppointments.filter(appt => appt.technician === currentTechFilterCalendar); } 
-        else if (currentTechFilterCalendar === 'Any Technician') { filteredAppointments = filteredAppointments.filter(appt => appt.technician === 'Any Technician'); }
+        else if (currentTechFilterCalendar === 'Any Technician') { filteredAppointments = allAppointments.filter(appt => appt.technician === 'Any Technician'); }
         filteredAppointments.sort((a, b) => b.appointmentTimestamp.seconds - a.appointmentTimestamp.seconds);
         todayCountSpan.textContent = filteredAppointments.length;
         const tbody = document.querySelector('#today-bookings-table tbody');
@@ -1726,16 +1850,14 @@ function initMainApp(userRole) {
     }
 
     document.getElementById('clients-list-report-content').addEventListener('click', (e) => {
-        const draftSmsBtn = e.target.closest('.draft-sms-btn');
+        const viewProfileBtn = e.target.closest('.view-client-profile-btn');
         const editBtn = e.target.closest('.edit-client-btn');
         const deleteBtn = e.target.closest('.delete-client-btn');
-        if (draftSmsBtn) {
-            const clientName = draftSmsBtn.dataset.name;
-            const client = aggregatedClients.find(c => c.name === clientName);
-            if (client) {
-                const lastFinishedClient = allFinishedClients.filter(c => c.name.toLowerCase() === client.name.toLowerCase()).sort((a,b) => b.checkOutTimestamp.toMillis() - a.checkOutTimestamp.toMillis())[0];
-                if (lastFinishedClient) { generateSmsMessage(lastFinishedClient); } 
-                else { alert("No recent service record found to generate message."); }
+        if (viewProfileBtn) {
+            const client = aggregatedClients.find(c => c.id === viewProfileBtn.dataset.id);
+            if(client) {
+                // This is where you would open a detailed client profile view for the admin
+                alert(`Viewing profile for ${client.name}. (Admin view to be implemented)`);
             }
         } else if (editBtn) {
             const client = aggregatedClients.find(c => c.id === editBtn.dataset.id);
