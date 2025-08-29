@@ -466,7 +466,7 @@ function initMainApp(userRole) {
     let currentFinishedDateFilter = '', currentEarningTechFilter = 'All', currentEarningDateFilter = '', currentEarningRangeFilter = 'daily';
     let currentSalonEarningDateFilter = '', currentSalonEarningRangeFilter = String(new Date().getMonth()), currentExpenseMonthFilter = '';
 
-    let allActiveClients = [], allFinishedClients = [], allAppointments = [], allClients = [], aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [], allInventoryUsage = [], allGiftCards = [];
+    let allActiveClients = [], allFinishedClients = [], allAppointments = [], allClients = [], aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [], allInventoryUsage = [], allGiftCards = [], allPromotions = [];
     let servicesData = {}, techniciansAndStaff = [], technicians = [];
     let allExpenseCategories = [], allPaymentAccounts = [], allSuppliers = [];
 
@@ -2412,6 +2412,140 @@ function initMainApp(userRole) {
     onSnapshot(query(collection(db, "gift_cards"), orderBy("createdAt", "desc")), (snapshot) => {
         allGiftCards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderGiftCardsAdminTable(allGiftCards);
+    });
+
+    // --- Promotions Management ---
+    const addPromotionForm = document.getElementById('add-promotion-form');
+    const promotionsTableBody = document.querySelector('#promotions-table tbody');
+    const promotionsContainerLanding = document.getElementById('promotions-container-landing');
+    
+    const renderPromotionsAdminTable = (promotions) => {
+        promotionsTableBody.innerHTML = '';
+        const now = new Date();
+        promotions.forEach(promo => {
+            const startDate = promo.startDate.toDate();
+            const endDate = promo.endDate.toDate();
+            let status, statusColor;
+
+            if (now < startDate) {
+                status = 'Scheduled';
+                statusColor = 'text-blue-600';
+            } else if (now > endDate) {
+                status = 'Expired';
+                statusColor = 'text-gray-500';
+            } else {
+                status = 'Active';
+                statusColor = 'text-green-600';
+            }
+
+            const row = promotionsTableBody.insertRow();
+            row.innerHTML = `
+                <td class="px-6 py-4">${promo.title}</td>
+                <td class="px-6 py-4">${promo.description}</td>
+                <td class="px-6 py-4">${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</td>
+                <td class="px-6 py-4 font-bold ${statusColor}">${status}</td>
+                <td class="px-6 py-4 text-center space-x-2">
+                    <button data-id="${promo.id}" class="send-promo-notification-btn text-purple-500" title="Send Notification"><i class="fas fa-paper-plane"></i></button>
+                    <button data-id="${promo.id}" class="edit-promotion-btn text-blue-500"><i class="fas fa-edit"></i></button>
+                    <button data-id="${promo.id}" class="delete-promotion-btn text-red-500"><i class="fas fa-trash"></i></button>
+                </td>
+            `;
+        });
+    };
+
+    const renderPromotionsLanding = (promotions) => {
+        promotionsContainerLanding.innerHTML = '';
+        const now = new Date();
+        const activePromos = promotions.filter(promo => {
+            const startDate = promo.startDate.toDate();
+            const endDate = promo.endDate.toDate();
+            return now >= startDate && now <= endDate;
+        });
+
+        if (activePromos.length === 0) {
+            promotionsContainerLanding.innerHTML = '<p class="text-gray-600 col-span-full text-center">No active promotions right now. Check back soon!</p>';
+            return;
+        }
+
+        activePromos.forEach(promo => {
+            const promoEl = document.createElement('div');
+            promoEl.className = 'bg-white p-6 rounded-lg shadow-md text-center';
+            promoEl.innerHTML = `
+                <h3 class="text-xl font-bold text-pink-700 mb-2">${promo.title}</h3>
+                <p class="text-gray-600">${promo.description}</p>
+            `;
+            promotionsContainerLanding.appendChild(promoEl);
+        });
+    };
+
+    onSnapshot(query(collection(db, "promotions"), orderBy("startDate", "desc")), (snapshot) => {
+        allPromotions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderPromotionsAdminTable(allPromotions);
+        renderPromotionsLanding(allPromotions);
+    });
+
+    addPromotionForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const promoId = document.getElementById('edit-promotion-id').value;
+        const promoData = {
+            title: document.getElementById('promotion-title').value,
+            description: document.getElementById('promotion-description').value,
+            startDate: Timestamp.fromDate(new Date(document.getElementById('promotion-start-date').value + 'T00:00:00')),
+            endDate: Timestamp.fromDate(new Date(document.getElementById('promotion-end-date').value + 'T23:59:59')),
+        };
+
+        try {
+            if (promoId) {
+                await updateDoc(doc(db, "promotions", promoId), promoData);
+            } else {
+                promoData.createdAt = serverTimestamp();
+                await addDoc(collection(db, "promotions"), promoData);
+            }
+            addPromotionForm.reset();
+            document.getElementById('edit-promotion-id').value = '';
+        } catch (error) {
+            console.error("Error saving promotion:", error);
+            alert("Could not save promotion.");
+        }
+    });
+
+    promotionsTableBody.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.edit-promotion-btn');
+        const deleteBtn = e.target.closest('.delete-promotion-btn');
+        const sendBtn = e.target.closest('.send-promo-notification-btn');
+
+        if (editBtn) {
+            const promo = allPromotions.find(p => p.id === editBtn.dataset.id);
+            if (promo) {
+                document.getElementById('edit-promotion-id').value = promo.id;
+                document.getElementById('promotion-title').value = promo.title;
+                document.getElementById('promotion-description').value = promo.description;
+                document.getElementById('promotion-start-date').value = promo.startDate.toDate().toISOString().split('T')[0];
+                document.getElementById('promotion-end-date').value = promo.endDate.toDate().toISOString().split('T')[0];
+                document.getElementById('add-promotion-btn').textContent = 'Update Promotion';
+                document.getElementById('cancel-edit-promotion-btn').classList.remove('hidden');
+            }
+        } else if (deleteBtn) {
+            showConfirmModal("Are you sure you want to delete this promotion?", async () => {
+                await deleteDoc(doc(db, "promotions", deleteBtn.dataset.id));
+            });
+        } else if (sendBtn) {
+            const promo = allPromotions.find(p => p.id === sendBtn.dataset.id);
+            if (promo) {
+                 showConfirmModal(`Send a notification for "${promo.title}" to all clients?`, () => {
+                    // This is a simulation. A real push notification system (like FCM) would be needed here.
+                    addNotification('promo', `New Promotion: ${promo.title}! ${promo.description}`);
+                    alert('Promotion notification sent!');
+                });
+            }
+        }
+    });
+
+    document.getElementById('cancel-edit-promotion-btn').addEventListener('click', () => {
+        addPromotionForm.reset();
+        document.getElementById('edit-promotion-id').value = '';
+        document.getElementById('add-promotion-btn').textContent = 'Add Promotion';
+        document.getElementById('cancel-edit-promotion-btn').classList.add('hidden');
     });
 
     // --- CLIENT FORM MODAL LOGIC ---
