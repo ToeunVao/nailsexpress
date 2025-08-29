@@ -38,6 +38,7 @@
             <div class="container mx-auto px-6 py-4 flex justify-between items-center">
                 <div id="landing-logo" class="text-2xl font-bold text-pink-700 tracking-wider"><h2><a href="#">NailsXpress</a></h2></div>
                 <nav class="hidden md:flex space-x-8 text-sm font-semibold text-gray-600">
+                    <a href="#promotions-landing" class="hover:text-pink-600">Promotions</a>
                     <a href="#nails-idea-landing" class="hover:text-pink-600">Nails Idea</a>
                     <a href="#gift-card-landing" class="hover:text-pink-600">Gift Cards</a>
                     <a href="#booking-landing" class="hover:text-pink-600">Booking</a>
@@ -81,8 +82,30 @@
             </div>
         </section>
 
+        <!-- Promotions Section -->
+        <section id="promotions-landing" class="py-20 bg-pink-50">
+            <div class="container mx-auto px-6">
+                <h2 class="text-3xl font-bold text-center text-pink-700 mb-8">Current Promotions</h2>
+                <div id="promotions-container-landing" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- Promotions will be dynamically inserted here -->
+                    <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                        <h3 class="text-xl font-bold text-pink-700 mb-2">20% Off Pedicures</h3>
+                        <p class="text-gray-600">This week only! Treat your feet to a relaxing pedicure and get 20% off.</p>
+                    </div>
+                     <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                        <h3 class="text-xl font-bold text-pink-700 mb-2">Free Nail Art</h3>
+                        <p class="text-gray-600">Get a free simple nail art design with any manicure service.</p>
+                    </div>
+                     <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                        <h3 class="text-xl font-bold text-pink-700 mb-2">$5 Off Gel Manicures</h3>
+                        <p class="text-gray-600">Enjoy $5 off your next gel manicure. Show this offer at checkout!</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <!-- Nails Idea Section -->
-        <section id="nails-idea-landing" class="py-20 bg-pink-50">
+        <section id="nails-idea-landing" class="py-20 bg-white">
             <div class="container mx-auto px-6">
                 <h2 class="text-3xl font-bold text-center text-pink-700 mb-8">Nail Art Inspiration</h2>
                 <div class="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
@@ -96,7 +119,7 @@
         </section>
         
         <!-- Gift Card Section -->
-        <section id="gift-card-landing" class="py-20 bg-white">
+        <section id="gift-card-landing" class="py-20 bg-pink-50">
             <div class="container mx-auto px-6 text-center">
                 <h2 class="text-3xl font-bold mb-4 text-pink-700">Give the Gift of Glamour</h2>
                 <p class="text-gray-600 max-w-3xl mx-auto leading-relaxed mb-8">
@@ -779,6 +802,7 @@
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="service-management-tab" type="button">Service Management</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="nail-ideas-management-tab" type="button">Nail Ideas Management</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="gift-card-management-tab" type="button">Gift Card Management</button></li>
+                                <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="promotions-management-tab" type="button">Promotions</button></li>
                                 <li class="mr-2"><button class="sub-tab-btn inline-block p-4 rounded-t-lg" id="settings-management-tab" type="button">Settings</button></li>
                             </ul>
                         </div>
@@ -915,6 +939,36 @@
                                     <tbody>
                                         <!-- JS will populate this -->
                                     </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Promotions Management Content -->
+                        <div id="promotions-management-content" class="sub-tab-content hidden">
+                            <h3 class="text-xl font-semibold text-gray-700 mb-4">Manage Promotions</h3>
+                            <form id="add-promotion-form" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 p-4 border rounded-lg bg-gray-50 items-end">
+                                <input type="hidden" id="edit-promotion-id">
+                                <div class="md:col-span-2"><label for="promotion-title" class="block text-sm font-medium text-gray-600">Title</label><input type="text" id="promotion-title" class="form-input w-full mt-1" required></div>
+                                <div class="md:col-span-2"><label for="promotion-description" class="block text-sm font-medium text-gray-600">Description</label><textarea id="promotion-description" rows="2" class="form-input w-full mt-1" required></textarea></div>
+                                <div><label for="promotion-start-date" class="block text-sm font-medium text-gray-600">Start Date</label><input type="date" id="promotion-start-date" class="form-input w-full mt-1" required></div>
+                                <div><label for="promotion-end-date" class="block text-sm font-medium text-gray-600">End Date</label><input type="date" id="promotion-end-date" class="form-input w-full mt-1" required></div>
+                                <div class="md:col-span-2 self-end flex gap-2">
+                                    <button type="submit" id="add-promotion-btn" class="w-full bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Add Promotion</button>
+                                    <button type="button" id="cancel-edit-promotion-btn" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 hidden">Cancel</button>
+                                </div>
+                            </form>
+                            <div class="overflow-x-auto">
+                                <table id="promotions-table" class="w-full text-sm text-left text-gray-600">
+                                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                        <tr>
+                                            <th scope="col" class="px-6 py-3">Title</th>
+                                            <th scope="col" class="px-6 py-3">Description</th>
+                                            <th scope="col" class="px-6 py-3">Duration</th>
+                                            <th scope="col" class="px-6 py-3">Status</th>
+                                            <th scope="col" class="px-6 py-3 text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody></tbody>
                                 </table>
                             </div>
                         </div>
