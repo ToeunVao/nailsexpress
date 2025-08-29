@@ -21,14 +21,17 @@ const storage = getStorage(app);
 const loadingScreen = document.getElementById('loading-screen');
 const landingPageContent = document.getElementById('landing-page-content');
 const appContent = document.getElementById('app-content');
+const clientDashboardContent = document.getElementById('client-dashboard-content');
 const policyModal = document.getElementById('policy-modal');
 let mainAppInitialized = false;
+let clientDashboardInitialized = false;
 let landingPageInitialized = false;
 let anonymousUserId = null;
 let bookingSettings = { minBookingHours: 2 };
 let bookingsChart, servicesChart, earningsChart;
 let notifications = [];
 let currentUserRole = null;
+let currentUserId = null;
 let initialAppointmentsLoaded = false;
 let initialInventoryLoaded = false;
 
@@ -44,10 +47,12 @@ document.querySelector('#policy-modal .policy-modal-overlay').addEventListener('
 // --- Primary Authentication Router ---
 onAuthStateChanged(auth, async (user) => {
     if (user) {
+        currentUserId = user.uid;
         if (user.isAnonymous) {
             anonymousUserId = user.uid;
             loadingScreen.style.display = 'none';
             appContent.style.display = 'none';
+            clientDashboardContent.style.display = 'none';
             landingPageContent.style.display = 'block';
             if (!landingPageInitialized) {
                 initLandingPage();
@@ -56,22 +61,40 @@ onAuthStateChanged(auth, async (user) => {
         } else {
             const userDocRef = doc(db, "users", user.uid);
             const userDoc = await getDoc(userDocRef);
-            if (userDoc.exists()) {
+            
+            if (userDoc.exists()) { // This is a staff/admin user
                 currentUserRole = userDoc.data().role;
                 loadingScreen.style.display = 'none';
                 landingPageContent.style.display = 'none';
+                clientDashboardContent.style.display = 'none';
                 appContent.style.display = 'block';
                 if (!mainAppInitialized) {
                     initMainApp(currentUserRole);
                     mainAppInitialized = true;
                 }
-            } else {
-                console.error("User authenticated but no user document found. Logging out.");
-                await signOut(auth);
-                alert("Login error: User data not found.");
+            } else { // Check if it's a client
+                const clientDocRef = doc(db, "clients", user.uid);
+                const clientDoc = await getDoc(clientDocRef);
+                if (clientDoc.exists()) {
+                    currentUserRole = clientDoc.data().role; // Should be 'client'
+                    loadingScreen.style.display = 'none';
+                    landingPageContent.style.display = 'none';
+                    appContent.style.display = 'none';
+                    clientDashboardContent.style.display = 'block';
+                     if (!clientDashboardInitialized) {
+                        initClientDashboard(user.uid, clientDoc.data());
+                        clientDashboardInitialized = true;
+                    }
+                } else {
+                     console.error("User authenticated but no user/client document found. Logging out.");
+                     await signOut(auth);
+                     alert("Login error: User data not found.");
+                }
             }
         }
     } else {
+        currentUserId = null;
+        currentUserRole = null;
         signInAnonymously(auth).catch((error) => {
             console.error("Anonymous sign-in failed:", error);
             loadingScreen.innerHTML = '<h2 class="text-3xl font-bold text-red-700">Could not connect. Please refresh.</h2>';
@@ -82,22 +105,44 @@ onAuthStateChanged(auth, async (user) => {
 
 // --- LANDING PAGE SCRIPT ---
 function initLandingPage() {
-    const loginModal = document.getElementById('login-modal');
+    const signupLoginModal = document.getElementById('signup-login-modal');
     const userIcon = document.getElementById('user-icon');
-    const closeLoginModalBtn = document.getElementById('close-login-modal-btn');
+    const closeSignupLoginModalBtn = document.getElementById('close-signup-login-modal-btn');
     const landingLoginForm = document.getElementById('landing-login-form');
+    const landingSignupForm = document.getElementById('landing-signup-form');
     const addAppointmentFormLanding = document.getElementById('add-appointment-form-landing');
     const giftCardModal = document.getElementById('gift-card-modal');
     const buyGiftCardBtn = document.getElementById('buy-gift-card-btn');
     const closeGiftCardModalBtn = document.getElementById('close-gift-card-modal-btn');
     const giftCardForm = document.getElementById('gift-card-form');
 
-    // Modal handling
-    const openLoginModal = () => { loginModal.classList.remove('hidden'); loginModal.classList.add('flex'); };
-    const closeLoginModal = () => { loginModal.classList.add('hidden'); loginModal.classList.remove('flex'); };
-    userIcon.addEventListener('click', openLoginModal);
-    closeLoginModalBtn.addEventListener('click', closeLoginModal);
-    loginModal.querySelector('.modal-overlay').addEventListener('click', closeLoginModal);
+    // Auth Modal handling
+    const openAuthModal = () => { signupLoginModal.classList.remove('hidden'); signupLoginModal.classList.add('flex'); };
+    const closeAuthModal = () => { signupLoginModal.classList.add('hidden'); signupLoginModal.classList.remove('flex'); };
+    userIcon.addEventListener('click', openAuthModal);
+    closeSignupLoginModalBtn.addEventListener('click', closeAuthModal);
+    signupLoginModal.querySelector('.modal-overlay').addEventListener('click', closeAuthModal);
+
+    // Auth tabs
+    const loginTabBtn = document.getElementById('login-tab-btn');
+    const signupTabBtn = document.getElementById('signup-tab-btn');
+    const loginFormContainer = document.getElementById('login-form-container');
+    const signupFormContainer = document.getElementById('signup-form-container');
+
+    loginTabBtn.addEventListener('click', () => {
+        loginTabBtn.classList.add('active');
+        signupTabBtn.classList.remove('active');
+        loginFormContainer.classList.remove('hidden');
+        signupFormContainer.classList.add('hidden');
+    });
+
+    signupTabBtn.addEventListener('click', () => {
+        signupTabBtn.classList.add('active');
+        loginTabBtn.classList.remove('active');
+        signupFormContainer.classList.remove('hidden');
+        loginFormContainer.classList.add('hidden');
+    });
+
 
     // Gift Card Modal Handling
     const openGiftCardModal = () => { giftCardModal.classList.remove('hidden'); giftCardModal.classList.add('flex'); };
@@ -175,10 +220,45 @@ function initLandingPage() {
             // onAuthStateChanged will handle the redirect
         } catch (error) {
             alert(`Login Failed: ${error.message}`);
+        } finally {
             btnText.textContent = 'Log In';
             spinner.classList.add('hidden');
         }
     });
+
+    // Signup form submission
+    landingSignupForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('signup-name').value;
+        const email = document.getElementById('signup-email').value;
+        const password = document.getElementById('signup-password').value;
+        const signupBtn = document.getElementById('landing-signup-btn');
+        const btnText = signupBtn.querySelector('.btn-text');
+        const spinner = signupBtn.querySelector('i');
+
+        btnText.textContent = 'Signing Up...';
+        spinner.classList.remove('hidden');
+
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // Create a client document in Firestore
+            await setDoc(doc(db, "clients", user.uid), {
+                name: name,
+                email: email,
+                role: 'client',
+                createdAt: serverTimestamp()
+            });
+            // onAuthStateChanged will handle the redirect
+        } catch (error) {
+            alert(`Sign Up Failed: ${error.message}`);
+        } finally {
+            btnText.textContent = 'Sign Up';
+            spinner.classList.add('hidden');
+        }
+    });
+
 
     // Populate booking form dropdowns
     const peopleSelect = document.getElementById('appointment-people-landing');
@@ -310,6 +390,12 @@ function initLandingPage() {
             alert("Could not book appointment. Please try again.");
         }
     });
+}
+
+// --- CLIENT DASHBOARD SCRIPT ---
+function initClientDashboard(clientId, clientData) {
+    console.log("Initializing Client Dashboard for:", clientData.name);
+    // Add logic for client dashboard here
 }
 
 // --- MAIN CHECK-IN APP SCRIPT ---
@@ -919,12 +1005,9 @@ function initMainApp(userRole) {
             row.className = 'bg-white border-b';
             row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900">${client.name}</td>
                              <td class="px-6 py-4">${client.phone || 'N/A'}</td>
-                             <td class="px-6 py-4">${client.dob || 'N/A'}</td>
-                             <td class="px-6 py-4">${client.favoriteTech || 'N/A'}</td>
-                             <td class="px-6 py-4">${client.favoriteColor || 'N/A'}</td>
                              <td class="px-6 py-4">${client.lastVisit ? new Date(client.lastVisit).toLocaleDateString() : 'N/A'}</td>
                              <td class="px-6 py-4 text-center space-x-2">
-                                <button data-id="${client.id}" data-name="${client.name}" class="text-purple-500 hover:text-purple-700 draft-sms-btn" title="Draft SMS with Gemini"><i class="fas fa-sms text-lg"></i></button>
+                                <button data-id="${client.id}" class="text-indigo-500 hover:text-indigo-700 view-client-profile-btn" title="View Profile"><i class="fas fa-user-circle text-lg"></i></button>
                                 <button data-id="${client.id}" class="text-blue-500 hover:text-blue-700 edit-client-btn" title="Edit Client"><i class="fas fa-edit text-lg"></i></button>
                                 <button data-id="${client.id}" class="text-red-500 hover:text-red-700 delete-client-btn" title="Delete Client"><i class="fas fa-trash-alt text-lg"></i></button>
                              </td>`;
