@@ -29,6 +29,14 @@
     .gallery-item:hover .overlay {
         opacity: 1;
     }
+    /* Toggle Switch Styles */
+    .toggle-checkbox:checked {
+        right: 0;
+        border-color: #d63384;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+        background-color: #d63384;
+    }
   </style>
 </head>
 <body class="bg-gray-100">
@@ -44,10 +52,10 @@
         <header class="bg-white/80 backdrop-blur-md sticky top-0 z-50">
             <div class="container mx-auto px-6 py-4 flex justify-between items-center">
                 <div id="landing-logo" class="text-2xl font-bold text-pink-700 tracking-wider"><h2><a href="#">NailsXpress</a></h2></div>
-                <nav class="hidden md:flex space-x-8 text-sm font-semibold text-gray-600">
-                    <a href="#promotions-landing" class="hover:text-pink-600">Promotions</a>
-                    <a href="#nails-idea-landing" class="hover:text-pink-600">Nails Idea</a>
-                    <a href="#gift-card-landing" class="hover:text-pink-600">Gift Cards</a>
+                <nav id="landing-nav" class="hidden md:flex space-x-8 text-sm font-semibold text-gray-600">
+                    <a href="#promotions-landing" class="hover:text-pink-600 nav-item-promotions">Promotions</a>
+                    <a href="#nails-idea-landing" class="hover:text-pink-600 nav-item-nails-idea">Nails Idea</a>
+                    <a href="#gift-card-landing" class="hover:text-pink-600 nav-item-gift-card">Gift Cards</a>
                     <a href="#booking-landing" class="hover:text-pink-600">Booking</a>
                     <a href="#about-landing" class="hover:text-pink-600">About Us</a>
                     <a href="#contact-landing" class="hover:text-pink-600">Contact Us</a>
@@ -95,18 +103,6 @@
                 <h2 class="text-3xl font-bold text-center text-pink-700 mb-8">Current Promotions</h2>
                 <div id="promotions-container-landing" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     <!-- Promotions will be dynamically inserted here -->
-                    <div class="bg-white p-6 rounded-lg shadow-md text-center">
-                        <h3 class="text-xl font-bold text-pink-700 mb-2">20% Off Pedicures</h3>
-                        <p class="text-gray-600">This week only! Treat your feet to a relaxing pedicure and get 20% off.</p>
-                    </div>
-                     <div class="bg-white p-6 rounded-lg shadow-md text-center">
-                        <h3 class="text-xl font-bold text-pink-700 mb-2">Free Nail Art</h3>
-                        <p class="text-gray-600">Get a free simple nail art design with any manicure service.</p>
-                    </div>
-                     <div class="bg-white p-6 rounded-lg shadow-md text-center">
-                        <h3 class="text-xl font-bold text-pink-700 mb-2">$5 Off Gel Manicures</h3>
-                        <p class="text-gray-600">Enjoy $5 off your next gel manicure. Show this offer at checkout!</p>
-                    </div>
                 </div>
             </div>
         </section>
@@ -115,14 +111,8 @@
         <section id="nails-idea-landing" class="py-20 bg-white">
             <div class="container mx-auto px-6">
                 <h2 class="text-3xl font-bold text-center text-pink-700 mb-8">Nail Art Inspiration</h2>
-                <div class="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
-                    <!-- Placeholder Images for Pinterest-style board -->
-                    <div class="break-inside-avoid relative gallery-item">
-                        <img class="w-full rounded-lg shadow-md" src="https://placehold.co/400x600/d63384/FFFFFF?text=Nail+Art+1" alt="Nail Art Idea 1">
-                        <div class="overlay absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-lg">
-                            <button class="share-nail-idea-btn text-white text-3xl"><i class="fas fa-share-alt"></i></button>
-                        </div>
-                    </div>
+                <div id="nails-idea-container-landing" class="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
+                    <!-- Nail ideas will be dynamically inserted here -->
                 </div>
             </div>
         </section>
@@ -1104,6 +1094,31 @@
                                         </div>
                                         <div class="text-right"><button type="submit" class="bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Save Settings</button></div>
                                     </form>
+
+                                    <h3 class="text-xl font-semibold text-gray-700 mb-4">Frontend Feature Management</h3>
+                                    <div id="feature-toggles-form" class="p-4 border rounded-lg bg-gray-50 space-y-4">
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm font-medium text-gray-900">Show Promotions Section</span>
+                                            <label for="toggle-promotions" class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" id="toggle-promotions" class="sr-only peer">
+                                                <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-pink-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                                            </label>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm font-medium text-gray-900">Show Gift Card Section</span>
+                                            <label for="toggle-gift-card" class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" id="toggle-gift-card" class="sr-only peer">
+                                                <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-pink-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                                            </label>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-sm font-medium text-gray-900">Show Nail Art Gallery</span>
+                                            <label for="toggle-nails-idea" class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" id="toggle-nails-idea" class="sr-only peer">
+                                                <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-pink-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
                                 <!-- Expense Settings -->
                                 <div>
