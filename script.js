@@ -87,6 +87,10 @@ function initLandingPage() {
     const closeLoginModalBtn = document.getElementById('close-login-modal-btn');
     const landingLoginForm = document.getElementById('landing-login-form');
     const addAppointmentFormLanding = document.getElementById('add-appointment-form-landing');
+    const giftCardModal = document.getElementById('gift-card-modal');
+    const buyGiftCardBtn = document.getElementById('buy-gift-card-btn');
+    const closeGiftCardModalBtn = document.getElementById('close-gift-card-modal-btn');
+    const giftCardForm = document.getElementById('gift-card-form');
 
     // Modal handling
     const openLoginModal = () => { loginModal.classList.remove('hidden'); loginModal.classList.add('flex'); };
@@ -94,6 +98,65 @@ function initLandingPage() {
     userIcon.addEventListener('click', openLoginModal);
     closeLoginModalBtn.addEventListener('click', closeLoginModal);
     loginModal.querySelector('.modal-overlay').addEventListener('click', closeLoginModal);
+
+    // Gift Card Modal Handling
+    const openGiftCardModal = () => { giftCardModal.classList.remove('hidden'); giftCardModal.classList.add('flex'); };
+    const closeGiftCardModal = () => { giftCardModal.classList.add('hidden'); giftCardModal.classList.remove('flex'); };
+    buyGiftCardBtn.addEventListener('click', openGiftCardModal);
+    closeGiftCardModalBtn.addEventListener('click', closeGiftCardModal);
+    giftCardModal.querySelector('.modal-overlay').addEventListener('click', closeGiftCardModal);
+    
+    const giftCardAmountSelect = document.getElementById('gift-card-amount');
+    const customAmountInput = document.getElementById('gift-card-custom-amount');
+    giftCardAmountSelect.addEventListener('change', () => {
+        if (giftCardAmountSelect.value === 'custom') {
+            customAmountInput.classList.remove('hidden');
+            customAmountInput.required = true;
+        } else {
+            customAmountInput.classList.add('hidden');
+            customAmountInput.required = false;
+        }
+    });
+
+    giftCardForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const amount = giftCardAmountSelect.value === 'custom' 
+            ? parseFloat(customAmountInput.value) 
+            : parseInt(giftCardAmountSelect.value, 10);
+
+        if (isNaN(amount) || amount <= 0) {
+            alert('Please enter a valid amount.');
+            return;
+        }
+
+        const giftCardData = {
+            amount: amount,
+            recipientName: document.getElementById('gift-card-recipient-name').value,
+            recipientEmail: document.getElementById('gift-card-recipient-email').value,
+            senderName: document.getElementById('gift-card-sender-name').value,
+            message: document.getElementById('gift-card-message').value,
+            code: `GC-${Date.now()}${[...Array(4)].map(() => Math.floor(Math.random() * 10)).join('')}`,
+            status: 'Active',
+            createdAt: serverTimestamp()
+        };
+
+        try {
+            // In a real app, you would integrate a payment gateway here.
+            // For now, we'll simulate a successful payment and save to Firestore.
+            alert('Redirecting to a secure payment page...');
+            
+            await addDoc(collection(db, "gift_cards"), giftCardData);
+            
+            alert(`Success! Gift card for $${amount} has been sent to ${giftCardData.recipientEmail}.`);
+            giftCardForm.reset();
+            closeGiftCardModal();
+
+        } catch (error) {
+            console.error("Error purchasing gift card:", error);
+            alert("Could not process the gift card purchase. Please try again.");
+        }
+    });
+
 
     // Login form submission
     landingLoginForm.addEventListener('submit', async (e) => {
@@ -403,7 +466,7 @@ function initMainApp(userRole) {
     let currentFinishedDateFilter = '', currentEarningTechFilter = 'All', currentEarningDateFilter = '', currentEarningRangeFilter = 'daily';
     let currentSalonEarningDateFilter = '', currentSalonEarningRangeFilter = String(new Date().getMonth()), currentExpenseMonthFilter = '';
 
-    let allActiveClients = [], allFinishedClients = [], allAppointments = [], allClients = [], aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [], allInventoryUsage = [];
+    let allActiveClients = [], allFinishedClients = [], allAppointments = [], allClients = [], aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [], allInventoryUsage = [], allGiftCards = [];
     let servicesData = {}, techniciansAndStaff = [], technicians = [];
     let allExpenseCategories = [], allPaymentAccounts = [], allSuppliers = [];
 
@@ -2323,6 +2386,33 @@ function initMainApp(userRole) {
         }
     });
 
+    // --- Gift Card Management ---
+    const giftCardsTableBody = document.querySelector('#gift-cards-table tbody');
+
+    const renderGiftCardsAdminTable = (cards) => {
+        giftCardsTableBody.innerHTML = '';
+        if (cards.length === 0) {
+            giftCardsTableBody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-400">No gift cards have been sold.</td></tr>`;
+            return;
+        }
+        cards.forEach(card => {
+            const row = giftCardsTableBody.insertRow();
+            const statusColor = card.status === 'Active' ? 'text-green-600' : 'text-gray-500';
+            row.innerHTML = `
+                <td class="px-6 py-4">${new Date(card.createdAt.seconds * 1000).toLocaleDateString()}</td>
+                <td class="px-6 py-4 font-mono text-xs">${card.code}</td>
+                <td class="px-6 py-4">$${card.amount.toFixed(2)}</td>
+                <td class="px-6 py-4">${card.recipientName}<br><span class="text-xs text-gray-500">${card.recipientEmail}</span></td>
+                <td class="px-6 py-4">${card.senderName}</td>
+                <td class="px-6 py-4 font-bold ${statusColor}">${card.status}</td>
+            `;
+        });
+    };
+
+    onSnapshot(query(collection(db, "gift_cards"), orderBy("createdAt", "desc")), (snapshot) => {
+        allGiftCards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderGiftCardsAdminTable(allGiftCards);
+    });
 
     // --- CLIENT FORM MODAL LOGIC ---
     const openClientModal = (client = null) => {
