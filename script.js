@@ -28,6 +28,7 @@ let clientDashboardInitialized = false;
 let landingPageInitialized = false;
 let anonymousUserId = null;
 let bookingSettings = { minBookingHours: 2 };
+let loginSecuritySettings = { maxAttempts: 5, lockoutMinutes: 15 };
 let bookingsChart, servicesChart, earningsChart;
 let notifications = [];
 let currentUserRole = null;
@@ -115,6 +116,14 @@ function initLandingPage() {
     const buyGiftCardBtn = document.getElementById('buy-gift-card-btn');
     const closeGiftCardModalBtn = document.getElementById('close-gift-card-modal-btn');
     const giftCardForm = document.getElementById('gift-card-form');
+    const lockoutMessageDiv = document.getElementById('login-lockout-message');
+
+    // Fetch security settings for the login form
+    getDoc(doc(db, "settings", "security")).then(docSnap => {
+        if (docSnap.exists()) {
+            loginSecuritySettings = docSnap.data();
+        }
+    });
 
     // Auth Modal handling
     const openAuthModal = () => { signupLoginModal.classList.remove('hidden'); signupLoginModal.classList.add('flex'); };
@@ -202,8 +211,7 @@ function initLandingPage() {
         }
     });
 
-
-    // Login form submission
+    // Login form submission with security checks
     landingLoginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('landing-email').value;
@@ -211,20 +219,50 @@ function initLandingPage() {
         const loginBtn = document.getElementById('landing-login-btn');
         const btnText = loginBtn.querySelector('.btn-text');
         const spinner = loginBtn.querySelector('i');
+        const emailKey = 'loginAttempts_' + email.toLowerCase();
+        const lockoutKey = 'lockoutUntil_' + email.toLowerCase();
+
+        // Check for lockout
+        const lockoutUntil = localStorage.getItem(lockoutKey);
+        if (lockoutUntil && Date.now() < parseInt(lockoutUntil)) {
+            const remainingTime = Math.ceil((parseInt(lockoutUntil) - Date.now()) / (1000 * 60));
+            lockoutMessageDiv.textContent = `Too many failed attempts. Please try again in ${remainingTime} minutes.`;
+            lockoutMessageDiv.classList.remove('hidden');
+            return;
+        } else if (lockoutUntil) {
+            // Clear expired lockout
+            localStorage.removeItem(lockoutKey);
+        }
+        lockoutMessageDiv.classList.add('hidden');
 
         btnText.textContent = 'Logging In...';
         spinner.classList.remove('hidden');
+        loginBtn.disabled = true;
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
             // onAuthStateChanged will handle the redirect
+            localStorage.removeItem(emailKey); // Clear attempts on success
+            localStorage.removeItem(lockoutKey);
         } catch (error) {
-            alert(`Login Failed: ${error.message}`);
+            let attempts = (parseInt(localStorage.getItem(emailKey)) || 0) + 1;
+            if (attempts >= loginSecuritySettings.maxAttempts) {
+                const lockoutTime = Date.now() + loginSecuritySettings.lockoutMinutes * 60 * 1000;
+                localStorage.setItem(lockoutKey, lockoutTime);
+                localStorage.removeItem(emailKey);
+                lockoutMessageDiv.textContent = `Login disabled for ${loginSecuritySettings.lockoutMinutes} minutes due to too many failed attempts.`;
+                lockoutMessageDiv.classList.remove('hidden');
+            } else {
+                localStorage.setItem(emailKey, attempts);
+                alert(`Login Failed: ${error.message}. You have ${loginSecuritySettings.maxAttempts - attempts} attempts remaining.`);
+            }
         } finally {
             btnText.textContent = 'Log In';
             spinner.classList.add('hidden');
+            loginBtn.disabled = false;
         }
     });
+
 
     // Signup form submission
     landingSignupForm.addEventListener('submit', async (e) => {
@@ -393,16 +431,14 @@ function initLandingPage() {
 
      // --- Feature Toggle Visibility ---
     const updateFeatureVisibility = (settings) => {
-        const showClientLogin = settings.showClientLogin !== false;
+        const showClientRegistration = settings.showClientLogin !== false;
         const showPromos = settings.showPromotions !== false;
         const showGiftCards = settings.showGiftCards !== false;
         const showNailArt = settings.showNailArt !== false;
-
-        document.getElementById('user-icon').style.display = showClientLogin ? 'flex' : 'none';
         
         const signupTab = document.getElementById('signup-tab-btn').parentElement;
         if (signupTab) {
-             signupTab.style.display = showClientLogin ? 'block' : 'none';
+             signupTab.style.display = showClientRegistration ? 'block' : 'none';
         }
         
         document.getElementById('promotions-landing').style.display = showPromos ? '' : 'none';
@@ -550,6 +586,7 @@ function initClientDashboard(clientId, clientData) {
             console.error("Error uploading photo:", error);
             alert("Could not upload photo.");
         }
+        e.target.value = ''; // Reset file input
     });
 
     // Handle "Book New Appointment" button
@@ -2260,6 +2297,8 @@ function initMainApp(userRole) {
     // --- Settings, Toggles & Expense Management ---
     const settingsForm = document.getElementById('settings-form');
     const minBookingHoursInput = document.getElementById('min-booking-hours');
+    const maxLoginAttemptsInput = document.getElementById('max-login-attempts');
+    const loginLockoutMinutesInput = document.getElementById('login-lockout-minutes');
     const featureTogglesForm = document.getElementById('feature-toggles-form');
 
     const loadFeatureToggles = async () => {
@@ -2292,10 +2331,18 @@ function initMainApp(userRole) {
     });
 
     const loadSettings = async () => { 
-        const docSnap = await getDoc(doc(db, "settings", "booking")); 
-        if (docSnap.exists()) { 
-            minBookingHoursInput.value = docSnap.data().minBookingHours || 2; 
+        const bookingSnap = await getDoc(doc(db, "settings", "booking")); 
+        if (bookingSnap.exists()) { 
+            const data = bookingSnap.data();
+            minBookingHoursInput.value = data.minBookingHours || 2; 
         } 
+        const securitySnap = await getDoc(doc(db, "settings", "security"));
+        if (securitySnap.exists()) {
+            const data = securitySnap.data();
+            loginSecuritySettings = data; // Update global settings
+            maxLoginAttemptsInput.value = data.maxAttempts || 5;
+            loginLockoutMinutesInput.value = data.lockoutMinutes || 15;
+        }
     };
     loadSettings();
     loadFeatureToggles();
@@ -2303,9 +2350,22 @@ function initMainApp(userRole) {
     settingsForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const hours = parseInt(minBookingHoursInput.value, 10);
-        if (isNaN(hours) || hours < 0) { return alert("Please enter a valid number."); }
-        try { await setDoc(doc(db, "settings", "booking"), { minBookingHours: hours }); alert("Settings saved!"); } 
-        catch (error) { console.error("Error saving settings: ", error); alert("Could not save settings."); }
+        const maxAttempts = parseInt(maxLoginAttemptsInput.value, 10);
+        const lockoutMinutes = parseInt(loginLockoutMinutesInput.value, 10);
+        
+        if (isNaN(hours) || hours < 0 || isNaN(maxAttempts) || maxAttempts < 1 || isNaN(lockoutMinutes) || lockoutMinutes < 1) { 
+            return alert("Please enter valid, positive numbers for all settings."); 
+        }
+
+        try { 
+            await setDoc(doc(db, "settings", "booking"), { minBookingHours: hours }); 
+            await setDoc(doc(db, "settings", "security"), { maxAttempts: maxAttempts, lockoutMinutes: lockoutMinutes });
+            loginSecuritySettings = { maxAttempts, lockoutMinutes }; // Update global settings immediately
+            alert("Settings saved!"); 
+        } catch (error) { 
+            console.error("Error saving settings: ", error); 
+            alert("Could not save settings."); 
+        }
     });
 
     // --- Generic CRUD for Expense Settings ---
