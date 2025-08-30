@@ -398,7 +398,12 @@ function initLandingPage() {
         const showGiftCards = settings.showGiftCards !== false;
         const showNailArt = settings.showNailArt !== false;
 
-        document.getElementById('user-icon').style.display = showClientLogin ? '' : 'none';
+        document.getElementById('user-icon').style.display = showClientLogin ? 'flex' : 'none';
+        
+        const signupTab = document.getElementById('signup-tab-btn').parentElement;
+        if (signupTab) {
+             signupTab.style.display = showClientLogin ? 'block' : 'none';
+        }
         
         document.getElementById('promotions-landing').style.display = showPromos ? '' : 'none';
         document.querySelector('.nav-item-promotions').style.display = showPromos ? '' : 'none';
@@ -480,7 +485,7 @@ function initClientDashboard(clientId, clientData) {
     const calculateAndRenderFavorites = (history) => {
         if (history.length === 0) return;
         const techCounts = history.reduce((acc, visit) => {
-            acc[visit.technician] = (acc[visit.technician] || 0) + 1;
+            if (visit.technician) acc[visit.technician] = (acc[visit.technician] || 0) + 1;
             return acc;
         }, {});
         const colorCounts = history.reduce((acc, visit) => {
@@ -488,8 +493,8 @@ function initClientDashboard(clientId, clientData) {
             return acc;
         }, {});
 
-        const favTech = Object.keys(techCounts).reduce((a, b) => techCounts[a] > techCounts[b] ? a : b, 'N/A');
-        const favColor = Object.keys(colorCounts).reduce((a, b) => colorCounts[a] > colorCounts[b] ? a : b, 'N/A');
+        const favTech = Object.keys(techCounts).length > 0 ? Object.keys(techCounts).reduce((a, b) => techCounts[a] > techCounts[b] ? a : b) : 'N/A';
+        const favColor = Object.keys(colorCounts).length > 0 ? Object.keys(colorCounts).reduce((a, b) => colorCounts[a] > colorCounts[b] ? a : b) : 'N/A';
 
         document.getElementById('favorite-technician').textContent = favTech;
         document.getElementById('favorite-color').textContent = favColor;
@@ -549,9 +554,13 @@ function initClientDashboard(clientId, clientData) {
 
     // Handle "Book New Appointment" button
     document.getElementById('client-book-new-btn').addEventListener('click', () => {
-        clientDashboardContent.style.display = 'none';
-        landingPageContent.style.display = 'block';
-        document.getElementById('booking-landing').scrollIntoView({ behavior: 'smooth' });
+        const addAppointmentModal = document.getElementById('add-appointment-modal');
+        const appointmentForm = document.getElementById('add-appointment-form');
+        appointmentForm.reset();
+        document.getElementById('appointment-client-name').value = clientData.name;
+        document.getElementById('appointment-phone').value = clientData.phone || '';
+        addAppointmentModal.classList.remove('hidden');
+        addAppointmentModal.classList.add('flex');
     });
 
     setupClientTabs();
