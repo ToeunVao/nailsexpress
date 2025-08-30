@@ -393,10 +393,13 @@ function initLandingPage() {
 
      // --- Feature Toggle Visibility ---
     const updateFeatureVisibility = (settings) => {
-        const showPromos = settings.showPromotions !== false; // default to true
-        const showGiftCards = settings.showGiftCards !== false; // default to true
-        const showNailArt = settings.showNailArt !== false; // default to true
+        const showClientLogin = settings.showClientLogin !== false;
+        const showPromos = settings.showPromotions !== false;
+        const showGiftCards = settings.showGiftCards !== false;
+        const showNailArt = settings.showNailArt !== false;
 
+        document.getElementById('user-icon').style.display = showClientLogin ? '' : 'none';
+        
         document.getElementById('promotions-landing').style.display = showPromos ? '' : 'none';
         document.querySelector('.nav-item-promotions').style.display = showPromos ? '' : 'none';
         
@@ -407,16 +410,14 @@ function initLandingPage() {
         document.querySelector('.nav-item-nails-idea').style.display = showNailArt ? '' : 'none';
     };
 
-    const loadFeatureToggles = async () => {
-        const settingsDoc = await getDoc(doc(db, "settings", "features"));
-        if (settingsDoc.exists()) {
-            updateFeatureVisibility(settingsDoc.data());
+    onSnapshot(doc(db, "settings", "features"), (docSnap) => {
+        if (docSnap.exists()) {
+            updateFeatureVisibility(docSnap.data());
         } else {
             // Default settings if nothing is in the database
-            updateFeatureVisibility({ showPromotions: true, showGiftCards: true, showNailArt: true });
+            updateFeatureVisibility({ showClientLogin: true, showPromotions: true, showGiftCards: true, showNailArt: true });
         }
-    };
-    loadFeatureToggles();
+    });
 }
 
 // --- CLIENT DASHBOARD SCRIPT ---
@@ -2256,11 +2257,13 @@ function initMainApp(userRole) {
         const settingsDoc = await getDoc(doc(db, "settings", "features"));
         if (settingsDoc.exists()) {
             const settings = settingsDoc.data();
+            document.getElementById('toggle-client-login').checked = settings.showClientLogin !== false;
             document.getElementById('toggle-promotions').checked = settings.showPromotions !== false;
             document.getElementById('toggle-gift-card').checked = settings.showGiftCards !== false;
             document.getElementById('toggle-nails-idea').checked = settings.showNailArt !== false;
         } else {
              // Default to on if not set
+            document.getElementById('toggle-client-login').checked = true;
             document.getElementById('toggle-promotions').checked = true;
             document.getElementById('toggle-gift-card').checked = true;
             document.getElementById('toggle-nails-idea').checked = true;
@@ -2270,6 +2273,7 @@ function initMainApp(userRole) {
     featureTogglesForm.addEventListener('change', async (e) => {
         if (e.target.type === 'checkbox') {
             const settings = {
+                showClientLogin: document.getElementById('toggle-client-login').checked,
                 showPromotions: document.getElementById('toggle-promotions').checked,
                 showGiftCards: document.getElementById('toggle-gift-card').checked,
                 showNailArt: document.getElementById('toggle-nails-idea').checked
