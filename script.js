@@ -717,8 +717,29 @@ function initMainApp(userRole) {
     const notificationBell = document.getElementById('notification-bell');
     const notificationCount = document.getElementById('notification-count');
     const notificationDropdown = document.getElementById('notification-dropdown');
+    const checkInNavCount = document.getElementById('check-in-nav-count');
+    const bookingNavCount = document.getElementById('booking-nav-count');
+    const appLoadTimestamp = Timestamp.now();
 
-    // --- NOTIFICATION LOGIC ---
+    // --- NOTIFICATION & LIVE COUNT LOGIC ---
+    const updateNavCounts = () => {
+        const checkInCount = allActiveClients.length;
+        if (checkInCount > 0) {
+            checkInNavCount.textContent = checkInCount;
+            checkInNavCount.classList.remove('hidden');
+        } else {
+            checkInNavCount.classList.add('hidden');
+        }
+
+        const bookingCount = allAppointments.length;
+        if (bookingCount > 0) {
+            bookingNavCount.textContent = bookingCount;
+            bookingNavCount.classList.remove('hidden');
+        } else {
+            bookingNavCount.classList.add('hidden');
+        }
+    };
+    
     const updateNotificationDisplay = () => {
         const unreadCount = notifications.filter(n => !n.read).length;
         notificationCount.textContent = unreadCount;
@@ -728,7 +749,7 @@ function initMainApp(userRole) {
             ? '<div class="p-4 text-center text-sm text-gray-500">No new notifications</div>' 
             : '';
         
-        [...notifications].reverse().forEach(n => {
+        notifications.forEach(n => {
             const item = document.createElement('div');
             item.className = `notification-item ${!n.read ? 'font-bold bg-pink-50' : ''}`;
             item.innerHTML = `<p class="text-gray-800">${n.message}</p><p class="text-xs text-gray-400 mt-1">${n.timestamp.toLocaleString()}</p>`;
@@ -745,8 +766,14 @@ function initMainApp(userRole) {
             read: false,
             itemId: itemId
         };
-        notifications.push(newNotification);
+        notifications.unshift(newNotification);
         updateNotificationDisplay();
+
+        // Trigger bell animation
+        const bellIcon = notificationBell.querySelector('i');
+        bellIcon.classList.remove('ring-animation'); // Remove first to reset
+        void bellIcon.offsetWidth; // Trigger reflow
+        bellIcon.classList.add('ring-animation');
     };
     
     // --- Initial View Setup ---
@@ -800,7 +827,8 @@ function initMainApp(userRole) {
         notificationDropdown.classList.toggle('hidden');
         if (!notificationDropdown.classList.contains('hidden')) {
             notifications.forEach(n => n.read = true);
-            updateNotificationDisplay();
+            // Delay update to allow user to see read status change
+            setTimeout(updateNotificationDisplay, 300);
         }
     });
 
@@ -1620,6 +1648,7 @@ function initMainApp(userRole) {
         processingCountSpan.textContent = processingClients.length;
         renderActiveClients(applyClientFilters(waitingClients, document.getElementById('search-active').value.toLowerCase(), currentTechFilterActive, null));
         renderProcessingClients(applyClientFilters(processingClients, document.getElementById('search-processing').value.toLowerCase(), currentTechFilterProcessing, null));
+        updateNavCounts();
     });
 
     onSnapshot(query(collection(db, "finished_clients"), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
@@ -1644,19 +1673,29 @@ function initMainApp(userRole) {
     });
 
      onSnapshot(query(collection(db, "appointments"), orderBy("appointmentTimestamp", "asc")), (snapshot) => {
+        // This part handles the notifications for REAL-TIME additions
         snapshot.docChanges().forEach((change) => {
             if (change.type === "added" && initialAppointmentsLoaded) {
-                const data = change.doc.data();
-                const apptTime = new Date(data.appointmentTimestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                addNotification('booking', `New booking for ${data.name} at ${apptTime}`);
+                 const data = change.doc.data();
+                 // Check if the appointment was created after the app loaded to avoid old notifications
+                 if (data.appointmentTimestamp.seconds > appLoadTimestamp.seconds) {
+                    const apptTime = new Date(data.appointmentTimestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    addNotification('booking', `New booking for ${data.name} at ${apptTime}`);
+                 }
             }
         });
-        initialAppointmentsLoaded = true;
-
+        
+        // This part handles the data for rendering
         allAppointments = snapshot.docs.map(doc => ({ id: doc.id, appointmentTime: doc.data().appointmentTimestamp ? new Date(doc.data().appointmentTimestamp.seconds * 1000).toLocaleString() : 'N/A', ...doc.data() }));
         renderCalendar(currentYear, currentMonth, currentTechFilterCalendar);
         renderAllBookingsList();
         updateDashboard(); // Update dashboard when appointments data changes
+        updateNavCounts(); // Update the nav count
+
+        // Set the flag after the first full snapshot is processed
+        if (!initialAppointmentsLoaded) {
+            initialAppointmentsLoaded = true;
+        }
     });
 
     onSnapshot(query(collection(db, "earnings"), orderBy("date", "desc")), (snapshot) => {
@@ -3182,3 +3221,4 @@ function initMainApp(userRole) {
     document.getElementById('expense-date').value = todayString;
     document.getElementById('sign-out-btn').addEventListener('click', () => { signOut(auth); });
 }
+
