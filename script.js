@@ -40,6 +40,15 @@ let initialAppointmentsLoaded = false;
 let initialInventoryLoaded = false;
 let allFinishedClients = [], allAppointments = [], allClients = [], allActiveClients = [], servicesData = {};
 
+const giftCardBackgrounds = [
+    'https://images.unsplash.com/photo-1596048135132-911961bd4350?q=80&w=1887&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1519638831568-d9897f54ed69?q=80&w=2070&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1558081236-5415b3c5a7a5?q=80&w=1887&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1600979958704-5837624231b5?q=80&w=1887&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1515266591878-72d7ebb3230a?q=80&w=2070&auto=format&fit=crop',
+    'https://images.unsplash.com/photo-1509281373149-e957c6296406?q=80&w=1928&auto=format&fit=crop'
+];
+
 
 // --- Global Helper Functions ---
 const getLocalDateString = (date = new Date()) => {
@@ -209,9 +218,9 @@ addAppointmentForm.addEventListener('submit', async (e) => {
 });
 
 
+
 // --- Primary Authentication Router ---
 onAuthStateChanged(auth, async (user) => {
-    // Fetch crucial settings as soon as auth state is known
     const hoursDoc = await getDoc(doc(db, "settings", "salonHours"));
     if (hoursDoc.exists()) {
         salonHours = hoursDoc.data();
@@ -233,7 +242,7 @@ onAuthStateChanged(auth, async (user) => {
             const userDocRef = doc(db, "users", user.uid);
             const userDoc = await getDoc(userDocRef);
             
-            if (userDoc.exists()) { // This is a staff/admin user
+            if (userDoc.exists()) { 
                 currentUserRole = userDoc.data().role;
                 loadingScreen.style.display = 'none';
                 landingPageContent.style.display = 'none';
@@ -243,11 +252,11 @@ onAuthStateChanged(auth, async (user) => {
                     initMainApp(currentUserRole);
                     mainAppInitialized = true;
                 }
-            } else { // Check if it's a client
+            } else { 
                 const clientDocRef = doc(db, "clients", user.uid);
                 const clientDoc = await getDoc(clientDocRef);
                 if (clientDoc.exists()) {
-                    currentUserRole = clientDoc.data().role; // Should be 'client'
+                    currentUserRole = clientDoc.data().role; 
                     loadingScreen.style.display = 'none';
                     landingPageContent.style.display = 'none';
                     appContent.style.display = 'none';
@@ -288,21 +297,18 @@ function initLandingPage() {
     const giftCardForm = document.getElementById('gift-card-form');
     const lockoutMessageDiv = document.getElementById('login-lockout-message');
 
-    // Fetch security settings for the login form
     getDoc(doc(db, "settings", "security")).then(docSnap => {
         if (docSnap.exists()) {
             loginSecuritySettings = docSnap.data();
         }
     });
 
-    // Auth Modal handling
     const openAuthModal = () => { signupLoginModal.classList.remove('hidden'); signupLoginModal.classList.add('flex'); };
     const closeAuthModal = () => { signupLoginModal.classList.add('hidden'); signupLoginModal.classList.remove('flex'); };
     userIcon.addEventListener('click', openAuthModal);
     closeSignupLoginModalBtn.addEventListener('click', closeAuthModal);
     signupLoginModal.querySelector('.modal-overlay').addEventListener('click', closeAuthModal);
 
-    // Auth tabs
     const loginTabBtn = document.getElementById('login-tab-btn');
     const signupTabBtn = document.getElementById('signup-tab-btn');
     const loginFormContainer = document.getElementById('login-form-container');
@@ -322,8 +328,6 @@ function initLandingPage() {
         loginFormContainer.classList.add('hidden');
     });
 
-
-    // Gift Card Modal Handling
     const openGiftCardModal = () => { giftCardModal.classList.remove('hidden'); giftCardModal.classList.add('flex'); };
     const closeGiftCardModal = () => { giftCardModal.classList.add('hidden'); giftCardModal.classList.remove('flex'); };
     buyGiftCardBtn.addEventListener('click', openGiftCardModal);
@@ -353,22 +357,11 @@ function initLandingPage() {
             return;
         }
 
-        const giftCardData = {
-            amount: amount,
-            recipientName: document.getElementById('gift-card-recipient-name').value,
-            recipientEmail: document.getElementById('gift-card-recipient-email').value,
-            senderName: document.getElementById('gift-card-sender-name').value,
-            message: document.getElementById('gift-card-message').value,
-            code: `GC-${Date.now()}${[...Array(4)].map(() => Math.floor(Math.random() * 10)).join('')}`,
-            status: 'Active',
-            createdAt: serverTimestamp()
-        };
+        const giftCardData = { amount: amount, recipientName: document.getElementById('gift-card-recipient-name').value, recipientEmail: document.getElementById('gift-card-recipient-email').value, senderName: document.getElementById('gift-card-sender-name').value, message: document.getElementById('gift-card-message').value, code: `GC-${Date.now()}${[...Array(4)].map(() => Math.floor(Math.random() * 10)).join('')}`, status: 'Active', createdAt: serverTimestamp() };
 
         try {
             alert('Redirecting to a secure payment page...');
-            
             await addDoc(collection(db, "gift_cards"), giftCardData);
-            
             alert(`Success! Gift card for $${amount} has been sent to ${giftCardData.recipientEmail}.`);
             giftCardForm.reset();
             closeGiftCardModal();
@@ -379,7 +372,6 @@ function initLandingPage() {
         }
     });
 
-    // Login form submission with security checks
     landingLoginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('landing-email').value;
@@ -428,8 +420,6 @@ function initLandingPage() {
         }
     });
 
-
-    // Signup form submission
     landingSignupForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = document.getElementById('signup-name').value;
@@ -445,12 +435,7 @@ function initLandingPage() {
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
-            await setDoc(doc(db, "clients", user.uid), {
-                name: name,
-                email: email,
-                role: 'client',
-                createdAt: serverTimestamp()
-            });
+            await setDoc(doc(db, "clients", user.uid), { name: name, email: email, role: 'client', createdAt: serverTimestamp() });
         } catch (error) {
             alert(`Sign Up Failed: ${error.message}`);
         } finally {
@@ -459,8 +444,6 @@ function initLandingPage() {
         }
     });
 
-
-    // Populate booking form dropdowns
     const peopleSelect = document.getElementById('appointment-people-landing');
     for (let i = 1; i <= 20; i++) {
         peopleSelect.appendChild(new Option(i, i));
@@ -476,7 +459,6 @@ function initLandingPage() {
         });
     });
     
-    // Booking form multi-step logic
     const step1 = document.getElementById('booking-step-1');
     const step2 = document.getElementById('booking-step-2');
     document.getElementById('booking-next-btn').addEventListener('click', () => {
@@ -488,13 +470,12 @@ function initLandingPage() {
         step1.classList.remove('hidden');
     });
 
-    // Load and render services for booking form
     const servicesContainerLanding = document.getElementById('services-container-landing');
     const hiddenCheckboxContainerLanding = document.getElementById('hidden-checkbox-container-landing');
     let landingServicesData = {};
     
     getDocs(collection(db, "services")).then(servicesSnapshot => {
-        servicesData = {}; // Also populate global servicesData
+        servicesData = {}; 
         landingServicesData = {};
         servicesSnapshot.forEach(doc => { 
             servicesData[doc.id] = doc.data().items;
@@ -519,7 +500,6 @@ function initLandingPage() {
         });
     });
 
-    // Service selection modal for landing page
     const serviceModalLanding = document.getElementById('landing-booking-service-modal');
     const serviceModalContentLanding = document.getElementById('landing-booking-service-modal-content');
     
@@ -563,7 +543,6 @@ function initLandingPage() {
         });
     });
 
-    // Final booking submission on landing page
     addAppointmentFormLanding.addEventListener('submit', async (e) => {
         e.preventDefault();
         const services = Array.from(document.querySelectorAll('input[name="service-landing"]:checked')).map(el => el.value);
@@ -608,7 +587,6 @@ function initLandingPage() {
         }
     });
 
-     // --- Feature Toggle Visibility ---
     const updateFeatureVisibility = (settings) => {
         const showClientRegistration = settings.showClientLogin !== false;
         const showPromos = settings.showPromotions !== false;
@@ -667,11 +645,7 @@ function initClientDashboard(clientId, clientData) {
         upcoming.forEach(appt => {
             const el = document.createElement('div');
             el.className = 'bg-white p-4 rounded-lg shadow';
-            el.innerHTML = `
-                <p class="font-bold">${new Date(appt.appointmentTimestamp.seconds * 1000).toLocaleString()}</p>
-                <p>${appt.services.join(', ')}</p>
-                <p class="text-sm text-gray-600">With: ${appt.technician}</p>
-            `;
+            el.innerHTML = `<p class="font-bold">${new Date(appt.appointmentTimestamp.seconds * 1000).toLocaleString()}</p><p>${appt.services.join(', ')}</p><p class="text-sm text-gray-600">With: ${appt.technician}</p>`;
             container.appendChild(el);
         });
     };
@@ -686,12 +660,7 @@ function initClientDashboard(clientId, clientData) {
         history.forEach(visit => {
             const el = document.createElement('div');
             el.className = 'bg-white p-4 rounded-lg shadow';
-            el.innerHTML = `
-                <p class="font-bold">${new Date(visit.checkOutTimestamp.seconds * 1000).toLocaleDateString()}</p>
-                <p>${visit.services}</p>
-                <p class="text-sm text-gray-600">With: ${visit.technician}</p>
-                ${visit.colorCode ? `<p class="text-sm text-gray-600">Color: ${visit.colorCode}</p>` : ''}
-            `;
+            el.innerHTML = `<p class="font-bold">${new Date(visit.checkOutTimestamp.seconds * 1000).toLocaleDateString()}</p><p>${visit.services}</p><p class="text-sm text-gray-600">With: ${visit.technician}</p>${visit.colorCode ? `<p class="text-sm text-gray-600">Color: ${visit.colorCode}</p>` : ''}`;
             container.appendChild(el);
         });
     };
@@ -741,7 +710,7 @@ function initClientDashboard(clientId, clientData) {
     });
      onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
         const history = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
-        allFinishedClients = history; // Update global state
+        allFinishedClients = history; 
         renderClientHistory(history);
         calculateAndRenderFavorites(history);
     });
@@ -787,7 +756,6 @@ function initMainApp(userRole) {
     const bookingNavCount = document.getElementById('booking-nav-count');
     const appLoadTimestamp = Timestamp.now();
 
-    // --- NOTIFICATION & LIVE COUNT LOGIC ---
     const updateNavCounts = () => {
         const checkInCount = allActiveClients.length;
         if (checkInCount > 0) {
@@ -824,14 +792,7 @@ function initMainApp(userRole) {
     };
 
     const addNotification = (type, message, itemId = null) => {
-        const newNotification = {
-            id: Date.now() + Math.random(),
-            type: type,
-            message: message,
-            timestamp: new Date(),
-            read: false,
-            itemId: itemId
-        };
+        const newNotification = { id: Date.now() + Math.random(), type: type, message: message, timestamp: new Date(), read: false, itemId: itemId };
         notifications.unshift(newNotification);
         updateNotificationDisplay();
 
@@ -841,11 +802,9 @@ function initMainApp(userRole) {
         bellIcon.classList.add('ring-animation');
     };
     
-    // --- Initial View Setup ---
     dashboardContent.classList.remove('hidden');
     mainAppContainer.classList.add('hidden');
 
-    // --- Navigation Logic ---
     logoLink.addEventListener('click', () => {
         dashboardContent.classList.remove('hidden');
         mainAppContainer.classList.add('hidden');
@@ -855,36 +814,18 @@ function initMainApp(userRole) {
     topNav.addEventListener('click', (e) => {
         const button = e.target.closest('.top-nav-btn');
         if (!button) return;
-
         const target = button.dataset.target;
-
         topNav.querySelectorAll('.top-nav-btn').forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
-
         dashboardContent.classList.add('hidden');
         mainAppContainer.classList.remove('hidden');
-        
         allMainSections.forEach(section => section.classList.add('hidden'));
-
         switch (target) {
-            case 'check-in':
-                document.getElementById('check-in-section').classList.remove('hidden');
-                document.getElementById('check-in-tab').click();
-                break;
-            case 'booking':
-                document.getElementById('calendar-content').classList.remove('hidden');
-                break;
-            case 'nails-idea':
-                document.getElementById('nails-idea-content').classList.remove('hidden');
-                break;
-            case 'report':
-                document.getElementById('reports-content').classList.remove('hidden');
-                document.getElementById('salon-earning-report-tab').click();
-                break;
-            case 'setting':
-                document.getElementById('admin-content').classList.remove('hidden');
-                document.getElementById('user-management-tab').click();
-                break;
+            case 'check-in': document.getElementById('check-in-section').classList.remove('hidden'); document.getElementById('check-in-tab').click(); break;
+            case 'booking': document.getElementById('calendar-content').classList.remove('hidden'); break;
+            case 'nails-idea': document.getElementById('nails-idea-content').classList.remove('hidden'); break;
+            case 'report': document.getElementById('reports-content').classList.remove('hidden'); document.getElementById('salon-earning-report-tab').click(); break;
+            case 'setting': document.getElementById('admin-content').classList.remove('hidden'); document.getElementById('user-management-tab').click(); break;
         }
     });
     
@@ -930,6 +871,7 @@ function initMainApp(userRole) {
     const logUsageModal = document.getElementById('log-usage-modal');
     const logUsageForm = document.getElementById('log-usage-form');
     const shareModal = document.getElementById('share-modal');
+    const giftCardDesignerModal = document.getElementById('gift-card-designer-modal');
 
     const rebookOtherInput = document.getElementById('rebook-other-input');
     const rebookSelect = document.getElementById('rebook-select');
@@ -964,162 +906,68 @@ function initMainApp(userRole) {
     confirmCancelBtn.addEventListener('click', closeConfirmModal);
     document.querySelector('.confirm-modal-overlay').addEventListener('click', closeConfirmModal);
 
-    // --- DASHBOARD LOGIC ---
     const dashboardDateFilter = document.getElementById('dashboard-date-filter');
 
     const updateDashboard = () => {
         const filter = dashboardDateFilter.value;
         const now = new Date();
         let startDate, endDate;
-
-        // 1. Set Date Range based on filter
         switch (filter) {
-            case 'today':
-                startDate = new Date(now.setHours(0, 0, 0, 0));
-                endDate = new Date(now.setHours(23, 59, 59, 999));
-                break;
-            case 'this_week':
-                const firstDayOfWeek = now.getDate() - now.getDay();
-                startDate = new Date(now.setDate(firstDayOfWeek));
-                startDate.setHours(0, 0, 0, 0);
-                endDate = new Date(startDate);
-                endDate.setDate(startDate.getDate() + 6);
-                endDate.setHours(23, 59, 59, 999);
-                break;
-            case 'this_month':
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-                break;
-            case 'this_year':
-                startDate = new Date(now.getFullYear(), 0, 1);
-                endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-                break;
+            case 'today': startDate = new Date(now.setHours(0, 0, 0, 0)); endDate = new Date(now.setHours(23, 59, 59, 999)); break;
+            case 'this_week': const firstDayOfWeek = now.getDate() - now.getDay(); startDate = new Date(now.setDate(firstDayOfWeek)); startDate.setHours(0, 0, 0, 0); endDate = new Date(startDate); endDate.setDate(startDate.getDate() + 6); endDate.setHours(23, 59, 59, 999); break;
+            case 'this_month': startDate = new Date(now.getFullYear(), now.getMonth(), 1); endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999); break;
+            case 'this_year': startDate = new Date(now.getFullYear(), 0, 1); endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999); break;
         }
-
-        // 2. Filter Data
-        const filteredBookings = allAppointments.filter(a => {
-            const apptDate = a.appointmentTimestamp.toDate();
-            return apptDate >= startDate && apptDate <= endDate;
-        });
-        const filteredFinished = allFinishedClients.filter(f => {
-            const finDate = f.checkOutTimestamp.toDate();
-            return finDate >= startDate && finDate <= endDate;
-        });
-        const filteredEarnings = allEarnings.filter(e => {
-            const earnDate = e.date.toDate();
-            return earnDate >= startDate && earnDate <= endDate;
-        });
-
-        // 3. Update Summary Cards
+        const filteredBookings = allAppointments.filter(a => { const apptDate = a.appointmentTimestamp.toDate(); return apptDate >= startDate && apptDate <= endDate; });
+        const filteredFinished = allFinishedClients.filter(f => { const finDate = f.checkOutTimestamp.toDate(); return finDate >= startDate && finDate <= endDate; });
+        const filteredEarnings = allEarnings.filter(e => { const earnDate = e.date.toDate(); return earnDate >= startDate && earnDate <= endDate; });
         document.getElementById('total-bookings-card').textContent = filteredBookings.length + filteredFinished.length;
-        
         const totalRevenue = filteredEarnings.reduce((sum, e) => sum + e.earning, 0);
         document.getElementById('total-revenue-card').textContent = `$${totalRevenue.toFixed(2)}`;
-
         const lowStockItems = allInventory.filter(item => item.quantity <= item.lowStockAlert).length;
         document.getElementById('low-stock-card').textContent = lowStockItems;
-
-        const techEarnings = filteredEarnings.reduce((acc, curr) => {
-            acc[curr.staffName] = (acc[curr.staffName] || 0) + curr.earning;
-            return acc;
-        }, {});
+        const techEarnings = filteredEarnings.reduce((acc, curr) => { acc[curr.staffName] = (acc[curr.staffName] || 0) + curr.earning; return acc; }, {});
         const topTechnician = Object.keys(techEarnings).reduce((a, b) => techEarnings[a] > techEarnings[b] ? a : b, '-');
         document.getElementById('top-technician-card').textContent = topTechnician;
-
-        // 4. Update Charts
         updateBookingsChart(filteredBookings.concat(filteredFinished), filter);
         updateServicesChart(filteredFinished);
         updateEarningsChart(techEarnings);
     };
 
     const initializeChart = (chartInstance, ctx, type, data, options) => {
-        if (chartInstance) {
-            chartInstance.data = data;
-            chartInstance.options = options;
-            chartInstance.update();
-        } else {
-            chartInstance = new Chart(ctx, { type, data, options });
-        }
+        if (chartInstance) { chartInstance.data = data; chartInstance.options = options; chartInstance.update(); } 
+        else { chartInstance = new Chart(ctx, { type, data, options }); }
         return chartInstance;
     };
     
     const updateBookingsChart = (data, filter) => {
         const ctx = document.getElementById('bookings-chart').getContext('2d');
-        let labels = [];
-        let chartData = [];
-        const counts = {};
-
+        let labels = [], chartData = [], counts = {};
         if (filter === 'today') {
             labels = Array.from({ length: 12 }, (_, i) => `${i * 2}:00`);
             chartData = Array(12).fill(0);
-            data.forEach(item => {
-                const date = item.appointmentTimestamp?.toDate() || item.checkOutTimestamp?.toDate();
-                if (date) {
-                    const hour = Math.floor(date.getHours() / 2);
-                    chartData[hour]++;
-                }
-            });
+            data.forEach(item => { const date = item.appointmentTimestamp?.toDate() || item.checkOutTimestamp?.toDate(); if (date) { const hour = Math.floor(date.getHours() / 2); chartData[hour]++; } });
         } else if (filter === 'this_week') {
             labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             chartData = Array(7).fill(0);
-            data.forEach(item => {
-                const date = item.appointmentTimestamp?.toDate() || item.checkOutTimestamp?.toDate();
-                if (date) {
-                    chartData[date.getDay()]++;
-                }
-            });
+            data.forEach(item => { const date = item.appointmentTimestamp?.toDate() || item.checkOutTimestamp?.toDate(); if (date) { chartData[date.getDay()]++; } });
         } else {
             const format = filter === 'this_month' ? 'numeric' : 'short';
-            data.forEach(item => {
-                const date = item.appointmentTimestamp?.toDate() || item.checkOutTimestamp?.toDate();
-                if (date) {
-                    const key = filter === 'this_month' ? date.getDate() : date.toLocaleString('default', { month: format });
-                    counts[key] = (counts[key] || 0) + 1;
-                }
-            });
+            data.forEach(item => { const date = item.appointmentTimestamp?.toDate() || item.checkOutTimestamp?.toDate(); if (date) { const key = filter === 'this_month' ? date.getDate() : date.toLocaleString('default', { month: format }); counts[key] = (counts[key] || 0) + 1; } });
             labels = Object.keys(counts).sort((a,b) => (filter === 'this_month' ? a-b : new Date(a + ' 1, 2000') - new Date(b + ' 1, 2000')) );
             chartData = labels.map(label => counts[label]);
         }
-
-        const chartConfig = {
-            labels: labels,
-            datasets: [{
-                label: 'Bookings',
-                data: chartData,
-                backgroundColor: 'rgba(219, 39, 119, 0.5)',
-                borderColor: 'rgba(219, 39, 119, 1)',
-                borderWidth: 1,
-                tension: 0.1
-            }]
-        };
+        const chartConfig = { labels: labels, datasets: [{ label: 'Bookings', data: chartData, backgroundColor: 'rgba(219, 39, 119, 0.5)', borderColor: 'rgba(219, 39, 119, 1)', borderWidth: 1, tension: 0.1 }] };
         bookingsChart = initializeChart(bookingsChart, ctx, 'line', chartConfig, { responsive: true, maintainAspectRatio: false });
     };
 
     const updateServicesChart = (data) => {
         const ctx = document.getElementById('services-chart').getContext('2d');
-        const serviceCounts = data.reduce((acc, client) => {
-            const services = typeof client.services === 'string' ? client.services.split(', ') : (client.services || []);
-            services.forEach(service => {
-                const serviceName = service.split(' $')[0].replace(/Gel Polish - /g, '').trim();
-                acc[serviceName] = (acc[serviceName] || 0) + 1;
-            });
-            return acc;
-        }, {});
-
+        const serviceCounts = data.reduce((acc, client) => { const services = typeof client.services === 'string' ? client.services.split(', ') : (client.services || []); services.forEach(service => { const serviceName = service.split(' $')[0].replace(/Gel Polish - /g, '').trim(); acc[serviceName] = (acc[serviceName] || 0) + 1; }); return acc; }, {});
         const sortedServices = Object.entries(serviceCounts).sort(([, a], [, b]) => b - a).slice(0, 5);
         const labels = sortedServices.map(item => item[0]);
         const chartData = sortedServices.map(item => item[1]);
-
-        const chartConfig = {
-            labels: labels,
-            datasets: [{
-                label: 'Top Services',
-                data: chartData,
-                backgroundColor: ['rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)', 'rgba(255, 206, 86, 0.5)', 'rgba(75, 192, 192, 0.5)', 'rgba(153, 102, 255, 0.5)'],
-                borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)'],
-                borderWidth: 1
-            }]
-        };
+        const chartConfig = { labels: labels, datasets: [{ label: 'Top Services', data: chartData, backgroundColor: ['rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)', 'rgba(255, 206, 86, 0.5)', 'rgba(75, 192, 192, 0.5)', 'rgba(153, 102, 255, 0.5)'], borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)'], borderWidth: 1 }] };
         servicesChart = initializeChart(servicesChart, ctx, 'doughnut', chartConfig, { responsive: true, maintainAspectRatio: false });
     };
 
@@ -1127,24 +975,11 @@ function initMainApp(userRole) {
         const ctx = document.getElementById('earnings-chart').getContext('2d');
         const labels = Object.keys(techEarnings);
         const chartData = Object.values(techEarnings);
-
-        const chartConfig = {
-            labels: labels,
-            datasets: [{
-                label: 'Technician Earnings',
-                data: chartData,
-                backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-            }]
-        };
+        const chartConfig = { labels: labels, datasets: [{ label: 'Technician Earnings', data: chartData, backgroundColor: 'rgba(54, 162, 235, 0.5)', borderColor: 'rgba(54, 162, 235, 1)', borderWidth: 1 }] };
         earningsChart = initializeChart(earningsChart, ctx, 'bar', chartConfig, { responsive: true, maintainAspectRatio: false, indexAxis: 'y' });
     };
 
     dashboardDateFilter.addEventListener('change', updateDashboard);
-    // --- END DASHBOARD LOGIC ---
-
-    // --- DAILY NOTES LOGIC ---
     const dailyNotesForm = document.getElementById('daily-notes-form');
     const dailyNoteInput = document.getElementById('daily-note-input');
     const dailyNotesContainer = document.getElementById('daily-notes-container');
@@ -1156,40 +991,24 @@ function initMainApp(userRole) {
             return;
         }
         notes.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
-
-        notes.forEach(note => {
-            const noteEl = document.createElement('div');
-            noteEl.className = 'bg-pink-50 p-3 rounded-lg flex justify-between items-center';
-            noteEl.innerHTML = `<p class="text-gray-800">${note.text}</p><button data-id="${note.id}" class="delete-note-btn text-red-400 hover:text-red-600"><i class="fas fa-times-circle"></i></button>`;
-            dailyNotesContainer.appendChild(noteEl);
-        });
+        notes.forEach(note => { const noteEl = document.createElement('div'); noteEl.className = 'bg-pink-50 p-3 rounded-lg flex justify-between items-center'; noteEl.innerHTML = `<p class="text-gray-800">${note.text}</p><button data-id="${note.id}" class="delete-note-btn text-red-400 hover:text-red-600"><i class="fas fa-times-circle"></i></button>`; dailyNotesContainer.appendChild(noteEl); });
     };
 
     const todayStringForNotes = getLocalDateString();
     const noteDocRef = doc(db, "daily_notes", todayStringForNotes);
 
     onSnapshot(noteDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-            renderDailyNotes(docSnap.data().notes);
-        } else {
-            renderDailyNotes([]);
-        }
+        if (docSnap.exists()) { renderDailyNotes(docSnap.data().notes); } 
+        else { renderDailyNotes([]); }
     });
 
     dailyNotesForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const noteText = dailyNoteInput.value.trim();
         if (!noteText) return;
-
         const newNote = { text: noteText, createdAt: Timestamp.now(), id: crypto.randomUUID() };
-
-        try {
-            await setDoc(noteDocRef, { notes: arrayUnion(newNote) }, { merge: true });
-            dailyNoteInput.value = '';
-        } catch (error) {
-            console.error("Error adding note: ", error);
-            alert("Could not save the note.");
-        }
+        try { await setDoc(noteDocRef, { notes: arrayUnion(newNote) }, { merge: true }); dailyNoteInput.value = ''; } 
+        catch (error) { console.error("Error adding note: ", error); alert("Could not save the note."); }
     });
 
     dailyNotesContainer.addEventListener('click', async (e) => {
@@ -1201,17 +1020,11 @@ function initMainApp(userRole) {
                 if (docSnap.exists()) {
                     const existingNotes = docSnap.data().notes || [];
                     const noteToRemove = existingNotes.find(note => note.id === noteIdToDelete);
-                    if (noteToRemove) {
-                        await updateDoc(noteDocRef, { notes: arrayRemove(noteToRemove) });
-                    }
+                    if (noteToRemove) { await updateDoc(noteDocRef, { notes: arrayRemove(noteToRemove) }); }
                 }
-            } catch (error) {
-                console.error("Error deleting note: ", error);
-                alert("Could not delete the note.");
-            }
+            } catch (error) { console.error("Error deleting note: ", error); alert("Could not delete the note."); }
         }
     });
-    // --- END DAILY NOTES LOGIC ---
 
     const loadAndRenderServices = async () => {
         const servicesSnapshot = await getDocs(collection(db, "services"));
@@ -1599,11 +1412,9 @@ function initMainApp(userRole) {
              try {
                 const clientNameLower = client.name.toLowerCase();
                 const existingClient = allClients.find(c => c.name.toLowerCase() === clientNameLower);
-
                 if (!existingClient) {
                     await addDoc(collection(db, "clients"), { name: client.name, phone: client.phone || '', dob: '' });
                 }
-
                 const finishedClientData = { ...client };
                 delete finishedClientData.id;
                 finishedClientData.checkOutTimestamp = serverTimestamp();
@@ -1646,10 +1457,8 @@ function initMainApp(userRole) {
     onSnapshot(query(collection(db, "finished_clients"), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
         allFinishedClients = snapshot.docs.map(doc => ({ id: doc.id, checkInTime: doc.data().checkInTimestamp ? new Date(doc.data().checkInTimestamp.seconds * 1000).toLocaleString() : 'N/A', checkOutTimestamp: doc.data().checkOutTimestamp, services: (doc.data().services || []).join(', '), ...doc.data() }));
         finishedCountSpan.textContent = allFinishedClients.length;
-        
         renderFinishedClients(applyClientFilters(allFinishedClients, document.getElementById('search-finished').value.toLowerCase(), currentTechFilterFinished, currentFinishedDateFilter));
         renderClientsList();
-        
         const clientList = document.getElementById('client-names-list'), checkinClientList = document.getElementById('checkin-client-names');
         const appointmentPhoneList = document.getElementById('appointment-client-phones'), checkinPhoneList = document.getElementById('checkin-client-phones');
         const uniqueNames = [...new Set(allFinishedClients.map(c => c.name))];
@@ -1660,7 +1469,6 @@ function initMainApp(userRole) {
         if(checkinClientList) checkinClientList.innerHTML = nameOptionsHtml;
         if(appointmentPhoneList) appointmentPhoneList.innerHTML = phoneOptionsHtml;
         if(checkinPhoneList) checkinPhoneList.innerHTML = phoneOptionsHtml;
-        
         updateDashboard();
     });
 
@@ -2020,25 +1828,9 @@ function initMainApp(userRole) {
         const viewProfileBtn = e.target.closest('.view-client-profile-btn');
         const editBtn = e.target.closest('.edit-client-btn');
         const deleteBtn = e.target.closest('.delete-client-btn');
-        if (viewProfileBtn) {
-            const client = aggregatedClients.find(c => c.id === viewProfileBtn.dataset.id);
-            if(client) {
-                alert(`Viewing profile for ${client.name}. (Admin view to be implemented)`);
-            }
-        } else if (editBtn) {
-            const client = aggregatedClients.find(c => c.id === editBtn.dataset.id);
-            if(client) {
-                openClientModal(client);
-            }
-        } else if (deleteBtn) {
-            const clientId = deleteBtn.dataset.id;
-            const client = aggregatedClients.find(c => c.id === clientId);
-            if (client) {
-                showConfirmModal(`Delete all records for ${client.name}? This cannot be undone.`, async () => {
-                   await deleteDoc(doc(db, "clients", clientId));
-                });
-            }
-        }
+        if (viewProfileBtn) { const client = aggregatedClients.find(c => c.id === viewProfileBtn.dataset.id); if(client) { alert(`Viewing profile for ${client.name}. (Admin view to be implemented)`); } } 
+        else if (editBtn) { const client = aggregatedClients.find(c => c.id === editBtn.dataset.id); if(client) { openClientModal(client); } } 
+        else if (deleteBtn) { const clientId = deleteBtn.dataset.id; const client = aggregatedClients.find(c => c.id === clientId); if (client) { showConfirmModal(`Delete all records for ${client.name}? This cannot be undone.`, async () => { await deleteDoc(doc(db, "clients", clientId)); }); } }
     });
 
     document.getElementById('gemini-sms-close-btn').addEventListener('click', () => { geminiSmsModal.classList.add('hidden'); geminiSmsModal.classList.remove('flex'); });
@@ -2147,7 +1939,6 @@ function initMainApp(userRole) {
         if (deleteBtn) { showConfirmModal("Delete this user?", async () => { await deleteDoc(doc(db, "users", deleteBtn.dataset.id)); alert("User role deleted. Login must be deleted from Firebase console."); }); }
     });
 
-    // --- Inventory Management & Reporting ---
     const addProductForm = document.getElementById('add-product-form');
     const inventoryTableBody = document.querySelector('#inventory-table tbody');
     const productSupplierSelect = document.getElementById('product-supplier');
@@ -2304,7 +2095,6 @@ function initMainApp(userRole) {
     });
 
 
-    // --- Settings, Toggles & Expense Management ---
     const settingsForm = document.getElementById('settings-form');
     const minBookingHoursInput = document.getElementById('min-booking-hours');
     const maxLoginAttemptsInput = document.getElementById('max-login-attempts');
@@ -2316,42 +2106,20 @@ function initMainApp(userRole) {
         const hoursContainer = document.getElementById('salon-hours-inputs');
         const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
         let hoursData = {};
-
         const docSnap = await getDoc(doc(db, "settings", "salonHours"));
-        if (docSnap.exists()) {
-            hoursData = docSnap.data();
-        } else {
-            // Default hours if not set
-            days.forEach(day => {
-                hoursData[day.toLowerCase()] = { isOpen: day !== 'Sunday', open: '09:00', close: '20:00' };
-            });
-        }
-        salonHours = hoursData; // Update global state
-
+        if (docSnap.exists()) { hoursData = docSnap.data(); } 
+        else { days.forEach(day => { hoursData[day.toLowerCase()] = { isOpen: day !== 'Sunday', open: '09:00', close: '20:00' }; }); }
+        salonHours = hoursData;
         hoursContainer.innerHTML = days.map(day => {
             const dayLower = day.toLowerCase();
             const dayData = hoursData[dayLower] || { isOpen: true, open: '09:00', close: '20:00' };
-            return `
-                <div class="grid grid-cols-4 gap-2 items-center">
-                    <label class="font-semibold text-gray-700 col-span-1">${day}</label>
-                    <div class="flex items-center gap-2">
-                         <input type="checkbox" id="is-open-${dayLower}" class="form-checkbox" ${dayData.isOpen ? 'checked' : ''}>
-                         <label for="is-open-${dayLower}">Open</label>
-                    </div>
-                    <input type="time" value="${dayData.open}" class="form-input p-1 border rounded" ${!dayData.isOpen ? 'disabled' : ''}>
-                    <input type="time" value="${dayData.close}" class="form-input p-1 border rounded" ${!dayData.isOpen ? 'disabled' : ''}>
-                </div>
-            `;
+            return `<div class="grid grid-cols-4 gap-2 items-center"><label class="font-semibold text-gray-700 col-span-1">${day}</label><div class="flex items-center gap-2"><input type="checkbox" id="is-open-${dayLower}" class="form-checkbox" ${dayData.isOpen ? 'checked' : ''}><label for="is-open-${dayLower}">Open</label></div><input type="time" value="${dayData.open}" class="form-input p-1 border rounded" ${!dayData.isOpen ? 'disabled' : ''}><input type="time" value="${dayData.close}" class="form-input p-1 border rounded" ${!dayData.isOpen ? 'disabled' : ''}></div>`;
         }).join('');
-
-        // Add event listeners to toggle time input disabled state
         days.forEach(day => {
             const dayLower = day.toLowerCase();
             const checkbox = document.getElementById(`is-open-${dayLower}`);
             const timeInputs = checkbox.closest('.grid').querySelectorAll('input[type="time"]');
-            checkbox.addEventListener('change', () => {
-                timeInputs.forEach(input => input.disabled = !checkbox.checked);
-            });
+            checkbox.addEventListener('change', () => { timeInputs.forEach(input => input.disabled = !checkbox.checked); });
         });
     };
 
@@ -2362,21 +2130,10 @@ function initMainApp(userRole) {
         days.forEach(day => {
             const container = document.getElementById(`is-open-${day}`).closest('.grid');
             const timeInputs = container.querySelectorAll('input[type="time"]');
-            newHours[day] = {
-                isOpen: container.querySelector('input[type="checkbox"]').checked,
-                open: timeInputs[0].value,
-                close: timeInputs[1].value
-            };
+            newHours[day] = { isOpen: container.querySelector('input[type="checkbox"]').checked, open: timeInputs[0].value, close: timeInputs[1].value };
         });
-        
-        try {
-            await setDoc(doc(db, "settings", "salonHours"), newHours);
-            salonHours = newHours; // Update global state immediately
-            alert("Salon hours saved!");
-        } catch (error) {
-            console.error("Error saving salon hours:", error);
-            alert("Could not save salon hours.");
-        }
+        try { await setDoc(doc(db, "settings", "salonHours"), newHours); salonHours = newHours; alert("Salon hours saved!"); } 
+        catch (error) { console.error("Error saving salon hours:", error); alert("Could not save salon hours."); }
     });
 
 
@@ -2398,29 +2155,16 @@ function initMainApp(userRole) {
     
     featureTogglesForm.addEventListener('change', async (e) => {
         if (e.target.type === 'checkbox') {
-            const settings = {
-                showClientLogin: document.getElementById('toggle-client-login').checked,
-                showPromotions: document.getElementById('toggle-promotions').checked,
-                showGiftCards: document.getElementById('toggle-gift-card').checked,
-                showNailArt: document.getElementById('toggle-nails-idea').checked
-            };
+            const settings = { showClientLogin: document.getElementById('toggle-client-login').checked, showPromotions: document.getElementById('toggle-promotions').checked, showGiftCards: document.getElementById('toggle-gift-card').checked, showNailArt: document.getElementById('toggle-nails-idea').checked };
             await setDoc(doc(db, "settings", "features"), settings, { merge: true });
         }
     });
 
     const loadSettings = async () => { 
         const bookingSnap = await getDoc(doc(db, "settings", "booking")); 
-        if (bookingSnap.exists()) { 
-            const data = bookingSnap.data();
-            minBookingHoursInput.value = data.minBookingHours || 2; 
-        } 
+        if (bookingSnap.exists()) { const data = bookingSnap.data(); minBookingHoursInput.value = data.minBookingHours || 2; } 
         const securitySnap = await getDoc(doc(db, "settings", "security"));
-        if (securitySnap.exists()) {
-            const data = securitySnap.data();
-            loginSecuritySettings = data;
-            maxLoginAttemptsInput.value = data.maxAttempts || 5;
-            loginLockoutMinutesInput.value = data.lockoutMinutes || 15;
-        }
+        if (securitySnap.exists()) { const data = securitySnap.data(); loginSecuritySettings = data; maxLoginAttemptsInput.value = data.maxAttempts || 5; loginLockoutMinutesInput.value = data.lockoutMinutes || 15; }
     };
     loadSettings();
     loadFeatureToggles();
@@ -2431,47 +2175,25 @@ function initMainApp(userRole) {
         const hours = parseInt(minBookingHoursInput.value, 10);
         const maxAttempts = parseInt(maxLoginAttemptsInput.value, 10);
         const lockoutMinutes = parseInt(loginLockoutMinutesInput.value, 10);
-        
-        if (isNaN(hours) || hours < 0 || isNaN(maxAttempts) || maxAttempts < 1 || isNaN(lockoutMinutes) || lockoutMinutes < 1) { 
-            return alert("Please enter valid, positive numbers for all settings."); 
-        }
-
-        try { 
-            await setDoc(doc(db, "settings", "booking"), { minBookingHours: hours }); 
-            await setDoc(doc(db, "settings", "security"), { maxAttempts: maxAttempts, lockoutMinutes: lockoutMinutes });
-            loginSecuritySettings = { maxAttempts, lockoutMinutes };
-            alert("Settings saved!"); 
-        } catch (error) { 
-            console.error("Error saving settings: ", error); 
-            alert("Could not save settings."); 
-        }
+        if (isNaN(hours) || hours < 0 || isNaN(maxAttempts) || maxAttempts < 1 || isNaN(lockoutMinutes) || lockoutMinutes < 1) { return alert("Please enter valid, positive numbers for all settings."); }
+        try { await setDoc(doc(db, "settings", "booking"), { minBookingHours: hours }); await setDoc(doc(db, "settings", "security"), { maxAttempts: maxAttempts, lockoutMinutes: lockoutMinutes }); loginSecuritySettings = { maxAttempts, lockoutMinutes }; alert("Settings saved!"); } 
+        catch (error) { console.error("Error saving settings: ", error); alert("Could not save settings."); }
     });
 
     const setupSimpleCrud = (collectionName, formId, inputId, listId) => {
         const form = document.getElementById(formId);
         const input = document.getElementById(inputId);
         const listContainer = document.getElementById(listId);
-
         onSnapshot(collection(db, collectionName), (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             if (collectionName === 'expense_categories') allExpenseCategories = items;
             else if (collectionName === 'payment_accounts') allPaymentAccounts = items;
             else if (collectionName === 'suppliers') allSuppliers = items;
-            
             listContainer.innerHTML = items.map(item => `<div class="flex justify-between items-center p-1 hover:bg-gray-100"><span>${item.name}</span><button data-id="${item.id}" class="delete-item-btn text-red-400 hover:text-red-600"><i class="fas fa-times-circle"></i></button></div>`).join('');
             populateExpenseDropdowns();
         });
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const name = input.value.trim();
-            if (name) { await addDoc(collection(db, collectionName), { name }); input.value = ''; }
-        });
-
-        listContainer.addEventListener('click', (e) => {
-            const deleteBtn = e.target.closest('.delete-item-btn');
-            if (deleteBtn) { showConfirmModal("Delete this item?", async () => { await deleteDoc(doc(db, collectionName, deleteBtn.dataset.id)); }); }
-        });
+        form.addEventListener('submit', async (e) => { e.preventDefault(); const name = input.value.trim(); if (name) { await addDoc(collection(db, collectionName), { name }); input.value = ''; } });
+        listContainer.addEventListener('click', (e) => { const deleteBtn = e.target.closest('.delete-item-btn'); if (deleteBtn) { showConfirmModal("Delete this item?", async () => { await deleteDoc(doc(db, collectionName, deleteBtn.dataset.id)); }); } });
     };
 
     setupSimpleCrud('expense_categories', 'add-expense-category-form', 'new-expense-category-name', 'expense-categories-list');
@@ -2482,10 +2204,7 @@ function initMainApp(userRole) {
     onSnapshot(collection(db, "suppliers"), (snapshot) => {
         allSuppliers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         suppliersTableBody.innerHTML = '';
-        allSuppliers.forEach(s => {
-            const row = suppliersTableBody.insertRow();
-            row.innerHTML = `<td class="px-6 py-4">${s.name}</td><td class="px-6 py-4">${s.phone || ''}</td><td class="px-6 py-4">${s.email || ''}</td><td class="px-6 py-4">${s.website ? `<a href="${s.website}" target="_blank" class="text-blue-500">Link</a>` : ''}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${s.id}" class="edit-supplier-btn text-blue-500"><i class="fas fa-edit"></i></button><button data-id="${s.id}" class="delete-supplier-btn text-red-500"><i class="fas fa-trash"></i></button></td>`;
-        });
+        allSuppliers.forEach(s => { const row = suppliersTableBody.insertRow(); row.innerHTML = `<td class="px-6 py-4">${s.name}</td><td class="px-6 py-4">${s.phone || ''}</td><td class="px-6 py-4">${s.email || ''}</td><td class="px-6 py-4">${s.website ? `<a href="${s.website}" target="_blank" class="text-blue-500">Link</a>` : ''}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${s.id}" class="edit-supplier-btn text-blue-500"><i class="fas fa-edit"></i></button><button data-id="${s.id}" class="delete-supplier-btn text-red-500"><i class="fas fa-trash"></i></button></td>`; });
         populateExpenseDropdowns();
         populateProductSupplierDropdown();
     });
@@ -2507,15 +2226,7 @@ function initMainApp(userRole) {
         const deleteBtn = e.target.closest('.delete-supplier-btn');
         if (editBtn) {
             const supplier = allSuppliers.find(s => s.id === editBtn.dataset.id);
-            if (supplier) {
-                document.getElementById('edit-supplier-id').value = supplier.id;
-                document.getElementById('supplier-name').value = supplier.name;
-                document.getElementById('supplier-phone').value = supplier.phone || '';
-                document.getElementById('supplier-email').value = supplier.email || '';
-                document.getElementById('supplier-website').value = supplier.website || '';
-                document.getElementById('add-supplier-btn').textContent = 'Update';
-                document.getElementById('cancel-edit-supplier-btn').classList.remove('hidden');
-            }
+            if (supplier) { document.getElementById('edit-supplier-id').value = supplier.id; document.getElementById('supplier-name').value = supplier.name; document.getElementById('supplier-phone').value = supplier.phone || ''; document.getElementById('supplier-email').value = supplier.email || ''; document.getElementById('supplier-website').value = supplier.website || ''; document.getElementById('add-supplier-btn').textContent = 'Update'; document.getElementById('cancel-edit-supplier-btn').classList.remove('hidden'); }
         } else if (deleteBtn) { showConfirmModal("Delete this supplier?", async () => { await deleteDoc(doc(db, "suppliers", deleteBtn.dataset.id)); }); }
     });
 
@@ -2605,7 +2316,6 @@ function initMainApp(userRole) {
         }
     });
 
-    // --- Service Management ---
     const serviceCategoriesAdminContainer = document.getElementById('service-categories-admin');
     const addCategoryForm = document.getElementById('add-category-form');
     const addServiceForm = document.getElementById('add-service-form');
@@ -2639,7 +2349,6 @@ function initMainApp(userRole) {
         addServiceForm.reset(); editServiceSection.classList.add('hidden');
     });
 
-    // --- NAIL IDEAS & SHARING LOGIC ---
     const nailsIdeaGallery = document.getElementById('nails-idea-gallery');
     const addNailIdeaForm = document.getElementById('add-nail-idea-form');
     const nailIdeasTableBody = document.querySelector('#nail-ideas-table tbody');
@@ -2650,29 +2359,18 @@ function initMainApp(userRole) {
         document.getElementById('share-facebook').href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(salonUrl)}`;
         document.getElementById('share-pinterest').href = `http://pinterest.com/pin/create/button/?url=${encodeURIComponent(salonUrl)}&media=${encodeURIComponent(idea.imageURL)}&description=${encodeURIComponent(shareText)}`;
         document.getElementById('share-twitter').href = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(salonUrl)}`;
-        document.getElementById('share-copy-link').onclick = () => {
-            navigator.clipboard.writeText(salonUrl).then(() => alert('Link copied to clipboard!'));
-        };
+        document.getElementById('share-copy-link').onclick = () => { navigator.clipboard.writeText(salonUrl).then(() => alert('Link copied to clipboard!')); };
         shareModal.classList.remove('hidden');
         shareModal.classList.add('flex');
     };
 
-    const closeShareModal = () => {
-        shareModal.classList.add('hidden');
-        shareModal.classList.remove('flex');
-    };
+    const closeShareModal = () => { shareModal.classList.add('hidden'); shareModal.classList.remove('flex'); };
     document.getElementById('share-close-btn').addEventListener('click', closeShareModal);
     document.querySelector('.share-modal-overlay').addEventListener('click', closeShareModal);
     
     const galleryClickHandler = (e) => {
         const shareBtn = e.target.closest('.share-nail-idea-btn');
-        if (shareBtn) {
-            const ideaId = shareBtn.dataset.id;
-            const idea = allNailIdeas.find(i => i.id === ideaId);
-            if (idea) {
-                openShareModal(idea);
-            }
-        }
+        if (shareBtn) { const ideaId = shareBtn.dataset.id; const idea = allNailIdeas.find(i => i.id === ideaId); if (idea) { openShareModal(idea); } }
     };
     
     document.getElementById('nails-idea-gallery').addEventListener('click', galleryClickHandler);
@@ -2685,24 +2383,12 @@ function initMainApp(userRole) {
         
         const renderTo = (container, isLanding) => {
             container.innerHTML = '';
-            if (ideas.length === 0) {
-                container.innerHTML = '<p class="text-gray-500 col-span-full text-center">No nail ideas found. Check back later!</p>';
-                return;
-            }
+            if (ideas.length === 0) { container.innerHTML = '<p class="text-gray-500 col-span-full text-center">No nail ideas found. Check back later!</p>'; return; }
             const ideasToRender = isLanding ? ideas.slice(0, 8) : ideas;
             ideasToRender.forEach(idea => {
                 const ideaEl = document.createElement('div');
                 ideaEl.className = 'break-inside-avoid mb-4 relative gallery-item';
-                ideaEl.innerHTML = `
-                    <img class="w-full rounded-lg shadow-md" src="${idea.imageURL}" alt="${idea.name}">
-                    <div class="overlay absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-lg">
-                        <button data-id="${idea.id}" class="share-nail-idea-btn text-white text-3xl"><i class="fas fa-share-alt"></i></button>
-                    </div>
-                    ${!isLanding ? `<div class="p-2">
-                        <h5 class="font-bold text-sm">${idea.name}</h5>
-                        <p class="text-xs text-gray-600">${idea.categories.join(', ')}</p>
-                    </div>` : ''}
-                `;
+                ideaEl.innerHTML = `<img class="w-full rounded-lg shadow-md" src="${idea.imageURL}" alt="${idea.name}"><div class="overlay absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center rounded-lg"><button data-id="${idea.id}" class="share-nail-idea-btn text-white text-3xl"><i class="fas fa-share-alt"></i></button></div>${!isLanding ? `<div class="p-2"><h5 class="font-bold text-sm">${idea.name}</h5><p class="text-xs text-gray-600">${idea.categories.join(', ')}</p></div>` : ''}`;
                 container.appendChild(ideaEl);
             });
         };
@@ -2715,16 +2401,7 @@ function initMainApp(userRole) {
         nailIdeasTableBody.innerHTML = '';
         ideas.forEach(idea => {
             const row = nailIdeasTableBody.insertRow();
-            row.innerHTML = `
-                <td class="px-6 py-4"><img src="${idea.imageURL}" alt="${idea.name}" class="w-16 h-16 object-cover rounded"></td>
-                <td class="px-6 py-4">${idea.name}</td>
-                <td class="px-6 py-4">${idea.shape}</td>
-                <td class="px-6 py-4">${idea.categories.join(', ')}</td>
-                <td class="px-6 py-4 text-center space-x-2">
-                    <button data-id="${idea.id}" class="edit-nail-idea-btn text-blue-500"><i class="fas fa-edit"></i></button>
-                    <button data-id="${idea.id}" class="delete-nail-idea-btn text-red-500"><i class="fas fa-trash"></i></button>
-                </td>
-            `;
+            row.innerHTML = `<td class="px-6 py-4"><img src="${idea.imageURL}" alt="${idea.name}" class="w-16 h-16 object-cover rounded"></td><td class="px-6 py-4">${idea.name}</td><td class="px-6 py-4">${idea.shape}</td><td class="px-6 py-4">${idea.categories.join(', ')}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${idea.id}" class="edit-nail-idea-btn text-blue-500"><i class="fas fa-edit"></i></button><button data-id="${idea.id}" class="delete-nail-idea-btn text-red-500"><i class="fas fa-trash"></i></button></td>`;
         });
     };
 
@@ -2732,26 +2409,18 @@ function initMainApp(userRole) {
         const searchTerm = document.getElementById('nail-idea-search').value.toLowerCase();
         const shapeFilter = document.getElementById('nail-idea-shape-filter').value;
         const categoryFilter = document.getElementById('nail-idea-category-filter').value;
-
-        const filteredIdeas = allNailIdeas.filter(idea => {
-            const matchesSearch = idea.name.toLowerCase().includes(searchTerm) || idea.categories.some(cat => cat.toLowerCase().includes(searchTerm));
-            const matchesShape = !shapeFilter || idea.shape === shapeFilter;
-            const matchesCategory = !categoryFilter || idea.categories.includes(categoryFilter);
-            return matchesSearch && matchesShape && matchesCategory;
-        });
+        const filteredIdeas = allNailIdeas.filter(idea => { const matchesSearch = idea.name.toLowerCase().includes(searchTerm) || idea.categories.some(cat => cat.toLowerCase().includes(searchTerm)); const matchesShape = !shapeFilter || idea.shape === shapeFilter; const matchesCategory = !categoryFilter || idea.categories.includes(categoryFilter); return matchesSearch && matchesShape && matchesCategory; });
         renderNailIdeasGallery(filteredIdeas);
     };
 
     onSnapshot(query(collection(db, "nail_ideas"), orderBy("createdAt", "desc")), (snapshot) => {
         allNailIdeas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
         const shapes = [...new Set(allNailIdeas.map(i => i.shape).filter(Boolean))];
         const categories = [...new Set(allNailIdeas.flatMap(i => i.categories).filter(Boolean))];
         const shapeFilter = document.getElementById('nail-idea-shape-filter');
         const categoryFilter = document.getElementById('nail-idea-category-filter');
         shapeFilter.innerHTML = '<option value="">All Shapes</option>' + shapes.map(s => `<option value="${s}">${s}</option>`).join('');
         categoryFilter.innerHTML = '<option value="">All Categories</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join('');
-
         applyNailIdeaFilters();
         renderNailIdeasAdminTable(allNailIdeas);
     });
@@ -2764,16 +2433,10 @@ function initMainApp(userRole) {
         e.preventDefault();
         const ideaId = document.getElementById('edit-nail-idea-id').value;
         const file = document.getElementById('nail-idea-image').files[0];
-
-        if (!ideaId && !file) {
-            alert('Please select an image to upload.');
-            return;
-        }
-
+        if (!ideaId && !file) { alert('Please select an image to upload.'); return; }
         const btn = document.getElementById('add-nail-idea-btn');
         btn.disabled = true;
         btn.textContent = 'Saving...';
-
         try {
             let imageURL = null;
             if (file) {
@@ -2781,41 +2444,18 @@ function initMainApp(userRole) {
                 await uploadBytes(storageRef, file);
                 imageURL = await getDownloadURL(storageRef);
             }
-
-            const ideaData = {
-                name: document.getElementById('nail-idea-name').value,
-                color: document.getElementById('nail-idea-color').value,
-                shape: document.getElementById('nail-idea-shape').value,
-                categories: document.getElementById('nail-idea-categories').value.split(',').map(s => s.trim()).filter(Boolean),
-            };
-
+            const ideaData = { name: document.getElementById('nail-idea-name').value, color: document.getElementById('nail-idea-color').value, shape: document.getElementById('nail-idea-shape').value, categories: document.getElementById('nail-idea-categories').value.split(',').map(s => s.trim()).filter(Boolean), };
             if (ideaId) {
                 const existingIdea = allNailIdeas.find(i => i.id === ideaId);
                 if (imageURL) {
                     ideaData.imageURL = imageURL;
-                    if (existingIdea.imageURL) {
-                        try {
-                            const oldImageRef = ref(storage, existingIdea.imageURL);
-                            await deleteObject(oldImageRef);
-                        } catch (storageError) {
-                            console.warn("Could not delete old image, it might not exist:", storageError);
-                        }
-                    }
+                    if (existingIdea.imageURL) { try { const oldImageRef = ref(storage, existingIdea.imageURL); await deleteObject(oldImageRef); } catch (storageError) { console.warn("Could not delete old image, it might not exist:", storageError); } }
                 }
                 await updateDoc(doc(db, "nail_ideas", ideaId), ideaData);
-            } else {
-                ideaData.imageURL = imageURL;
-                ideaData.createdAt = serverTimestamp();
-                await addDoc(collection(db, "nail_ideas"), ideaData);
-            }
+            } else { ideaData.imageURL = imageURL; ideaData.createdAt = serverTimestamp(); await addDoc(collection(db, "nail_ideas"), ideaData); }
             resetNailIdeaForm();
-        } catch (error) {
-            console.error("Error saving nail idea:", error);
-            alert("Could not save nail idea.");
-        } finally {
-            btn.disabled = false;
-            btn.textContent = 'Add Idea';
-        }
+        } catch (error) { console.error("Error saving nail idea:", error); alert("Could not save nail idea."); } 
+        finally { btn.disabled = false; btn.textContent = 'Add Idea'; }
     });
 
     const resetNailIdeaForm = () => {
@@ -2829,7 +2469,6 @@ function initMainApp(userRole) {
     nailIdeasTableBody.addEventListener('click', (e) => {
         const editBtn = e.target.closest('.edit-nail-idea-btn');
         const deleteBtn = e.target.closest('.delete-nail-idea-btn');
-
         if (editBtn) {
             const idea = allNailIdeas.find(i => i.id === editBtn.dataset.id);
             if (idea) {
@@ -2865,7 +2504,7 @@ function initMainApp(userRole) {
         cards.forEach(card => {
             const row = giftCardsTableBody.insertRow();
             const statusColor = card.status === 'Active' ? 'text-green-600' : 'text-gray-500';
-            row.innerHTML = `<td class="px-6 py-4">${new Date(card.createdAt.seconds * 1000).toLocaleDateString()}</td><td class="px-6 py-4 font-mono text-xs">${card.code}</td><td class="px-6 py-4">$${card.amount.toFixed(2)}</td><td class="px-6 py-4">${card.recipientName}<br><span class="text-xs text-gray-500">${card.recipientEmail}</span></td><td class="px-6 py-4">${card.senderName}</td><td class="px-6 py-4 font-bold ${statusColor}">${card.status}</td>`;
+            row.innerHTML = `<td class="px-6 py-4">${new Date(card.createdAt.seconds * 1000).toLocaleDateString()}</td><td class="px-6 py-4 font-mono text-xs">${card.code}</td><td class="px-6 py-4">$${card.amount.toFixed(2)}</td><td class="px-6 py-4">${card.recipientName}<br><span class="text-xs text-gray-500">${card.recipientEmail || 'Physical Card'}</span></td><td class="px-6 py-4">${card.senderName}</td><td class="px-6 py-4 font-bold ${statusColor}">${card.status}</td>`;
         });
     };
 
@@ -2885,11 +2524,9 @@ function initMainApp(userRole) {
             const startDate = promo.startDate.toDate();
             const endDate = promo.endDate.toDate();
             let status, statusColor;
-
             if (now < startDate) { status = 'Scheduled'; statusColor = 'text-blue-600'; } 
             else if (now > endDate) { status = 'Expired'; statusColor = 'text-gray-500'; } 
             else { status = 'Active'; statusColor = 'text-green-600'; }
-
             const row = promotionsTableBody.insertRow();
             row.innerHTML = `<td class="px-6 py-4">${promo.title}</td><td class="px-6 py-4">${promo.description}</td><td class="px-6 py-4">${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</td><td class="px-6 py-4 font-bold ${statusColor}">${status}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${promo.id}" class="send-promo-notification-btn text-purple-500" title="Send Notification"><i class="fas fa-paper-plane"></i></button><button data-id="${promo.id}" class="edit-promotion-btn text-blue-500"><i class="fas fa-edit"></i></button><button data-id="${promo.id}" class="delete-promotion-btn text-red-500"><i class="fas fa-trash"></i></button></td>`;
         });
@@ -2903,18 +2540,8 @@ function initMainApp(userRole) {
             const endDate = promo.endDate.toDate();
             return now >= startDate && now <= endDate;
         });
-
-        if (activePromos.length === 0) {
-            promotionsContainerLanding.innerHTML = '<p class="text-gray-600 col-span-full text-center">No active promotions right now. Check back soon!</p>';
-            return;
-        }
-
-        activePromos.forEach(promo => {
-            const promoEl = document.createElement('div');
-            promoEl.className = 'bg-white p-6 rounded-lg shadow-md text-center';
-            promoEl.innerHTML = `<h3 class="text-xl font-bold text-pink-700 mb-2">${promo.title}</h3><p class="text-gray-600">${promo.description}</p>`;
-            promotionsContainerLanding.appendChild(promoEl);
-        });
+        if (activePromos.length === 0) { promotionsContainerLanding.innerHTML = '<p class="text-gray-600 col-span-full text-center">No active promotions right now. Check back soon!</p>'; return; }
+        activePromos.forEach(promo => { const promoEl = document.createElement('div'); promoEl.className = 'bg-white p-6 rounded-lg shadow-md text-center'; promoEl.innerHTML = `<h3 class="text-xl font-bold text-pink-700 mb-2">${promo.title}</h3><p class="text-gray-600">${promo.description}</p>`; promotionsContainerLanding.appendChild(promoEl); });
     };
 
     onSnapshot(query(collection(db, "promotions"), orderBy("startDate", "desc")), (snapshot) => {
@@ -2938,30 +2565,13 @@ function initMainApp(userRole) {
         const editBtn = e.target.closest('.edit-promotion-btn');
         const deleteBtn = e.target.closest('.delete-promotion-btn');
         const sendBtn = e.target.closest('.send-promo-notification-btn');
-
         if (editBtn) {
             const promo = allPromotions.find(p => p.id === editBtn.dataset.id);
-            if (promo) {
-                document.getElementById('edit-promotion-id').value = promo.id;
-                document.getElementById('promotion-title').value = promo.title;
-                document.getElementById('promotion-description').value = promo.description;
-                document.getElementById('promotion-start-date').value = promo.startDate.toDate().toISOString().split('T')[0];
-                document.getElementById('promotion-end-date').value = promo.endDate.toDate().toISOString().split('T')[0];
-                document.getElementById('add-promotion-btn').textContent = 'Update Promotion';
-                document.getElementById('cancel-edit-promotion-btn').classList.remove('hidden');
-            }
-        } else if (deleteBtn) {
-            showConfirmModal("Are you sure you want to delete this promotion?", async () => {
-                await deleteDoc(doc(db, "promotions", deleteBtn.dataset.id));
-            });
+            if (promo) { document.getElementById('edit-promotion-id').value = promo.id; document.getElementById('promotion-title').value = promo.title; document.getElementById('promotion-description').value = promo.description; document.getElementById('promotion-start-date').value = promo.startDate.toDate().toISOString().split('T')[0]; document.getElementById('promotion-end-date').value = promo.endDate.toDate().toISOString().split('T')[0]; document.getElementById('add-promotion-btn').textContent = 'Update Promotion'; document.getElementById('cancel-edit-promotion-btn').classList.remove('hidden'); }
+        } else if (deleteBtn) { showConfirmModal("Are you sure you want to delete this promotion?", async () => { await deleteDoc(doc(db, "promotions", deleteBtn.dataset.id)); });
         } else if (sendBtn) {
             const promo = allPromotions.find(p => p.id === sendBtn.dataset.id);
-            if (promo) {
-                 showConfirmModal(`Send a notification for "${promo.title}" to all clients?`, () => {
-                    addNotification('promo', `New Promotion: ${promo.title}! ${promo.description}`);
-                    alert('Promotion notification sent!');
-                });
-            }
+            if (promo) { showConfirmModal(`Send a notification for "${promo.title}" to all clients?`, () => { addNotification('promo', `New Promotion: ${promo.title}! ${promo.description}`); alert('Promotion notification sent!'); }); }
         }
     });
 
@@ -2989,11 +2599,7 @@ function initMainApp(userRole) {
         clientFormModal.classList.add('flex');
     };
 
-    const closeClientModal = () => {
-        clientFormModal.classList.add('hidden');
-        clientFormModal.classList.remove('flex');
-    };
-
+    const closeClientModal = () => { clientFormModal.classList.add('hidden'); clientFormModal.classList.remove('flex'); };
     document.getElementById('create-new-client-btn').addEventListener('click', () => openClientModal());
     document.getElementById('client-form-cancel-btn').addEventListener('click', closeClientModal);
     document.querySelector('.client-form-modal-overlay').addEventListener('click', closeClientModal);
@@ -3012,13 +2618,10 @@ function initMainApp(userRole) {
 
     const importClientsBtn = document.getElementById('import-clients-btn');
     const importClientsInput = document.getElementById('import-clients-input');
-
     importClientsBtn.addEventListener('click', () => importClientsInput.click());
-
     importClientsInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = async (event) => {
             const data = new Uint8Array(event.target.result);
@@ -3027,10 +2630,7 @@ function initMainApp(userRole) {
             const clientsToImport = XLSX.utils.sheet_to_json(firstSheet);
             if (clientsToImport.length === 0) { alert('No clients found in the file.'); return; }
             const batch = writeBatch(db);
-            clientsToImport.forEach(client => {
-                const newClientRef = doc(collection(db, "clients"));
-                batch.set(newClientRef, { name: client.Name || 'N/A', phone: client.Phone || '', dob: client.DOB || '' });
-            });
+            clientsToImport.forEach(client => { const newClientRef = doc(collection(db, "clients")); batch.set(newClientRef, { name: client.Name || 'N/A', phone: client.Phone || '', dob: client.DOB || '' }); });
             try { await batch.commit(); alert(`${clientsToImport.length} clients imported successfully!`); } 
             catch (error) { console.error("Error importing clients: ", error); alert("An error occurred during import."); }
         };
@@ -3038,8 +2638,88 @@ function initMainApp(userRole) {
         e.target.value = '';
     });
 
+    // --- Gift Card Designer Logic ---
+    const createPrintableCardBtn = document.getElementById('create-printable-card-btn');
+    const closeDesignerModalBtn = document.getElementById('close-designer-modal-btn');
+    const designerForm = document.getElementById('physical-gift-card-form');
+    const designerBackgroundOptions = document.getElementById('designer-background-options');
+    const printableCard = document.getElementById('printable-gift-card');
+    const saveAndPrintBtn = document.getElementById('save-and-print-btn');
 
-    // --- INITIALIZATION ---
+    const updateDesignerPreview = () => {
+        document.getElementById('preview-to').textContent = document.getElementById('designer-to').value || 'Recipient';
+        document.getElementById('preview-from').textContent = document.getElementById('designer-from').value || 'Sender';
+        const amount = parseFloat(document.getElementById('designer-amount').value) || 0;
+        document.getElementById('preview-amount').textContent = `$${amount.toFixed(2)}`;
+    };
+
+    const openDesignerModal = () => {
+        designerForm.reset();
+        const newCode = `GC-${Date.now()}${[...Array(4)].map(() => Math.floor(Math.random() * 10)).join('')}`;
+        document.getElementById('preview-code').textContent = newCode;
+        
+        designerBackgroundOptions.innerHTML = giftCardBackgrounds.map((url, index) => 
+            `<button type="button" data-bg="${url}" class="w-full h-16 bg-cover bg-center rounded-md border-2 border-transparent hover:border-pink-400" style="background-image: url('${url}')"></button>`
+        ).join('');
+        
+        const firstBgBtn = designerBackgroundOptions.querySelector('button');
+        firstBgBtn.classList.add('ring-2', 'ring-pink-500');
+        printableCard.style.backgroundImage = `url('${giftCardBackgrounds[0]}')`;
+
+        updateDesignerPreview();
+        giftCardDesignerModal.classList.remove('hidden');
+        giftCardDesignerModal.classList.add('flex');
+    };
+
+    const closeDesignerModal = () => {
+        giftCardDesignerModal.classList.add('hidden');
+        giftCardDesignerModal.classList.remove('flex');
+    };
+
+    designerBackgroundOptions.addEventListener('click', (e) => {
+        const target = e.target.closest('button');
+        if (target && target.dataset.bg) {
+            designerBackgroundOptions.querySelectorAll('button').forEach(btn => btn.classList.remove('ring-2', 'ring-pink-500'));
+            target.classList.add('ring-2', 'ring-pink-500');
+            printableCard.style.backgroundImage = `url('${target.dataset.bg}')`;
+        }
+    });
+
+    const handleSaveAndPrint = async () => {
+        const recipientName = document.getElementById('designer-to').value;
+        const amount = parseFloat(document.getElementById('designer-amount').value);
+
+        if (!recipientName || isNaN(amount) || amount <= 0) {
+            alert('Please fill in all fields with valid values.');
+            return;
+        }
+
+        const giftCardData = {
+            amount: amount,
+            recipientName: recipientName,
+            senderName: document.getElementById('designer-from').value,
+            code: document.getElementById('preview-code').textContent,
+            status: 'Active',
+            type: 'Physical',
+            createdAt: serverTimestamp()
+        };
+
+        try {
+            await addDoc(collection(db, "gift_cards"), giftCardData);
+            window.print();
+        } catch (error) {
+            console.error("Error saving physical gift card:", error);
+            alert("Could not save the gift card. Please try again.");
+        }
+    };
+    
+    createPrintableCardBtn.addEventListener('click', openDesignerModal);
+    closeDesignerModalBtn.addEventListener('click', closeDesignerModal);
+    giftCardDesignerModal.querySelector('.modal-overlay').addEventListener('click', closeDesignerModal);
+    designerForm.addEventListener('input', updateDesignerPreview);
+    saveAndPrintBtn.addEventListener('click', handleSaveAndPrint);
+
+
     loadAndRenderServices();
     const todayString = getLocalDateString();
     const currentMonthIndex = new Date().getMonth();
