@@ -37,6 +37,16 @@
     .toggle-checkbox:checked + .toggle-label {
         background-color: #d63384;
     }
+    
+    /* Notification Bell Animation */
+    @keyframes ring {
+      0%, 100% { transform: rotate(0); }
+      10%, 30%, 50%, 70%, 90% { transform: rotate(-10deg); }
+      20%, 40%, 60%, 80% { transform: rotate(10deg); }
+    }
+    .ring-animation {
+      animation: ring 1s ease-in-out;
+    }
   </style>
 </head>
 <body class="bg-gray-100">
@@ -425,8 +435,14 @@
                     </div>
                 </div>
                 <nav id="top-nav" class="hidden md:flex items-center gap-2 text-sm font-semibold text-gray-600">
-                    <button class="top-nav-btn" data-target="check-in">Check-in</button>
-                    <button class="top-nav-btn" data-target="booking">Booking</button>
+                    <button class="top-nav-btn relative" data-target="check-in">
+                        Check-in
+                        <span id="check-in-nav-count" class="absolute -top-1 -right-1 bg-blue-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+                    </button>
+                    <button class="top-nav-btn relative" data-target="booking">
+                        Booking
+                        <span id="booking-nav-count" class="absolute -top-1 -right-1 bg-blue-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+                    </button>
                     <button class="top-nav-btn" data-target="nails-idea">Nails Idea</button>
                     <button class="top-nav-btn" data-target="report">Report</button>
                     <button class="top-nav-btn" data-target="setting">Setting</button>
