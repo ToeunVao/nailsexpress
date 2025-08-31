@@ -37,6 +37,100 @@ let initialAppointmentsLoaded = false;
 let initialInventoryLoaded = false;
 
 
+// --- Email Notification Logic ---
+/**
+ * Queues booking notification emails for admins and the assigned technician.
+ * This function works with the "Trigger Email" Firebase Extension by adding
+ * documents to a "mail" collection.
+ * @param {object} appointmentData The data for the new appointment.
+ */
+async function sendBookingNotificationEmail(appointmentData) {
+    try {
+        // 1. Get all admin emails
+        const adminsQuery = query(collection(db, "users"), where("role", "==", "admin"));
+        const adminSnapshot = await getDocs(adminsQuery);
+        const adminEmails = adminSnapshot.docs.map(doc => doc.data().email).filter(Boolean); // Filter out users without emails
+
+        // 2. Get technician email
+        let technicianEmail = null;
+        if (appointmentData.technician && appointmentData.technician !== 'Any Technician') {
+            const techQuery = query(collection(db, "users"), where("name", "==", appointmentData.technician));
+            const techSnapshot = await getDocs(techQuery);
+            if (!techSnapshot.empty) {
+                const techData = techSnapshot.docs[0].data();
+                if (techData.email) {
+                    technicianEmail = techData.email;
+                }
+            }
+        }
+
+        // 3. Combine recipients, ensuring no duplicates and filtering out nulls
+        const recipients = [...new Set([...adminEmails, technicianEmail].filter(Boolean))];
+
+        if (recipients.length === 0) {
+            console.log("No recipients found for booking notification email.");
+            return;
+        }
+
+        // 4. Create email content
+        const appointmentTime = appointmentData.appointmentTimestamp.toDate().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+        const subject = `New Booking: ${appointmentData.name} @ ${appointmentTime}`;
+        const servicesList = Array.isArray(appointmentData.services) ? appointmentData.services.join(', ') : appointmentData.services;
+        
+        const html = `
+            <div style="font-family: Arial, sans-serif; color: #333;">
+                <h2 style="color: #d63384;">New Appointment Booked</h2>
+                <p>A new appointment has been scheduled for <strong>${appointmentData.name}</strong>.</p>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px; width: 120px;"><strong>Client:</strong></td>
+                        <td style="padding: 8px;">${appointmentData.name}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px;"><strong>Phone:</strong></td>
+                        <td style="padding: 8px;">${appointmentData.phone || 'N/A'}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px;"><strong>Time:</strong></td>
+                        <td style="padding: 8px;">${appointmentTime}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px;"><strong>Technician:</strong></td>
+                        <td style="padding: 8px;">${appointmentData.technician}</td>
+                    </tr>
+                     <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px;"><strong>Services:</strong></td>
+                        <td style="padding: 8px;">${servicesList}</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px;"><strong>Notes:</strong></td>
+                        <td style="padding: 8px;">${appointmentData.notes || 'None'}</td>
+                    </tr>
+                </table>
+            </div>
+        `;
+
+        // 5. Add documents to the 'mail' collection for the Firebase Extension to process
+        const mailPromises = recipients.map(email => {
+            return addDoc(collection(db, "mail"), {
+                to: email,
+                message: {
+                    subject: subject,
+                    html: html,
+                },
+            });
+        });
+
+        await Promise.all(mailPromises);
+        console.log("Booking notification emails queued for:", recipients.join(', '));
+
+    } catch (error) {
+        console.error("Error queuing booking notification email:", error);
+        // Don't block the user flow, just log the error. This is a background task.
+    }
+}
+
+
 // --- Global Modal Logic ---
 const openPolicyModal = () => { policyModal.classList.add('flex'); policyModal.classList.remove('hidden'); };
 const closePolicyModal = () => { policyModal.classList.add('hidden'); policyModal.classList.remove('flex'); };
@@ -419,10 +513,19 @@ function initLandingPage() {
 
         try {
             await addDoc(collection(db, "appointments"), appointmentData);
+            
+            // Send email notification
+            await sendBookingNotificationEmail(appointmentData);
+
             alert('Appointment booked successfully!');
             addAppointmentFormLanding.reset();
             step2.classList.add('hidden');
             step1.classList.remove('hidden');
+
+            // Reset service selection display
+            document.querySelectorAll('#services-container-landing .selection-count').forEach(badge => badge.classList.add('hidden'));
+            hiddenCheckboxContainerLanding.querySelectorAll('input').forEach(cb => cb.checked = false);
+
         } catch (error) {
             console.error("Error booking appointment:", error);
             alert("Could not book appointment. Please try again.");
@@ -1720,14 +1823,29 @@ function initMainApp(userRole) {
         e.preventDefault();
         const datetimeString = document.getElementById('appointment-datetime').value;
         if (!datetimeString) { return alert('Please select a date and time.'); }
+        
+        const appointmentData = {
+            name: document.getElementById('appointment-client-name').value,
+            phone: document.getElementById('appointment-phone').value,
+            people: document.getElementById('appointment-people').value,
+            bookingType: document.getElementById('appointment-booking-type').value,
+            services: [document.getElementById('appointment-services').value],
+            technician: document.getElementById('appointment-technician-select').value,
+            notes: document.getElementById('appointment-notes').value,
+            appointmentTimestamp: Timestamp.fromDate(new Date(datetimeString))
+        };
+        
         try {
-             await addDoc(collection(db, "appointments"), {
-                name: document.getElementById('appointment-client-name').value, phone: document.getElementById('appointment-phone').value, people: document.getElementById('appointment-people').value,
-                bookingType: document.getElementById('appointment-booking-type').value, services: [document.getElementById('appointment-services').value], technician: document.getElementById('appointment-technician-select').value,
-                notes: document.getElementById('appointment-notes').value, appointmentTimestamp: Timestamp.fromDate(new Date(datetimeString))
-            });
+            await addDoc(collection(db, "appointments"), appointmentData);
+            
+            // Send email notification
+            await sendBookingNotificationEmail(appointmentData);
+
             closeAddAppointmentModal();
-        } catch (err) { console.error("Error adding appointment:", err); alert("Could not save appointment."); }
+        } catch (err) {
+            console.error("Error adding appointment:", err);
+            alert("Could not save appointment.");
+        }
     });
 
     document.getElementById('staff-earning-form').addEventListener('submit', async (e) => {
