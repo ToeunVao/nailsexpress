@@ -31,6 +31,7 @@ let landingPageInitialized = false;
 let anonymousUserId = null;
 let bookingSettings = { minBookingHours: 2 };
 let loginSecuritySettings = { maxAttempts: 5, lockoutMinutes: 15 };
+let salonHours = {}; // To store salon operating hours
 let bookingsChart, servicesChart, earningsChart;
 let notifications = [];
 let currentUserRole = null;
@@ -49,20 +50,12 @@ const getLocalDateString = (date = new Date()) => {
 };
 
 // --- Email Notification Logic ---
-/**
- * Queues booking notification emails for admins and the assigned technician.
- * This function works with the "Trigger Email" Firebase Extension by adding
- * documents to a "mail" collection.
- * @param {object} appointmentData The data for the new appointment.
- */
 async function sendBookingNotificationEmail(appointmentData) {
     try {
-        // 1. Get all admin emails
         const adminsQuery = query(collection(db, "users"), where("role", "==", "admin"));
         const adminSnapshot = await getDocs(adminsQuery);
-        const adminEmails = adminSnapshot.docs.map(doc => doc.data().email).filter(Boolean); // Filter out users without emails
+        const adminEmails = adminSnapshot.docs.map(doc => doc.data().email).filter(Boolean);
 
-        // 2. Get technician email
         let technicianEmail = null;
         if (appointmentData.technician && appointmentData.technician !== 'Any Technician') {
             const techQuery = query(collection(db, "users"), where("name", "==", appointmentData.technician));
@@ -75,7 +68,6 @@ async function sendBookingNotificationEmail(appointmentData) {
             }
         }
 
-        // 3. Combine recipients, ensuring no duplicates and filtering out nulls
         const recipients = [...new Set([...adminEmails, technicianEmail].filter(Boolean))];
 
         if (recipients.length === 0) {
@@ -83,52 +75,16 @@ async function sendBookingNotificationEmail(appointmentData) {
             return;
         }
 
-        // 4. Create email content
         const appointmentTime = appointmentData.appointmentTimestamp.toDate().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
         const subject = `New Booking: ${appointmentData.name} @ ${appointmentTime}`;
         const servicesList = Array.isArray(appointmentData.services) ? appointmentData.services.join(', ') : appointmentData.services;
         
-        const html = `
-            <div style="font-family: Arial, sans-serif; color: #333;">
-                <h2 style="color: #d63384;">New Appointment Booked</h2>
-                <p>A new appointment has been scheduled for <strong>${appointmentData.name}</strong>.</p>
-                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-                    <tr style="border-bottom: 1px solid #ddd;">
-                        <td style="padding: 8px; width: 120px;"><strong>Client:</strong></td>
-                        <td style="padding: 8px;">${appointmentData.name}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid #ddd;">
-                        <td style="padding: 8px;"><strong>Phone:</strong></td>
-                        <td style="padding: 8px;">${appointmentData.phone || 'N/A'}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid #ddd;">
-                        <td style="padding: 8px;"><strong>Time:</strong></td>
-                        <td style="padding: 8px;">${appointmentTime}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid #ddd;">
-                        <td style="padding: 8px;"><strong>Technician:</strong></td>
-                        <td style="padding: 8px;">${appointmentData.technician}</td>
-                    </tr>
-                     <tr style="border-bottom: 1px solid #ddd;">
-                        <td style="padding: 8px;"><strong>Services:</strong></td>
-                        <td style="padding: 8px;">${servicesList}</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid #ddd;">
-                        <td style="padding: 8px;"><strong>Notes:</strong></td>
-                        <td style="padding: 8px;">${appointmentData.notes || 'None'}</td>
-                    </tr>
-                </table>
-            </div>
-        `;
+        const html = `<div style="font-family: Arial, sans-serif; color: #333;"><h2 style="color: #d63384;">New Appointment Booked</h2><p>A new appointment has been scheduled for <strong>${appointmentData.name}</strong>.</p><table style="width: 100%; border-collapse: collapse; margin-top: 15px;"><tr style="border-bottom: 1px solid #ddd;"><td style="padding: 8px; width: 120px;"><strong>Client:</strong></td><td style="padding: 8px;">${appointmentData.name}</td></tr><tr style="border-bottom: 1px solid #ddd;"><td style="padding: 8px;"><strong>Phone:</strong></td><td style="padding: 8px;">${appointmentData.phone || 'N/A'}</td></tr><tr style="border-bottom: 1px solid #ddd;"><td style="padding: 8px;"><strong>Time:</strong></td><td style="padding: 8px;">${appointmentTime}</td></tr><tr style="border-bottom: 1px solid #ddd;"><td style="padding: 8px;"><strong>Technician:</strong></td><td style="padding: 8px;">${appointmentData.technician}</td></tr><tr style="border-bottom: 1px solid #ddd;"><td style="padding: 8px;"><strong>Services:</strong></td><td style="padding: 8px;">${servicesList}</td></tr><tr style="border-bottom: 1px solid #ddd;"><td style="padding: 8px;"><strong>Notes:</strong></td><td style="padding: 8px;">${appointmentData.notes || 'None'}</td></tr></table></div>`;
 
-        // 5. Add documents to the 'mail' collection for the Firebase Extension to process
         const mailPromises = recipients.map(email => {
             return addDoc(collection(db, "mail"), {
                 to: email,
-                message: {
-                    subject: subject,
-                    html: html,
-                },
+                message: { subject: subject, html: html },
             });
         });
 
@@ -137,8 +93,34 @@ async function sendBookingNotificationEmail(appointmentData) {
 
     } catch (error) {
         console.error("Error queuing booking notification email:", error);
-        // Don't block the user flow, just log the error. This is a background task.
     }
+}
+
+// --- Booking Validation Logic ---
+function isBookingTimeValid(bookingDate) {
+    const dayOfWeek = bookingDate.getDay(); // 0=Sun, 1=Mon, ...
+    const dayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][dayOfWeek];
+
+    const dayHours = salonHours[dayName];
+
+    if (!dayHours || !dayHours.isOpen) {
+        return { valid: false, message: `Sorry, the salon is closed on ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}s.` };
+    }
+
+    const bookingTime = bookingDate.getHours() * 60 + bookingDate.getMinutes();
+    
+    const [openHour, openMinute] = dayHours.open.split(':').map(Number);
+    const openTime = openHour * 60 + openMinute;
+    
+    const [closeHour, closeMinute] = dayHours.close.split(':').map(Number);
+    const closeTime = closeHour * 60 + closeMinute;
+
+    if (bookingTime < openTime || bookingTime > closeTime) {
+         const formatTime = (timeStr) => new Date(`1970-01-01T${timeStr}`).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        return { valid: false, message: `Sorry, our hours on ${dayName.charAt(0).toUpperCase() + dayName.slice(1)}s are from ${formatTime(dayHours.open)} to ${formatTime(dayHours.close)}.` };
+    }
+
+    return { valid: true };
 }
 
 
@@ -198,6 +180,13 @@ addAppointmentForm.addEventListener('submit', async (e) => {
     const datetimeString = document.getElementById('appointment-datetime').value;
     if (!datetimeString) { return alert('Please select a date and time.'); }
     
+    const bookingDate = new Date(datetimeString);
+    const validation = isBookingTimeValid(bookingDate);
+    if (!validation.valid) {
+        alert(validation.message);
+        return;
+    }
+    
     const appointmentData = {
         name: document.getElementById('appointment-client-name').value,
         phone: document.getElementById('appointment-phone').value,
@@ -206,7 +195,7 @@ addAppointmentForm.addEventListener('submit', async (e) => {
         services: [document.getElementById('appointment-services').value],
         technician: document.getElementById('appointment-technician-select').value,
         notes: document.getElementById('appointment-notes').value,
-        appointmentTimestamp: Timestamp.fromDate(new Date(datetimeString))
+        appointmentTimestamp: Timestamp.fromDate(bookingDate)
     };
     
     try {
@@ -220,9 +209,14 @@ addAppointmentForm.addEventListener('submit', async (e) => {
 });
 
 
-
 // --- Primary Authentication Router ---
 onAuthStateChanged(auth, async (user) => {
+    // Fetch crucial settings as soon as auth state is known
+    const hoursDoc = await getDoc(doc(db, "settings", "salonHours"));
+    if (hoursDoc.exists()) {
+        salonHours = hoursDoc.data();
+    }
+
     if (user) {
         currentUserId = user.uid;
         if (user.isAnonymous) {
@@ -371,8 +365,6 @@ function initLandingPage() {
         };
 
         try {
-            // In a real app, you would integrate a payment gateway here.
-            // For now, we'll simulate a successful payment and save to Firestore.
             alert('Redirecting to a secure payment page...');
             
             await addDoc(collection(db, "gift_cards"), giftCardData);
@@ -398,7 +390,6 @@ function initLandingPage() {
         const emailKey = 'loginAttempts_' + email.toLowerCase();
         const lockoutKey = 'lockoutUntil_' + email.toLowerCase();
 
-        // Check for lockout
         const lockoutUntil = localStorage.getItem(lockoutKey);
         if (lockoutUntil && Date.now() < parseInt(lockoutUntil)) {
             const remainingTime = Math.ceil((parseInt(lockoutUntil) - Date.now()) / (1000 * 60));
@@ -406,7 +397,6 @@ function initLandingPage() {
             lockoutMessageDiv.classList.remove('hidden');
             return;
         } else if (lockoutUntil) {
-            // Clear expired lockout
             localStorage.removeItem(lockoutKey);
         }
         lockoutMessageDiv.classList.add('hidden');
@@ -417,8 +407,7 @@ function initLandingPage() {
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            // onAuthStateChanged will handle the redirect
-            localStorage.removeItem(emailKey); // Clear attempts on success
+            localStorage.removeItem(emailKey); 
             localStorage.removeItem(lockoutKey);
         } catch (error) {
             let attempts = (parseInt(localStorage.getItem(emailKey)) || 0) + 1;
@@ -456,15 +445,12 @@ function initLandingPage() {
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
-
-            // Create a client document in Firestore
             await setDoc(doc(db, "clients", user.uid), {
                 name: name,
                 email: email,
                 role: 'client',
                 createdAt: serverTimestamp()
             });
-            // onAuthStateChanged will handle the redirect
         } catch (error) {
             alert(`Sign Up Failed: ${error.message}`);
         } finally {
@@ -508,8 +494,12 @@ function initLandingPage() {
     let landingServicesData = {};
     
     getDocs(collection(db, "services")).then(servicesSnapshot => {
+        servicesData = {}; // Also populate global servicesData
         landingServicesData = {};
-        servicesSnapshot.forEach(doc => { landingServicesData[doc.id] = doc.data().items; });
+        servicesSnapshot.forEach(doc => { 
+            servicesData[doc.id] = doc.data().items;
+            landingServicesData[doc.id] = doc.data().items; 
+        });
         
         servicesContainerLanding.innerHTML = '';
         hiddenCheckboxContainerLanding.innerHTML = '';
@@ -581,13 +571,20 @@ function initLandingPage() {
             alert('Please select at least one service.');
             return;
         }
+        
+        const bookingDate = new Date(document.getElementById('appointment-datetime-landing').value);
+        const validation = isBookingTimeValid(bookingDate);
+        if (!validation.valid) {
+            alert(validation.message);
+            return;
+        }
 
         const appointmentData = {
             name: document.getElementById('appointment-client-name-landing').value,
             phone: document.getElementById('appointment-phone-landing').value,
             people: document.getElementById('appointment-people-landing').value,
             technician: document.getElementById('appointment-technician-select-landing').value,
-            appointmentTimestamp: Timestamp.fromDate(new Date(document.getElementById('appointment-datetime-landing').value)),
+            appointmentTimestamp: Timestamp.fromDate(bookingDate),
             notes: document.getElementById('appointment-notes-landing').value,
             services: services,
             bookingType: 'Online'
@@ -595,8 +592,6 @@ function initLandingPage() {
 
         try {
             await addDoc(collection(db, "appointments"), appointmentData);
-            
-            // Send email notification
             await sendBookingNotificationEmail(appointmentData);
 
             alert('Appointment booked successfully!');
@@ -604,7 +599,6 @@ function initLandingPage() {
             step2.classList.add('hidden');
             step1.classList.remove('hidden');
 
-            // Reset service selection display
             document.querySelectorAll('#services-container-landing .selection-count').forEach(badge => badge.classList.add('hidden'));
             hiddenCheckboxContainerLanding.querySelectorAll('input').forEach(cb => cb.checked = false);
 
@@ -640,7 +634,6 @@ function initLandingPage() {
         if (docSnap.exists()) {
             updateFeatureVisibility(docSnap.data());
         } else {
-            // Default settings if nothing is in the database
             updateFeatureVisibility({ showClientLogin: true, showPromotions: true, showGiftCards: true, showNailArt: true });
         }
     });
@@ -736,25 +729,23 @@ function initClientDashboard(clientId, clientData) {
         });
     };
 
-    // Listen to client's data for gallery updates
     onSnapshot(doc(db, "clients", clientId), (docSnap) => {
         if (docSnap.exists()) {
             renderClientGallery(docSnap.data().photoGallery);
         }
     });
 
-    // Listen to appointments and history
     onSnapshot(query(collection(db, "appointments"), where("name", "==", clientData.name)), (snapshot) => {
         const appointments = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
         renderClientAppointments(appointments);
     });
      onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
         const history = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
+        allFinishedClients = history; // Update global state
         renderClientHistory(history);
         calculateAndRenderFavorites(history);
     });
 
-    // Handle photo upload
     document.getElementById('client-photo-upload').addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -771,10 +762,9 @@ function initClientDashboard(clientId, clientData) {
             console.error("Error uploading photo:", error);
             alert("Could not upload photo.");
         }
-        e.target.value = ''; // Reset file input
+        e.target.value = '';
     });
 
-    // Handle "Book New Appointment" button
     document.getElementById('client-book-new-btn').addEventListener('click', () => {
         openAddAppointmentModal(getLocalDateString(), clientData);
     });
@@ -845,10 +835,9 @@ function initMainApp(userRole) {
         notifications.unshift(newNotification);
         updateNotificationDisplay();
 
-        // Trigger bell animation
         const bellIcon = notificationBell.querySelector('i');
-        bellIcon.classList.remove('ring-animation'); // Remove first to reset
-        void bellIcon.offsetWidth; // Trigger reflow
+        bellIcon.classList.remove('ring-animation');
+        void bellIcon.offsetWidth;
         bellIcon.classList.add('ring-animation');
     };
     
@@ -903,7 +892,6 @@ function initMainApp(userRole) {
         notificationDropdown.classList.toggle('hidden');
         if (!notificationDropdown.classList.contains('hidden')) {
             notifications.forEach(n => n.read = true);
-            // Delay update to allow user to see read status change
             setTimeout(updateNotificationDisplay, 300);
         }
     });
@@ -927,6 +915,7 @@ function initMainApp(userRole) {
     const checkoutModal = document.getElementById('checkout-modal');
     const checkoutForm = document.getElementById('checkout-form');
     const viewDetailModal = document.getElementById('view-detail-modal');
+    
     const editEarningModal = document.getElementById('edit-earning-modal');
     const editEarningForm = document.getElementById('edit-earning-form');
     const editSalonEarningModal = document.getElementById('edit-salon-earning-modal');
@@ -1061,7 +1050,7 @@ function initMainApp(userRole) {
         const counts = {};
 
         if (filter === 'today') {
-            labels = Array.from({ length: 12 }, (_, i) => `${i * 2}:00`); // 2-hour intervals
+            labels = Array.from({ length: 12 }, (_, i) => `${i * 2}:00`);
             chartData = Array(12).fill(0);
             data.forEach(item => {
                 const date = item.appointmentTimestamp?.toDate() || item.checkOutTimestamp?.toDate();
@@ -1079,7 +1068,7 @@ function initMainApp(userRole) {
                     chartData[date.getDay()]++;
                 }
             });
-        } else { // Month or Year
+        } else {
             const format = filter === 'this_month' ? 'numeric' : 'short';
             data.forEach(item => {
                 const date = item.appointmentTimestamp?.toDate() || item.checkOutTimestamp?.toDate();
@@ -1126,14 +1115,8 @@ function initMainApp(userRole) {
             datasets: [{
                 label: 'Top Services',
                 data: chartData,
-                backgroundColor: [
-                    'rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)', 'rgba(255, 206, 86, 0.5)',
-                    'rgba(75, 192, 192, 0.5)', 'rgba(153, 102, 255, 0.5)'
-                ],
-                borderColor: [
-                    'rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)',
-                    'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)'
-                ],
+                backgroundColor: ['rgba(255, 99, 132, 0.5)', 'rgba(54, 162, 235, 0.5)', 'rgba(255, 206, 86, 0.5)', 'rgba(75, 192, 192, 0.5)', 'rgba(153, 102, 255, 0.5)'],
+                borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)', 'rgba(255, 206, 86, 1)', 'rgba(75, 192, 192, 1)', 'rgba(153, 102, 255, 1)'],
                 borderWidth: 1
             }]
         };
@@ -1172,18 +1155,12 @@ function initMainApp(userRole) {
             dailyNotesContainer.innerHTML = '<p class="text-gray-500">No notes for today.</p>';
             return;
         }
-        // Sort by creation time, newest first
         notes.sort((a, b) => b.createdAt.seconds - a.createdAt.seconds);
 
         notes.forEach(note => {
             const noteEl = document.createElement('div');
             noteEl.className = 'bg-pink-50 p-3 rounded-lg flex justify-between items-center';
-            noteEl.innerHTML = `
-                <p class="text-gray-800">${note.text}</p>
-                <button data-id="${note.id}" class="delete-note-btn text-red-400 hover:text-red-600">
-                    <i class="fas fa-times-circle"></i>
-                </button>
-            `;
+            noteEl.innerHTML = `<p class="text-gray-800">${note.text}</p><button data-id="${note.id}" class="delete-note-btn text-red-400 hover:text-red-600"><i class="fas fa-times-circle"></i></button>`;
             dailyNotesContainer.appendChild(noteEl);
         });
     };
@@ -1195,7 +1172,7 @@ function initMainApp(userRole) {
         if (docSnap.exists()) {
             renderDailyNotes(docSnap.data().notes);
         } else {
-            renderDailyNotes([]); // No notes for today
+            renderDailyNotes([]);
         }
     });
 
@@ -1204,11 +1181,7 @@ function initMainApp(userRole) {
         const noteText = dailyNoteInput.value.trim();
         if (!noteText) return;
 
-        const newNote = {
-            text: noteText,
-            createdAt: Timestamp.now(),
-            id: crypto.randomUUID()
-        };
+        const newNote = { text: noteText, createdAt: Timestamp.now(), id: crypto.randomUUID() };
 
         try {
             await setDoc(noteDocRef, { notes: arrayUnion(newNote) }, { merge: true });
@@ -1229,9 +1202,7 @@ function initMainApp(userRole) {
                     const existingNotes = docSnap.data().notes || [];
                     const noteToRemove = existingNotes.find(note => note.id === noteIdToDelete);
                     if (noteToRemove) {
-                        await updateDoc(noteDocRef, {
-                            notes: arrayRemove(noteToRemove)
-                        });
+                        await updateDoc(noteDocRef, { notes: arrayRemove(noteToRemove) });
                     }
                 }
             } catch (error) {
@@ -1323,76 +1294,41 @@ function initMainApp(userRole) {
         }
     
         const clientsMap = new Map();
-    
-        // 1. Aggregate data from service history (finished_clients)
         allFinishedClients.forEach(visit => {
             if (!visit.name) return;
             const clientKey = visit.name.toLowerCase();
-            
             if (!clientsMap.has(clientKey)) {
-                clientsMap.set(clientKey, {
-                    name: visit.name,
-                    phone: visit.phone || '',
-                    lastVisit: visit.checkOutTimestamp.toMillis(),
-                    techCounts: {},
-                    colorCounts: {}
-                });
+                clientsMap.set(clientKey, { name: visit.name, phone: visit.phone || '', lastVisit: visit.checkOutTimestamp.toMillis(), techCounts: {}, colorCounts: {} });
             }
-    
             const clientData = clientsMap.get(clientKey);
-    
             if (visit.checkOutTimestamp.toMillis() > clientData.lastVisit) {
                 clientData.lastVisit = visit.checkOutTimestamp.toMillis();
                 clientData.phone = visit.phone || clientData.phone;
             }
-    
-            if (visit.technician) {
-                clientData.techCounts[visit.technician] = (clientData.techCounts[visit.technician] || 0) + 1;
-            }
-            if (visit.colorCode) {
-                clientData.colorCounts[visit.colorCode] = (clientData.colorCounts[visit.colorCode] || 0) + 1;
-            }
+            if (visit.technician) { clientData.techCounts[visit.technician] = (clientData.techCounts[visit.technician] || 0) + 1; }
+            if (visit.colorCode) { clientData.colorCounts[visit.colorCode] = (clientData.colorCounts[visit.colorCode] || 0) + 1; }
         });
     
-        // 2. Process the aggregated data
         let processedClients = Array.from(clientsMap.values()).map(client => {
             const findFavorite = (counts) => Object.keys(counts).length > 0 ? Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b) : 'N/A';
-            return {
-                ...client,
-                favoriteTech: findFavorite(client.techCounts),
-                favoriteColor: findFavorite(client.colorCounts)
-            };
+            return { ...client, favoriteTech: findFavorite(client.techCounts), favoriteColor: findFavorite(client.colorCounts) };
         });
     
-        // 3. Merge DOB and ID from the master 'clients' collection
         const clientInfoMap = new Map(allClients.map(c => [c.name.toLowerCase(), { dob: c.dob, id: c.id, phone: c.phone }]));
-    
         let finalClientList = processedClients.map(aggClient => {
             const key = aggClient.name.toLowerCase();
             const masterInfo = clientInfoMap.get(key);
-            return {
-                ...aggClient,
-                id: masterInfo ? masterInfo.id : null, 
-                dob: masterInfo ? masterInfo.dob : '',
-                phone: masterInfo && masterInfo.phone ? masterInfo.phone : aggClient.phone
-            };
+            return { ...aggClient, id: masterInfo ? masterInfo.id : null, dob: masterInfo ? masterInfo.dob : '', phone: masterInfo && masterInfo.phone ? masterInfo.phone : aggClient.phone };
         });
     
-        // 4. Add clients from master list who have NO visit history
         allClients.forEach(masterClient => {
             if (!clientsMap.has(masterClient.name.toLowerCase())) {
-                finalClientList.push({
-                    ...masterClient,
-                    lastVisit: null,
-                    favoriteTech: 'N/A',
-                    favoriteColor: 'N/A'
-                });
+                finalClientList.push({ ...masterClient, lastVisit: null, favoriteTech: 'N/A', favoriteColor: 'N/A' });
             }
         });
         
         aggregatedClients = finalClientList;
     
-        // 5. Render the table
         const searchTerm = document.getElementById('search-clients-list').value.toLowerCase();
         const filteredClients = aggregatedClients.filter(c => c.name.toLowerCase().includes(searchTerm));
     
@@ -1407,14 +1343,7 @@ function initMainApp(userRole) {
         filteredClients.forEach(client => {
             const row = tbody.insertRow();
             row.className = 'bg-white border-b';
-            row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900">${client.name}</td>
-                             <td class="px-6 py-4">${client.phone || 'N/A'}</td>
-                             <td class="px-6 py-4">${client.lastVisit ? new Date(client.lastVisit).toLocaleDateString() : 'N/A'}</td>
-                             <td class="px-6 py-4 text-center space-x-2">
-                                <button data-id="${client.id}" class="text-indigo-500 hover:text-indigo-700 view-client-profile-btn" title="View Profile"><i class="fas fa-user-circle text-lg"></i></button>
-                                <button data-id="${client.id}" class="text-blue-500 hover:text-blue-700 edit-client-btn" title="Edit Client"><i class="fas fa-edit text-lg"></i></button>
-                                <button data-id="${client.id}" class="text-red-500 hover:text-red-700 delete-client-btn" title="Delete Client"><i class="fas fa-trash-alt text-lg"></i></button>
-                             </td>`;
+            row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900">${client.name}</td><td class="px-6 py-4">${client.phone || 'N/A'}</td><td class="px-6 py-4">${client.lastVisit ? new Date(client.lastVisit).toLocaleDateString() : 'N/A'}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${client.id}" class="text-indigo-500 hover:text-indigo-700 view-client-profile-btn" title="View Profile"><i class="fas fa-user-circle text-lg"></i></button><button data-id="${client.id}" class="text-blue-500 hover:text-blue-700 edit-client-btn" title="Edit Client"><i class="fas fa-edit text-lg"></i></button><button data-id="${client.id}" class="text-red-500 hover:text-red-700 delete-client-btn" title="Delete Client"><i class="fas fa-trash-alt text-lg"></i></button></td>`;
         });
     };
 
@@ -1668,16 +1597,11 @@ function initMainApp(userRole) {
         const client = allActiveClients.find(c => c.id === clientId);
         if (client) {
              try {
-                // Ensure client exists in the main 'clients' collection
                 const clientNameLower = client.name.toLowerCase();
                 const existingClient = allClients.find(c => c.name.toLowerCase() === clientNameLower);
 
                 if (!existingClient) {
-                    await addDoc(collection(db, "clients"), { 
-                        name: client.name, 
-                        phone: client.phone || '', 
-                        dob: '' 
-                    });
+                    await addDoc(collection(db, "clients"), { name: client.name, phone: client.phone || '', dob: '' });
                 }
 
                 const finishedClientData = { ...client };
@@ -1737,15 +1661,13 @@ function initMainApp(userRole) {
         if(appointmentPhoneList) appointmentPhoneList.innerHTML = phoneOptionsHtml;
         if(checkinPhoneList) checkinPhoneList.innerHTML = phoneOptionsHtml;
         
-        updateDashboard(); // Update dashboard when finished clients data changes
+        updateDashboard();
     });
 
      onSnapshot(query(collection(db, "appointments"), orderBy("appointmentTimestamp", "asc")), (snapshot) => {
-        // This part handles the notifications for REAL-TIME additions
         snapshot.docChanges().forEach((change) => {
             if (change.type === "added" && initialAppointmentsLoaded) {
                  const data = change.doc.data();
-                 // Check if the appointment was created after the app loaded to avoid old notifications
                  if (data.appointmentTimestamp.seconds > appLoadTimestamp.seconds) {
                     const apptTime = new Date(data.appointmentTimestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                     addNotification('booking', `New booking for ${data.name} at ${apptTime}`);
@@ -1753,14 +1675,12 @@ function initMainApp(userRole) {
             }
         });
         
-        // This part handles the data for rendering
         allAppointments = snapshot.docs.map(doc => ({ id: doc.id, appointmentTime: doc.data().appointmentTimestamp ? new Date(doc.data().appointmentTimestamp.seconds * 1000).toLocaleString() : 'N/A', ...doc.data() }));
         renderCalendar(currentYear, currentMonth, currentTechFilterCalendar);
         renderAllBookingsList();
-        updateDashboard(); // Update dashboard when appointments data changes
-        updateNavCounts(); // Update the nav count
+        updateDashboard();
+        updateNavCounts();
 
-        // Set the flag after the first full snapshot is processed
         if (!initialAppointmentsLoaded) {
             initialAppointmentsLoaded = true;
         }
@@ -1769,7 +1689,7 @@ function initMainApp(userRole) {
     onSnapshot(query(collection(db, "earnings"), orderBy("date", "desc")), (snapshot) => {
         allEarnings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderStaffEarnings(applyEarningFilters(allEarnings, currentEarningTechFilter, currentEarningDateFilter, currentEarningRangeFilter));
-        updateDashboard(); // Update dashboard when earnings data changes
+        updateDashboard();
     });
 
     onSnapshot(query(collection(db, "salon_earnings"), orderBy("date", "desc")), (snapshot) => {
@@ -1783,7 +1703,6 @@ function initMainApp(userRole) {
         renderExpenses();
     });
 
-    // --- CLIENTS LIST LOGIC ---
     onSnapshot(query(collection(db, "clients"), orderBy("name")), (snapshot) => {
         allClients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderClientsList();
@@ -1796,14 +1715,7 @@ function initMainApp(userRole) {
     document.getElementById('search-clients-list').addEventListener('input', () => renderClientsList());
     
     document.getElementById('export-clients-btn').addEventListener('click', () => {
-        const dataToExport = aggregatedClients.map(c => ({
-            Name: c.name,
-            Phone: c.phone || '',
-            DOB: c.dob || '',
-            'Favorite Tech': c.favoriteTech || '',
-            'Favorite Color': c.favoriteColor || '',
-            'Last Visit': c.lastVisit ? new Date(c.lastVisit).toLocaleDateString() : ''
-        }));
+        const dataToExport = aggregatedClients.map(c => ({ Name: c.name, Phone: c.phone || '', DOB: c.dob || '', 'Favorite Tech': c.favoriteTech || '', 'Favorite Color': c.favoriteColor || '', 'Last Visit': c.lastVisit ? new Date(c.lastVisit).toLocaleDateString() : '' }));
         const worksheet = XLSX.utils.json_to_sheet(dataToExport);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Clients");
@@ -1822,7 +1734,6 @@ function initMainApp(userRole) {
         document.getElementById(button.id.replace('-tab', '-content')).classList.remove('hidden');
     });
 
-    // NEW: Sub-tab logic
     const setupSubTabs = (tabsId, contentClass) => {
         document.getElementById(tabsId).addEventListener('click', (e) => {
             const button = e.target.closest('button');
@@ -2112,7 +2023,6 @@ function initMainApp(userRole) {
         if (viewProfileBtn) {
             const client = aggregatedClients.find(c => c.id === viewProfileBtn.dataset.id);
             if(client) {
-                // This is where you would open a detailed client profile view for the admin
                 alert(`Viewing profile for ${client.name}. (Admin view to be implemented)`);
             }
         } else if (editBtn) {
@@ -2126,7 +2036,6 @@ function initMainApp(userRole) {
             if (client) {
                 showConfirmModal(`Delete all records for ${client.name}? This cannot be undone.`, async () => {
                    await deleteDoc(doc(db, "clients", clientId));
-                   // Optional: clean up finished_clients as well, though it might be better to keep history
                 });
             }
         }
@@ -2244,11 +2153,8 @@ function initMainApp(userRole) {
     const productSupplierSelect = document.getElementById('product-supplier');
     const inventoryReportTableBody = document.querySelector('#inventory-report-table tbody');
 
-    // Listen for inventory usage changes
     onSnapshot(query(collection(db, "inventory_usage"), orderBy("timestamp", "desc")), (snapshot) => {
         allInventoryUsage = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // We might not need to do anything here immediately, but it keeps the data fresh
-        // The report is generated on demand when the tab is clicked.
     });
 
 
@@ -2276,17 +2182,10 @@ function initMainApp(userRole) {
 
             const row = inventoryReportTableBody.insertRow();
             row.className = 'bg-white border-b hover:bg-yellow-50';
-            row.innerHTML = `
-                <td class="px-6 py-4 font-medium text-gray-900">${item.name}</td>
-                <td class="px-6 py-4 text-center text-red-600 font-bold">${item.quantity}</td>
-                <td class="px-6 py-4 text-center">${item.lowStockAlert}</td>
-                <td class="px-6 py-4 text-center">${usageLast30d}</td>
-                <td class="px-6 py-4 text-center font-bold text-blue-600">${suggestedReorder}</td>
-            `;
+            row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900">${item.name}</td><td class="px-6 py-4 text-center text-red-600 font-bold">${item.quantity}</td><td class="px-6 py-4 text-center">${item.lowStockAlert}</td><td class="px-6 py-4 text-center">${usageLast30d}</td><td class="px-6 py-4 text-center font-bold text-blue-600">${suggestedReorder}</td>`;
         });
     };
 
-    // Add event listener for the new report tab
     document.getElementById('inventory-report-tab').addEventListener('click', renderInventoryReport);
 
 
@@ -2305,20 +2204,9 @@ function initMainApp(userRole) {
             const row = inventoryTableBody.insertRow();
             const isLowStock = product.quantity <= product.lowStockAlert;
             row.className = isLowStock ? 'bg-yellow-100' : 'bg-white';
-            row.innerHTML = `
-                <td class="px-6 py-4">${product.name} ${isLowStock ? '<span class="text-xs font-bold text-yellow-700 ml-2">LOW</span>' : ''}</td>
-                <td class="px-6 py-4">${product.category || ''}</td>
-                <td class="px-6 py-4">${product.supplier || ''}</td>
-                <td class="px-6 py-4 text-center">${product.quantity}</td>
-                <td class="px-6 py-4 text-right">$${product.price.toFixed(2)}</td>
-                <td class="px-6 py-4 text-right">$${(product.quantity * product.price).toFixed(2)}</td>
-                <td class="px-6 py-4 text-center space-x-2">
-                    <button data-id="${product.id}" class="edit-product-btn text-blue-500"><i class="fas fa-edit"></i></button>
-                    <button data-id="${product.id}" class="delete-product-btn text-red-500"><i class="fas fa-trash"></i></button>
-                </td>
-            `;
+            row.innerHTML = `<td class="px-6 py-4">${product.name} ${isLowStock ? '<span class="text-xs font-bold text-yellow-700 ml-2">LOW</span>' : ''}</td><td class="px-6 py-4">${product.category || ''}</td><td class="px-6 py-4">${product.supplier || ''}</td><td class="px-6 py-4 text-center">${product.quantity}</td><td class="px-6 py-4 text-right">$${product.price.toFixed(2)}</td><td class="px-6 py-4 text-right">$${(product.quantity * product.price).toFixed(2)}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${product.id}" class="edit-product-btn text-blue-500"><i class="fas fa-edit"></i></button><button data-id="${product.id}" class="delete-product-btn text-red-500"><i class="fas fa-trash"></i></button></td>`;
         });
-        updateDashboard(); // Update dashboard when inventory changes
+        updateDashboard();
     };
 
 
@@ -2331,7 +2219,6 @@ function initMainApp(userRole) {
                         addNotification('stock', `${product.name} is low in stock (${product.quantity} left).`, product.id);
                     }
                 } else {
-                    // Remove notification if stock is replenished
                     const existingNotifIndex = notifications.findIndex(n => n.itemId === product.id);
                     if (existingNotifIndex > -1) {
                         notifications.splice(existingNotifIndex, 1);
@@ -2349,26 +2236,12 @@ function initMainApp(userRole) {
     addProductForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const productId = document.getElementById('edit-product-id').value;
-        const productData = {
-            name: document.getElementById('product-name').value,
-            category: document.getElementById('product-category').value,
-            supplier: document.getElementById('product-supplier').value,
-            quantity: parseInt(document.getElementById('product-quantity').value, 10),
-            price: parseFloat(document.getElementById('product-price').value),
-            lowStockAlert: parseInt(document.getElementById('low-stock-alert').value, 10)
-        };
-
+        const productData = { name: document.getElementById('product-name').value, category: document.getElementById('product-category').value, supplier: document.getElementById('product-supplier').value, quantity: parseInt(document.getElementById('product-quantity').value, 10), price: parseFloat(document.getElementById('product-price').value), lowStockAlert: parseInt(document.getElementById('low-stock-alert').value, 10) };
         try {
-            if (productId) {
-                await updateDoc(doc(db, "inventory", productId), productData);
-            } else {
-                await addDoc(collection(db, "inventory"), productData);
-            }
+            if (productId) { await updateDoc(doc(db, "inventory", productId), productData); } 
+            else { await addDoc(collection(db, "inventory"), productData); }
             resetProductForm();
-        } catch (error) {
-            console.error("Error saving product:", error);
-            alert("Could not save product.");
-        }
+        } catch (error) { console.error("Error saving product:", error); alert("Could not save product."); }
     });
 
     const resetProductForm = () => {
@@ -2382,7 +2255,6 @@ function initMainApp(userRole) {
     inventoryTableBody.addEventListener('click', (e) => {
         const editBtn = e.target.closest('.edit-product-btn');
         const deleteBtn = e.target.closest('.delete-product-btn');
-
         if (editBtn) {
             const product = allInventory.find(p => p.id === editBtn.dataset.id);
             if (product) {
@@ -2403,22 +2275,13 @@ function initMainApp(userRole) {
         }
     });
 
-    // --- Log Usage Modal Logic ---
     const openLogUsageModal = () => {
         const select = document.getElementById('log-usage-product-select');
         select.innerHTML = '<option value="">Select a product...</option>';
-        allInventory.forEach(item => {
-            select.appendChild(new Option(item.name, item.id));
-        });
-        logUsageModal.classList.remove('hidden');
-        logUsageModal.classList.add('flex');
+        allInventory.forEach(item => { select.appendChild(new Option(item.name, item.id)); });
+        logUsageModal.classList.remove('hidden'); logUsageModal.classList.add('flex');
     };
-    const closeLogUsageModal = () => {
-        logUsageForm.reset();
-        logUsageModal.classList.add('hidden');
-        logUsageModal.classList.remove('flex');
-    };
-
+    const closeLogUsageModal = () => { logUsageForm.reset(); logUsageModal.classList.add('hidden'); logUsageModal.classList.remove('flex'); };
     document.getElementById('log-usage-btn').addEventListener('click', openLogUsageModal);
     document.getElementById('log-usage-cancel-btn').addEventListener('click', closeLogUsageModal);
     document.querySelector('.log-usage-modal-overlay').addEventListener('click', closeLogUsageModal);
@@ -2427,45 +2290,17 @@ function initMainApp(userRole) {
         e.preventDefault();
         const productId = document.getElementById('log-usage-product-select').value;
         const quantityUsed = parseInt(document.getElementById('log-usage-quantity').value, 10);
-
-        if (!productId || isNaN(quantityUsed) || quantityUsed <= 0) {
-            alert('Please select a product and enter a valid quantity.');
-            return;
-        }
-
+        if (!productId || isNaN(quantityUsed) || quantityUsed <= 0) { alert('Please select a product and enter a valid quantity.'); return; }
         const product = allInventory.find(p => p.id === productId);
-        if (!product) {
-            alert('Product not found.');
-            return;
-        }
-
-        if (product.quantity < quantityUsed) {
-            alert(`Not enough stock. Only ${product.quantity} units available.`);
-            return;
-        }
-
+        if (!product) { alert('Product not found.'); return; }
+        if (product.quantity < quantityUsed) { alert(`Not enough stock. Only ${product.quantity} units available.`); return; }
         try {
-            // Log the usage
-            await addDoc(collection(db, "inventory_usage"), {
-                productId: productId,
-                productName: product.name,
-                quantityUsed: quantityUsed,
-                timestamp: serverTimestamp()
-            });
-
-            // Decrement the inventory count
+            await addDoc(collection(db, "inventory_usage"), { productId: productId, productName: product.name, quantityUsed: quantityUsed, timestamp: serverTimestamp() });
             const newQuantity = product.quantity - quantityUsed;
-            await updateDoc(doc(db, "inventory", productId), {
-                quantity: newQuantity
-            });
-
+            await updateDoc(doc(db, "inventory", productId), { quantity: newQuantity });
             alert('Usage logged successfully.');
             closeLogUsageModal();
-
-        } catch (error) {
-            console.error("Error logging usage:", error);
-            alert("Could not log usage.");
-        }
+        } catch (error) { console.error("Error logging usage:", error); alert("Could not log usage."); }
     });
 
 
@@ -2475,6 +2310,75 @@ function initMainApp(userRole) {
     const maxLoginAttemptsInput = document.getElementById('max-login-attempts');
     const loginLockoutMinutesInput = document.getElementById('login-lockout-minutes');
     const featureTogglesForm = document.getElementById('feature-toggles-form');
+    const salonHoursForm = document.getElementById('salon-hours-form');
+
+    const loadAndRenderSalonHours = async () => {
+        const hoursContainer = document.getElementById('salon-hours-inputs');
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        let hoursData = {};
+
+        const docSnap = await getDoc(doc(db, "settings", "salonHours"));
+        if (docSnap.exists()) {
+            hoursData = docSnap.data();
+        } else {
+            // Default hours if not set
+            days.forEach(day => {
+                hoursData[day.toLowerCase()] = { isOpen: day !== 'Sunday', open: '09:00', close: '20:00' };
+            });
+        }
+        salonHours = hoursData; // Update global state
+
+        hoursContainer.innerHTML = days.map(day => {
+            const dayLower = day.toLowerCase();
+            const dayData = hoursData[dayLower] || { isOpen: true, open: '09:00', close: '20:00' };
+            return `
+                <div class="grid grid-cols-4 gap-2 items-center">
+                    <label class="font-semibold text-gray-700 col-span-1">${day}</label>
+                    <div class="flex items-center gap-2">
+                         <input type="checkbox" id="is-open-${dayLower}" class="form-checkbox" ${dayData.isOpen ? 'checked' : ''}>
+                         <label for="is-open-${dayLower}">Open</label>
+                    </div>
+                    <input type="time" value="${dayData.open}" class="form-input p-1 border rounded" ${!dayData.isOpen ? 'disabled' : ''}>
+                    <input type="time" value="${dayData.close}" class="form-input p-1 border rounded" ${!dayData.isOpen ? 'disabled' : ''}>
+                </div>
+            `;
+        }).join('');
+
+        // Add event listeners to toggle time input disabled state
+        days.forEach(day => {
+            const dayLower = day.toLowerCase();
+            const checkbox = document.getElementById(`is-open-${dayLower}`);
+            const timeInputs = checkbox.closest('.grid').querySelectorAll('input[type="time"]');
+            checkbox.addEventListener('change', () => {
+                timeInputs.forEach(input => input.disabled = !checkbox.checked);
+            });
+        });
+    };
+
+    salonHoursForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+        const newHours = {};
+        days.forEach(day => {
+            const container = document.getElementById(`is-open-${day}`).closest('.grid');
+            const timeInputs = container.querySelectorAll('input[type="time"]');
+            newHours[day] = {
+                isOpen: container.querySelector('input[type="checkbox"]').checked,
+                open: timeInputs[0].value,
+                close: timeInputs[1].value
+            };
+        });
+        
+        try {
+            await setDoc(doc(db, "settings", "salonHours"), newHours);
+            salonHours = newHours; // Update global state immediately
+            alert("Salon hours saved!");
+        } catch (error) {
+            console.error("Error saving salon hours:", error);
+            alert("Could not save salon hours.");
+        }
+    });
+
 
     const loadFeatureToggles = async () => {
         const settingsDoc = await getDoc(doc(db, "settings", "features"));
@@ -2485,7 +2389,6 @@ function initMainApp(userRole) {
             document.getElementById('toggle-gift-card').checked = settings.showGiftCards !== false;
             document.getElementById('toggle-nails-idea').checked = settings.showNailArt !== false;
         } else {
-             // Default to on if not set
             document.getElementById('toggle-client-login').checked = true;
             document.getElementById('toggle-promotions').checked = true;
             document.getElementById('toggle-gift-card').checked = true;
@@ -2514,13 +2417,14 @@ function initMainApp(userRole) {
         const securitySnap = await getDoc(doc(db, "settings", "security"));
         if (securitySnap.exists()) {
             const data = securitySnap.data();
-            loginSecuritySettings = data; // Update global settings
+            loginSecuritySettings = data;
             maxLoginAttemptsInput.value = data.maxAttempts || 5;
             loginLockoutMinutesInput.value = data.lockoutMinutes || 15;
         }
     };
     loadSettings();
     loadFeatureToggles();
+    loadAndRenderSalonHours();
 
     settingsForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -2535,7 +2439,7 @@ function initMainApp(userRole) {
         try { 
             await setDoc(doc(db, "settings", "booking"), { minBookingHours: hours }); 
             await setDoc(doc(db, "settings", "security"), { maxAttempts: maxAttempts, lockoutMinutes: lockoutMinutes });
-            loginSecuritySettings = { maxAttempts, lockoutMinutes }; // Update global settings immediately
+            loginSecuritySettings = { maxAttempts, lockoutMinutes };
             alert("Settings saved!"); 
         } catch (error) { 
             console.error("Error saving settings: ", error); 
@@ -2543,7 +2447,6 @@ function initMainApp(userRole) {
         }
     });
 
-    // --- Generic CRUD for Expense Settings ---
     const setupSimpleCrud = (collectionName, formId, inputId, listId) => {
         const form = document.getElementById(formId);
         const input = document.getElementById(inputId);
@@ -2574,7 +2477,6 @@ function initMainApp(userRole) {
     setupSimpleCrud('expense_categories', 'add-expense-category-form', 'new-expense-category-name', 'expense-categories-list');
     setupSimpleCrud('payment_accounts', 'add-payment-account-form', 'new-payment-account-name', 'payment-accounts-list');
 
-    // --- Supplier CRUD ---
     const addSupplierForm = document.getElementById('add-supplier-form');
     const suppliersTableBody = document.querySelector('#suppliers-table tbody');
     onSnapshot(collection(db, "suppliers"), (snapshot) => {
@@ -2617,7 +2519,6 @@ function initMainApp(userRole) {
         } else if (deleteBtn) { showConfirmModal("Delete this supplier?", async () => { await deleteDoc(doc(db, "suppliers", deleteBtn.dataset.id)); }); }
     });
 
-    // --- Expense Report Logic ---
     const addExpenseForm = document.getElementById('add-expense-form');
     const expenseMonthFilter = document.getElementById('expense-month-filter');
     const expenseTableBody = document.querySelector('#expense-table tbody');
@@ -2844,7 +2745,6 @@ function initMainApp(userRole) {
     onSnapshot(query(collection(db, "nail_ideas"), orderBy("createdAt", "desc")), (snapshot) => {
         allNailIdeas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
-        // Populate filters
         const shapes = [...new Set(allNailIdeas.map(i => i.shape).filter(Boolean))];
         const categories = [...new Set(allNailIdeas.flatMap(i => i.categories).filter(Boolean))];
         const shapeFilter = document.getElementById('nail-idea-shape-filter');
@@ -2852,9 +2752,8 @@ function initMainApp(userRole) {
         shapeFilter.innerHTML = '<option value="">All Shapes</option>' + shapes.map(s => `<option value="${s}">${s}</option>`).join('');
         categoryFilter.innerHTML = '<option value="">All Categories</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join('');
 
-        // Render views
-        applyNailIdeaFilters(); // For the public gallery
-        renderNailIdeasAdminTable(allNailIdeas); // For the admin table
+        applyNailIdeaFilters();
+        renderNailIdeasAdminTable(allNailIdeas);
     });
 
     document.getElementById('nail-idea-search').addEventListener('input', applyNailIdeaFilters);
@@ -2890,11 +2789,10 @@ function initMainApp(userRole) {
                 categories: document.getElementById('nail-idea-categories').value.split(',').map(s => s.trim()).filter(Boolean),
             };
 
-            if (ideaId) { // Update existing
+            if (ideaId) {
                 const existingIdea = allNailIdeas.find(i => i.id === ideaId);
                 if (imageURL) {
                     ideaData.imageURL = imageURL;
-                    // Optional: Delete old image from storage if it exists
                     if (existingIdea.imageURL) {
                         try {
                             const oldImageRef = ref(storage, existingIdea.imageURL);
@@ -2905,7 +2803,7 @@ function initMainApp(userRole) {
                     }
                 }
                 await updateDoc(doc(db, "nail_ideas", ideaId), ideaData);
-            } else { // Create new
+            } else {
                 ideaData.imageURL = imageURL;
                 ideaData.createdAt = serverTimestamp();
                 await addDoc(collection(db, "nail_ideas"), ideaData);
@@ -2956,7 +2854,6 @@ function initMainApp(userRole) {
         }
     });
 
-    // --- Gift Card Management ---
     const giftCardsTableBody = document.querySelector('#gift-cards-table tbody');
 
     const renderGiftCardsAdminTable = (cards) => {
@@ -2968,14 +2865,7 @@ function initMainApp(userRole) {
         cards.forEach(card => {
             const row = giftCardsTableBody.insertRow();
             const statusColor = card.status === 'Active' ? 'text-green-600' : 'text-gray-500';
-            row.innerHTML = `
-                <td class="px-6 py-4">${new Date(card.createdAt.seconds * 1000).toLocaleDateString()}</td>
-                <td class="px-6 py-4 font-mono text-xs">${card.code}</td>
-                <td class="px-6 py-4">$${card.amount.toFixed(2)}</td>
-                <td class="px-6 py-4">${card.recipientName}<br><span class="text-xs text-gray-500">${card.recipientEmail}</span></td>
-                <td class="px-6 py-4">${card.senderName}</td>
-                <td class="px-6 py-4 font-bold ${statusColor}">${card.status}</td>
-            `;
+            row.innerHTML = `<td class="px-6 py-4">${new Date(card.createdAt.seconds * 1000).toLocaleDateString()}</td><td class="px-6 py-4 font-mono text-xs">${card.code}</td><td class="px-6 py-4">$${card.amount.toFixed(2)}</td><td class="px-6 py-4">${card.recipientName}<br><span class="text-xs text-gray-500">${card.recipientEmail}</span></td><td class="px-6 py-4">${card.senderName}</td><td class="px-6 py-4 font-bold ${statusColor}">${card.status}</td>`;
         });
     };
 
@@ -2984,7 +2874,6 @@ function initMainApp(userRole) {
         renderGiftCardsAdminTable(allGiftCards);
     });
 
-    // --- Promotions Management ---
     const addPromotionForm = document.getElementById('add-promotion-form');
     const promotionsTableBody = document.querySelector('#promotions-table tbody');
     const promotionsContainerLanding = document.getElementById('promotions-container-landing');
@@ -2997,29 +2886,12 @@ function initMainApp(userRole) {
             const endDate = promo.endDate.toDate();
             let status, statusColor;
 
-            if (now < startDate) {
-                status = 'Scheduled';
-                statusColor = 'text-blue-600';
-            } else if (now > endDate) {
-                status = 'Expired';
-                statusColor = 'text-gray-500';
-            } else {
-                status = 'Active';
-                statusColor = 'text-green-600';
-            }
+            if (now < startDate) { status = 'Scheduled'; statusColor = 'text-blue-600'; } 
+            else if (now > endDate) { status = 'Expired'; statusColor = 'text-gray-500'; } 
+            else { status = 'Active'; statusColor = 'text-green-600'; }
 
             const row = promotionsTableBody.insertRow();
-            row.innerHTML = `
-                <td class="px-6 py-4">${promo.title}</td>
-                <td class="px-6 py-4">${promo.description}</td>
-                <td class="px-6 py-4">${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</td>
-                <td class="px-6 py-4 font-bold ${statusColor}">${status}</td>
-                <td class="px-6 py-4 text-center space-x-2">
-                    <button data-id="${promo.id}" class="send-promo-notification-btn text-purple-500" title="Send Notification"><i class="fas fa-paper-plane"></i></button>
-                    <button data-id="${promo.id}" class="edit-promotion-btn text-blue-500"><i class="fas fa-edit"></i></button>
-                    <button data-id="${promo.id}" class="delete-promotion-btn text-red-500"><i class="fas fa-trash"></i></button>
-                </td>
-            `;
+            row.innerHTML = `<td class="px-6 py-4">${promo.title}</td><td class="px-6 py-4">${promo.description}</td><td class="px-6 py-4">${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</td><td class="px-6 py-4 font-bold ${statusColor}">${status}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${promo.id}" class="send-promo-notification-btn text-purple-500" title="Send Notification"><i class="fas fa-paper-plane"></i></button><button data-id="${promo.id}" class="edit-promotion-btn text-blue-500"><i class="fas fa-edit"></i></button><button data-id="${promo.id}" class="delete-promotion-btn text-red-500"><i class="fas fa-trash"></i></button></td>`;
         });
     };
 
@@ -3040,10 +2912,7 @@ function initMainApp(userRole) {
         activePromos.forEach(promo => {
             const promoEl = document.createElement('div');
             promoEl.className = 'bg-white p-6 rounded-lg shadow-md text-center';
-            promoEl.innerHTML = `
-                <h3 class="text-xl font-bold text-pink-700 mb-2">${promo.title}</h3>
-                <p class="text-gray-600">${promo.description}</p>
-            `;
+            promoEl.innerHTML = `<h3 class="text-xl font-bold text-pink-700 mb-2">${promo.title}</h3><p class="text-gray-600">${promo.description}</p>`;
             promotionsContainerLanding.appendChild(promoEl);
         });
     };
@@ -3057,26 +2926,12 @@ function initMainApp(userRole) {
     addPromotionForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const promoId = document.getElementById('edit-promotion-id').value;
-        const promoData = {
-            title: document.getElementById('promotion-title').value,
-            description: document.getElementById('promotion-description').value,
-            startDate: Timestamp.fromDate(new Date(document.getElementById('promotion-start-date').value + 'T00:00:00')),
-            endDate: Timestamp.fromDate(new Date(document.getElementById('promotion-end-date').value + 'T23:59:59')),
-        };
-
+        const promoData = { title: document.getElementById('promotion-title').value, description: document.getElementById('promotion-description').value, startDate: Timestamp.fromDate(new Date(document.getElementById('promotion-start-date').value + 'T00:00:00')), endDate: Timestamp.fromDate(new Date(document.getElementById('promotion-end-date').value + 'T23:59:59')), };
         try {
-            if (promoId) {
-                await updateDoc(doc(db, "promotions", promoId), promoData);
-            } else {
-                promoData.createdAt = serverTimestamp();
-                await addDoc(collection(db, "promotions"), promoData);
-            }
-            addPromotionForm.reset();
-            document.getElementById('edit-promotion-id').value = '';
-        } catch (error) {
-            console.error("Error saving promotion:", error);
-            alert("Could not save promotion.");
-        }
+            if (promoId) { await updateDoc(doc(db, "promotions", promoId), promoData); } 
+            else { promoData.createdAt = serverTimestamp(); await addDoc(collection(db, "promotions"), promoData); }
+            addPromotionForm.reset(); document.getElementById('edit-promotion-id').value = '';
+        } catch (error) { console.error("Error saving promotion:", error); alert("Could not save promotion."); }
     });
 
     promotionsTableBody.addEventListener('click', (e) => {
@@ -3103,7 +2958,6 @@ function initMainApp(userRole) {
             const promo = allPromotions.find(p => p.id === sendBtn.dataset.id);
             if (promo) {
                  showConfirmModal(`Send a notification for "${promo.title}" to all clients?`, () => {
-                    // This is a simulation. A real push notification system (like FCM) would be needed here.
                     addNotification('promo', `New Promotion: ${promo.title}! ${promo.description}`);
                     alert('Promotion notification sent!');
                 });
@@ -3118,7 +2972,6 @@ function initMainApp(userRole) {
         document.getElementById('cancel-edit-promotion-btn').classList.add('hidden');
     });
 
-    // --- CLIENT FORM MODAL LOGIC ---
     const openClientModal = (client = null) => {
         clientForm.reset();
         const modalTitle = document.getElementById('client-form-title');
@@ -3148,31 +3001,15 @@ function initMainApp(userRole) {
     clientForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const clientId = document.getElementById('edit-client-id').value;
-        const clientData = {
-            name: document.getElementById('client-form-name').value,
-            phone: document.getElementById('client-form-phone').value,
-            dob: document.getElementById('client-form-dob').value,
-        };
-
-        if (!clientData.name) {
-            alert('Client name is required.');
-            return;
-        }
-
+        const clientData = { name: document.getElementById('client-form-name').value, phone: document.getElementById('client-form-phone').value, dob: document.getElementById('client-form-dob').value, };
+        if (!clientData.name) { alert('Client name is required.'); return; }
         try {
-            if (clientId) {
-                await updateDoc(doc(db, "clients", clientId), clientData);
-            } else {
-                await addDoc(collection(db, "clients"), clientData);
-            }
+            if (clientId) { await updateDoc(doc(db, "clients", clientId), clientData); } 
+            else { await addDoc(collection(db, "clients"), clientData); }
             closeClientModal();
-        } catch (error) {
-            console.error("Error saving client:", error);
-            alert("Could not save client data.");
-        }
+        } catch (error) { console.error("Error saving client:", error); alert("Could not save client data."); }
     });
 
-    // --- CLIENT IMPORT LOGIC ---
     const importClientsBtn = document.getElementById('import-clients-btn');
     const importClientsInput = document.getElementById('import-clients-input');
 
@@ -3188,32 +3025,17 @@ function initMainApp(userRole) {
             const workbook = XLSX.read(data, { type: 'array' });
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
             const clientsToImport = XLSX.utils.sheet_to_json(firstSheet);
-
-            if (clientsToImport.length === 0) {
-                alert('No clients found in the file.');
-                return;
-            }
-
+            if (clientsToImport.length === 0) { alert('No clients found in the file.'); return; }
             const batch = writeBatch(db);
             clientsToImport.forEach(client => {
                 const newClientRef = doc(collection(db, "clients"));
-                batch.set(newClientRef, {
-                    name: client.Name || 'N/A',
-                    phone: client.Phone || '',
-                    dob: client.DOB || ''
-                });
+                batch.set(newClientRef, { name: client.Name || 'N/A', phone: client.Phone || '', dob: client.DOB || '' });
             });
-
-            try {
-                await batch.commit();
-                alert(`${clientsToImport.length} clients imported successfully!`);
-            } catch (error) {
-                console.error("Error importing clients: ", error);
-                alert("An error occurred during import.");
-            }
+            try { await batch.commit(); alert(`${clientsToImport.length} clients imported successfully!`); } 
+            catch (error) { console.error("Error importing clients: ", error); alert("An error occurred during import."); }
         };
         reader.readAsArrayBuffer(file);
-        e.target.value = ''; // Reset file input
+        e.target.value = '';
     });
 
 
