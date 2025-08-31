@@ -23,6 +23,8 @@ const landingPageContent = document.getElementById('landing-page-content');
 const appContent = document.getElementById('app-content');
 const clientDashboardContent = document.getElementById('client-dashboard-content');
 const policyModal = document.getElementById('policy-modal');
+const addAppointmentModal = document.getElementById('add-appointment-modal');
+const addAppointmentForm = document.getElementById('add-appointment-form');
 let mainAppInitialized = false;
 let clientDashboardInitialized = false;
 let landingPageInitialized = false;
@@ -35,7 +37,16 @@ let currentUserRole = null;
 let currentUserId = null;
 let initialAppointmentsLoaded = false;
 let initialInventoryLoaded = false;
+let allFinishedClients = [], allAppointments = [], allClients = [], allActiveClients = [], servicesData = {};
 
+
+// --- Global Helper Functions ---
+const getLocalDateString = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
 
 // --- Email Notification Logic ---
 /**
@@ -137,6 +148,77 @@ const closePolicyModal = () => { policyModal.classList.add('hidden'); policyModa
 document.addEventListener('click', (e) => { if (e.target.closest('.view-policy-btn')) { openPolicyModal(); } });
 document.getElementById('policy-close-btn').addEventListener('click', closePolicyModal);
 document.querySelector('#policy-modal .policy-modal-overlay').addEventListener('click', closePolicyModal);
+
+// --- Shared Appointment Modal Logic ---
+const openAddAppointmentModal = (date, clientData = null) => {
+    addAppointmentForm.reset();
+    const now = new Date();
+    const defaultDateTime = `${date}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    document.getElementById('appointment-datetime').value = defaultDateTime;
+
+    if (clientData) {
+        document.getElementById('appointment-client-name').value = clientData.name || '';
+        document.getElementById('appointment-phone').value = clientData.phone || '';
+    }
+
+    const clientList = document.getElementById('client-names-list');
+    const appointmentPhoneList = document.getElementById('appointment-client-phones');
+    const uniqueNames = [...new Set(allFinishedClients.map(c => c.name))];
+    const uniquePhones = [...new Set(allFinishedClients.filter(c => c.phone && c.phone !== 'N/A').map(c => c.phone))];
+    clientList.innerHTML = uniqueNames.map(name => `<option value="${name}"></option>`).join('');
+    appointmentPhoneList.innerHTML = uniquePhones.map(phone => `<option value="${phone}"></option>`).join('');
+    
+    const mainServicesList = document.getElementById('main-services-list');
+    mainServicesList.innerHTML = Object.keys(servicesData).flatMap(category => 
+        servicesData[category].map(service => `<option value="${service.p || ''}${service.name}${service.price ? ' ' + service.price : ''}"></option>`)
+    ).join('');
+
+    addAppointmentModal.classList.remove('hidden'); 
+    addAppointmentModal.classList.add('flex');
+};
+
+const closeAddAppointmentModal = () => { 
+    addAppointmentModal.classList.add('hidden'); 
+    addAppointmentModal.classList.remove('flex'); 
+};
+
+document.getElementById('add-appointment-cancel-btn').addEventListener('click', closeAddAppointmentModal);
+document.querySelector('.add-appointment-modal-overlay').addEventListener('click', closeAddAppointmentModal);
+document.getElementById('appointment-client-name').addEventListener('input', (e) => { 
+    const client = allFinishedClients.find(c => c.name === e.target.value); 
+    if (client) { document.getElementById('appointment-phone').value = client.phone; } 
+});
+document.getElementById('appointment-phone').addEventListener('input', (e) => { 
+    const client = allFinishedClients.find(c => c.phone === e.target.value); 
+    if (client) { document.getElementById('appointment-client-name').value = client.name; } 
+});
+
+addAppointmentForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const datetimeString = document.getElementById('appointment-datetime').value;
+    if (!datetimeString) { return alert('Please select a date and time.'); }
+    
+    const appointmentData = {
+        name: document.getElementById('appointment-client-name').value,
+        phone: document.getElementById('appointment-phone').value,
+        people: document.getElementById('appointment-people').value,
+        bookingType: document.getElementById('appointment-booking-type').value,
+        services: [document.getElementById('appointment-services').value],
+        technician: document.getElementById('appointment-technician-select').value,
+        notes: document.getElementById('appointment-notes').value,
+        appointmentTimestamp: Timestamp.fromDate(new Date(datetimeString))
+    };
+    
+    try {
+        await addDoc(collection(db, "appointments"), appointmentData);
+        await sendBookingNotificationEmail(appointmentData);
+        closeAddAppointmentModal();
+    } catch (err) {
+        console.error("Error adding appointment:", err);
+        alert("Could not save appointment.");
+    }
+});
+
 
 
 // --- Primary Authentication Router ---
@@ -663,11 +745,11 @@ function initClientDashboard(clientId, clientData) {
 
     // Listen to appointments and history
     onSnapshot(query(collection(db, "appointments"), where("name", "==", clientData.name)), (snapshot) => {
-        const appointments = snapshot.docs.map(doc => doc.data());
+        const appointments = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
         renderClientAppointments(appointments);
     });
      onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
-        const history = snapshot.docs.map(doc => doc.data());
+        const history = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
         renderClientHistory(history);
         calculateAndRenderFavorites(history);
     });
@@ -694,13 +776,7 @@ function initClientDashboard(clientId, clientData) {
 
     // Handle "Book New Appointment" button
     document.getElementById('client-book-new-btn').addEventListener('click', () => {
-        const addAppointmentModal = document.getElementById('add-appointment-modal');
-        const appointmentForm = document.getElementById('add-appointment-form');
-        appointmentForm.reset();
-        document.getElementById('appointment-client-name').value = clientData.name;
-        document.getElementById('appointment-phone').value = clientData.phone || '';
-        addAppointmentModal.classList.remove('hidden');
-        addAppointmentModal.classList.add('flex');
+        openAddAppointmentModal(getLocalDateString(), clientData);
     });
 
     setupClientTabs();
@@ -851,8 +927,6 @@ function initMainApp(userRole) {
     const checkoutModal = document.getElementById('checkout-modal');
     const checkoutForm = document.getElementById('checkout-form');
     const viewDetailModal = document.getElementById('view-detail-modal');
-    const addAppointmentModal = document.getElementById('add-appointment-modal');
-    const addAppointmentForm = document.getElementById('add-appointment-form');
     const editEarningModal = document.getElementById('edit-earning-modal');
     const editEarningForm = document.getElementById('edit-earning-form');
     const editSalonEarningModal = document.getElementById('edit-salon-earning-modal');
@@ -889,16 +963,10 @@ function initMainApp(userRole) {
     let currentFinishedDateFilter = '', currentEarningTechFilter = 'All', currentEarningDateFilter = '', currentEarningRangeFilter = 'daily';
     let currentSalonEarningDateFilter = '', currentSalonEarningRangeFilter = String(new Date().getMonth()), currentExpenseMonthFilter = '';
 
-    let allActiveClients = [], allFinishedClients = [], allAppointments = [], allClients = [], aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [], allInventoryUsage = [], allGiftCards = [], allPromotions = [];
-    let servicesData = {}, techniciansAndStaff = [], technicians = [];
+    let aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [], allInventoryUsage = [], allGiftCards = [], allPromotions = [];
+    let techniciansAndStaff = [], technicians = [];
     let allExpenseCategories = [], allPaymentAccounts = [], allSuppliers = [];
 
-    const getLocalDateString = (date = new Date()) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    };
     
     let confirmCallback = null;
     const showConfirmModal = (message, onConfirm) => { confirmModalMessage.textContent = message; confirmCallback = onConfirm; confirmModal.classList.remove('hidden'); confirmModal.classList.add('flex'); };
@@ -1836,57 +1904,7 @@ function initMainApp(userRole) {
     setupReportDateFilters('earning-range-filter', 'earning-date-filter', (date, range) => { currentEarningDateFilter = date; currentEarningRangeFilter = range; renderStaffEarnings(applyEarningFilters(allEarnings, currentEarningTechFilter, date, range)); });
     setupReportDateFilters('salon-earning-range-filter', 'salon-earning-date-filter', (date, range) => { currentSalonEarningDateFilter = date; currentSalonEarningRangeFilter = range; renderSalonEarnings(applySalonEarningFilters(allSalonEarnings, date, range)); });
 
-    const openAddAppointmentModal = (date) => {
-        addAppointmentForm.reset();
-        const now = new Date();
-        const defaultDateTime = `${date}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        document.getElementById('appointment-datetime').value = defaultDateTime;
-        const clientList = document.getElementById('client-names-list');
-        const appointmentPhoneList = document.getElementById('appointment-client-phones');
-        const uniqueNames = [...new Set(allFinishedClients.map(c => c.name))];
-        const uniquePhones = [...new Set(allFinishedClients.filter(c => c.phone && c.phone !== 'N/A').map(c => c.phone))];
-        clientList.innerHTML = uniqueNames.map(name => `<option value="${name}"></option>`).join('');
-        appointmentPhoneList.innerHTML = uniquePhones.map(phone => `<option value="${phone}"></option>`).join('');
-        const mainServicesList = document.getElementById('main-services-list');
-        mainServicesList.innerHTML = Object.keys(servicesData).map(category => `<option value="${category}"></option>`).join('');
-        addAppointmentModal.classList.remove('hidden'); addAppointmentModal.classList.add('flex');
-    };
-
-    const closeAddAppointmentModal = () => { addAppointmentModal.classList.add('hidden'); addAppointmentModal.classList.remove('flex'); };
-    document.getElementById('add-appointment-cancel-btn').addEventListener('click', closeAddAppointmentModal);
-    document.querySelector('.add-appointment-modal-overlay').addEventListener('click', closeAddAppointmentModal);
-    document.getElementById('appointment-client-name').addEventListener('input', (e) => { const client = allFinishedClients.find(c => c.name === e.target.value); if (client) { document.getElementById('appointment-phone').value = client.phone; } });
-    document.getElementById('appointment-phone').addEventListener('input', (e) => { const client = allFinishedClients.find(c => c.phone === e.target.value); if (client) { document.getElementById('appointment-client-name').value = client.name; } });
-
-    addAppointmentForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const datetimeString = document.getElementById('appointment-datetime').value;
-        if (!datetimeString) { return alert('Please select a date and time.'); }
-        
-        const appointmentData = {
-            name: document.getElementById('appointment-client-name').value,
-            phone: document.getElementById('appointment-phone').value,
-            people: document.getElementById('appointment-people').value,
-            bookingType: document.getElementById('appointment-booking-type').value,
-            services: [document.getElementById('appointment-services').value],
-            technician: document.getElementById('appointment-technician-select').value,
-            notes: document.getElementById('appointment-notes').value,
-            appointmentTimestamp: Timestamp.fromDate(new Date(datetimeString))
-        };
-        
-        try {
-            await addDoc(collection(db, "appointments"), appointmentData);
-            
-            // Send email notification
-            await sendBookingNotificationEmail(appointmentData);
-
-            closeAddAppointmentModal();
-        } catch (err) {
-            console.error("Error adding appointment:", err);
-            alert("Could not save appointment.");
-        }
-    });
-
+    
     document.getElementById('staff-earning-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const staffName = document.getElementById('staff-name').value;
@@ -3220,5 +3238,6 @@ function initMainApp(userRole) {
     renderSalonEarnings(applySalonEarningFilters(allSalonEarnings, currentSalonEarningDateFilter, currentSalonEarningRangeFilter));
     document.getElementById('expense-date').value = todayString;
     document.getElementById('sign-out-btn').addEventListener('click', () => { signOut(auth); });
+    document.getElementById('floating-booking-btn').addEventListener('click', () => { openAddAppointmentModal(getLocalDateString()); });
 }
 
