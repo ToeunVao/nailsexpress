@@ -31,13 +31,13 @@ let landingPageInitialized = false;
 let anonymousUserId = null;
 let bookingSettings = { minBookingHours: 2 };
 let loginSecuritySettings = { maxAttempts: 5, lockoutMinutes: 15 };
-let salonHours = {}; 
+let salonHours = {};
 let bookingsChart, servicesChart, earningsChart;
 let notifications = [];
 let currentUserRole = null;
 let currentUserId = null;
-let initialAppointmentsLoaded = false;
-let initialInventoryLoaded = false;
+
+// --- Global Data Arrays & Loading State ---
 let allFinishedClients = [], allAppointments = [], allClients = [], allActiveClients = [], servicesData = {};
 let allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [];
 let allInventoryUsage = [], allGiftCards = [], allPromotions = [];
