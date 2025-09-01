@@ -40,14 +40,23 @@ let initialAppointmentsLoaded = false;
 let initialInventoryLoaded = false;
 let allFinishedClients = [], allAppointments = [], allClients = [], allActiveClients = [], servicesData = {};
 
-const giftCardBackgrounds = [
-    'https://images.unsplash.com/photo-1596048135132-911961bd4350?q=80&w=1887&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1519638831568-d9897f54ed69?q=80&w=2070&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1558081236-5415b3c5a7a5?q=80&w=1887&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1600979958704-5837624231b5?q=80&w=1887&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1515266591878-72d7ebb3230a?q=80&w=2070&auto=format&fit=crop',
-    'https://images.unsplash.com/photo-1509281373149-e957c6296406?q=80&w=1928&auto=format&fit=crop'
-];
+const giftCardBackgrounds = {
+    'General': [
+        'https://images.unsplash.com/photo-1596048135132-911961bd4350?q=80&w=1887&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1519638831568-d9897f54ed69?q=80&w=2070&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1558081236-5415b3c5a7a5?q=80&w=1887&auto=format&fit=crop'
+    ],
+    'Holidays': [
+        'https://images.unsplash.com/photo-1513297887119-d46091b24bfa?q=80&w=2070&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1541142762-9f70343a4b08?q=80&w=1964&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1577991395684-245a6a5839a8?q=80&w=1887&auto=format&fit=crop'
+    ],
+    'Birthday': [
+        'https://images.unsplash.com/photo-1509281373149-e957c6296406?q=80&w=1928&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1513151233558-d860c5398176?q=80&w=2070&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1560240643-6d27e85c251e?q=80&w=1887&auto=format&fit=crop'
+    ]
+};
 
 
 // --- Global Helper Functions ---
@@ -107,7 +116,7 @@ async function sendBookingNotificationEmail(appointmentData) {
 
 // --- Booking Validation Logic ---
 function isBookingTimeValid(bookingDate) {
-    const dayOfWeek = bookingDate.getDay(); // 0=Sun, 1=Mon, ...
+    const dayOfWeek = bookingDate.getDay(); 
     const dayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][dayOfWeek];
 
     const dayHours = salonHours[dayName];
@@ -2642,34 +2651,82 @@ function initMainApp(userRole) {
     const createPrintableCardBtn = document.getElementById('create-printable-card-btn');
     const closeDesignerModalBtn = document.getElementById('close-designer-modal-btn');
     const designerForm = document.getElementById('physical-gift-card-form');
+    const designerBackgroundTabs = document.getElementById('designer-background-tabs');
     const designerBackgroundOptions = document.getElementById('designer-background-options');
+    const printableCardArea = document.getElementById('printable-gift-card-area');
     const printableCard = document.getElementById('printable-gift-card');
     const saveAndPrintBtn = document.getElementById('save-and-print-btn');
 
     const updateDesignerPreview = () => {
+        const showTo = document.getElementById('designer-show-to').checked;
+        const showFrom = document.getElementById('designer-show-from').checked;
+        const setExpiry = document.getElementById('designer-set-expiry').checked;
+        
+        document.getElementById('preview-to').parentElement.style.display = showTo ? '' : 'none';
+        document.getElementById('preview-from').parentElement.style.display = showFrom ? '' : 'none';
+        document.getElementById('designer-to-wrapper').style.display = showTo ? '' : 'none';
+        document.getElementById('designer-from-wrapper').style.display = showFrom ? '' : 'none';
+
         document.getElementById('preview-to').textContent = document.getElementById('designer-to').value || 'Recipient';
         document.getElementById('preview-from').textContent = document.getElementById('designer-from').value || 'Sender';
+        
         const amount = parseFloat(document.getElementById('designer-amount').value) || 0;
         document.getElementById('preview-amount').textContent = `$${amount.toFixed(2)}`;
+        
+        const expiryPreview = document.getElementById('preview-expiry');
+        if (setExpiry) {
+            const value = parseInt(document.getElementById('designer-expiry-value').value, 10);
+            const unit = document.getElementById('designer-expiry-unit').value;
+            const expiryDate = new Date();
+            if (unit === 'months') {
+                expiryDate.setMonth(expiryDate.getMonth() + value);
+            } else {
+                expiryDate.setFullYear(expiryDate.getFullYear() + value);
+            }
+            expiryPreview.textContent = `Expires: ${expiryDate.toLocaleDateString()}`;
+            expiryPreview.style.display = '';
+        } else {
+            expiryPreview.style.display = 'none';
+        }
+    };
+
+    const populateBackgrounds = (category) => {
+        designerBackgroundOptions.innerHTML = giftCardBackgrounds[category].map(url => 
+            `<button type="button" data-bg="${url}" class="w-full h-16 bg-cover bg-center rounded-md border-2 border-transparent hover:border-pink-400" style="background-image: url('${url}')"></button>`
+        ).join('');
+        const firstBgBtn = designerBackgroundOptions.querySelector('button');
+        if (firstBgBtn) {
+            firstBgBtn.classList.add('ring-2', 'ring-pink-500');
+            printableCard.style.backgroundImage = `url('${firstBgBtn.dataset.bg}')`;
+        }
     };
 
     const openDesignerModal = () => {
         designerForm.reset();
-        const newCode = `GC-${Date.now()}${[...Array(4)].map(() => Math.floor(Math.random() * 10)).join('')}`;
-        document.getElementById('preview-code').textContent = newCode;
+        document.getElementById('designer-quantity').value = 1;
+        document.getElementById('preview-code').textContent = `GC-${Date.now()}${[...Array(4)].map(() => Math.floor(Math.random() * 10)).join('')}`;
         
-        designerBackgroundOptions.innerHTML = giftCardBackgrounds.map((url, index) => 
-            `<button type="button" data-bg="${url}" class="w-full h-16 bg-cover bg-center rounded-md border-2 border-transparent hover:border-pink-400" style="background-image: url('${url}')"></button>`
+        designerBackgroundTabs.innerHTML = Object.keys(giftCardBackgrounds).map(cat => 
+            `<button type="button" data-category="${cat}" class="px-3 py-1 text-sm font-medium rounded-t-lg">${cat}</button>`
         ).join('');
         
-        const firstBgBtn = designerBackgroundOptions.querySelector('button');
-        firstBgBtn.classList.add('ring-2', 'ring-pink-500');
-        printableCard.style.backgroundImage = `url('${giftCardBackgrounds[0]}')`;
+        const firstTab = designerBackgroundTabs.querySelector('button');
+        firstTab.classList.add('bg-gray-200');
+        populateBackgrounds(firstTab.dataset.category);
 
         updateDesignerPreview();
         giftCardDesignerModal.classList.remove('hidden');
         giftCardDesignerModal.classList.add('flex');
     };
+
+    designerBackgroundTabs.addEventListener('click', e => {
+        const tab = e.target.closest('button');
+        if (tab) {
+            designerBackgroundTabs.querySelectorAll('button').forEach(t => t.classList.remove('bg-gray-200'));
+            tab.classList.add('bg-gray-200');
+            populateBackgrounds(tab.dataset.category);
+        }
+    });
 
     const closeDesignerModal = () => {
         giftCardDesignerModal.classList.add('hidden');
@@ -2686,30 +2743,76 @@ function initMainApp(userRole) {
     });
 
     const handleSaveAndPrint = async () => {
-        const recipientName = document.getElementById('designer-to').value;
-        const amount = parseFloat(document.getElementById('designer-amount').value);
-
-        if (!recipientName || isNaN(amount) || amount <= 0) {
-            alert('Please fill in all fields with valid values.');
+        const quantity = parseInt(document.getElementById('designer-quantity').value, 10);
+        if (isNaN(quantity) || quantity < 1) {
+            alert("Please enter a valid quantity.");
             return;
         }
 
-        const giftCardData = {
-            amount: amount,
-            recipientName: recipientName,
-            senderName: document.getElementById('designer-from').value,
-            code: document.getElementById('preview-code').textContent,
-            status: 'Active',
-            type: 'Physical',
-            createdAt: serverTimestamp()
-        };
+        const amount = parseFloat(document.getElementById('designer-amount').value);
+        if (isNaN(amount) || amount <= 0) {
+            alert("Please enter a valid amount.");
+            return;
+        }
+
+        const batch = writeBatch(db);
+        const cardsToPrint = [];
+
+        for (let i = 0; i < quantity; i++) {
+            const cardData = {
+                amount: amount,
+                recipientName: document.getElementById('designer-show-to').checked ? document.getElementById('designer-to').value : '',
+                senderName: document.getElementById('designer-show-from').checked ? document.getElementById('designer-from').value : '',
+                code: `GC-${Date.now()}-${i}`,
+                status: 'Active',
+                type: 'Physical',
+                createdAt: serverTimestamp()
+            };
+
+            if (document.getElementById('designer-set-expiry').checked) {
+                const value = parseInt(document.getElementById('designer-expiry-value').value, 10);
+                const unit = document.getElementById('designer-expiry-unit').value;
+                const expiryDate = new Date();
+                if (unit === 'months') expiryDate.setMonth(expiryDate.getMonth() + value);
+                else expiryDate.setFullYear(expiryDate.getFullYear() + value);
+                cardData.expiresAt = Timestamp.fromDate(expiryDate);
+            }
+
+            const newCardRef = doc(collection(db, "gift_cards"));
+            batch.set(newCardRef, cardData);
+            cardsToPrint.push(cardData);
+        }
 
         try {
-            await addDoc(collection(db, "gift_cards"), giftCardData);
+            await batch.commit();
+            
+            printableCardArea.innerHTML = cardsToPrint.map(card => {
+                 const expiryText = card.expiresAt ? `Expires: ${card.expiresAt.toDate().toLocaleDateString()}` : '';
+                 return `
+                    <div class="printable-gift-card w-[400px] h-[228px] shadow-lg rounded-lg p-4 flex flex-col justify-between bg-cover bg-center text-white" style="background-image: url('${printableCard.style.backgroundImage.slice(5, -2)}');">
+                        <div class="flex justify-between items-start" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                            <img src="${document.getElementById('preview-logo').src}" class="w-12 h-12 rounded-full border-2 border-white"/>
+                            <div class="text-right">
+                                <p class="font-parisienne text-3xl">Gift Card</p>
+                                <p class="text-xs font-semibold tracking-wider">Nails Express</p>
+                            </div>
+                        </div>
+                        <div class="text-center" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.7);"><p class="text-5xl font-bold">$${card.amount.toFixed(2)}</p></div>
+                        <div class="text-xs" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                            <div class="flex justify-between font-semibold">
+                                <span style="display: ${card.recipientName ? 'inline' : 'none'}">FOR: <span class="font-normal">${card.recipientName}</span></span>
+                                <span style="display: ${card.senderName ? 'inline' : 'none'}">FROM: <span class="font-normal">${card.senderName}</span></span>
+                            </div>
+                            <p class="mt-2 text-center font-mono tracking-widest text-sm">${card.code}</p>
+                            <p class="mt-1 text-center text-[10px] opacity-80" style="display: ${expiryText ? 'block' : 'none'}">${expiryText}</p>
+                        </div>
+                    </div>`;
+            }).join('');
+
             window.print();
         } catch (error) {
-            console.error("Error saving physical gift card:", error);
-            alert("Could not save the gift card. Please try again.");
+            console.error("Error saving physical gift cards:", error);
+            alert("Could not save the gift cards. Please try again.");
         }
     };
     
