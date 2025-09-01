@@ -366,7 +366,7 @@ function initLandingPage() {
             return;
         }
 
-        const giftCardData = { amount: amount, recipientName: document.getElementById('gift-card-recipient-name').value, recipientEmail: document.getElementById('gift-card-recipient-email').value, senderName: document.getElementById('gift-card-sender-name').value, message: document.getElementById('gift-card-message').value, code: `GC-${Date.now()}${[...Array(4)].map(() => Math.floor(Math.random() * 10)).join('')}`, status: 'Active', createdAt: serverTimestamp() };
+        const giftCardData = { amount: amount, balance: amount, history: [], recipientName: document.getElementById('gift-card-recipient-name').value, recipientEmail: document.getElementById('gift-card-recipient-email').value, senderName: document.getElementById('gift-card-sender-name').value, message: document.getElementById('gift-card-message').value, code: `GC-${Date.now()}${[...Array(4)].map(() => Math.floor(Math.random() * 10)).join('')}`, status: 'Active', createdAt: serverTimestamp() };
 
         try {
             alert('Redirecting to a secure payment page...');
@@ -881,6 +881,7 @@ function initMainApp(userRole) {
     const logUsageForm = document.getElementById('log-usage-form');
     const shareModal = document.getElementById('share-modal');
     const giftCardDesignerModal = document.getElementById('gift-card-designer-modal');
+    const editGiftCardModal = document.getElementById('edit-gift-card-modal');
 
     const rebookOtherInput = document.getElementById('rebook-other-input');
     const rebookSelect = document.getElementById('rebook-select');
@@ -2507,13 +2508,22 @@ function initMainApp(userRole) {
     const renderGiftCardsAdminTable = (cards) => {
         giftCardsTableBody.innerHTML = '';
         if (cards.length === 0) {
-            giftCardsTableBody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-400">No gift cards have been sold.</td></tr>`;
+            giftCardsTableBody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-gray-400">No gift cards have been sold.</td></tr>`;
             return;
         }
         cards.forEach(card => {
             const row = giftCardsTableBody.insertRow();
-            const statusColor = card.status === 'Active' ? 'text-green-600' : 'text-gray-500';
-            row.innerHTML = `<td class="px-6 py-4">${new Date(card.createdAt.seconds * 1000).toLocaleDateString()}</td><td class="px-6 py-4 font-mono text-xs">${card.code}</td><td class="px-6 py-4">$${card.amount.toFixed(2)}</td><td class="px-6 py-4">${card.recipientName}<br><span class="text-xs text-gray-500">${card.recipientEmail || 'Physical Card'}</span></td><td class="px-6 py-4">${card.senderName}</td><td class="px-6 py-4 font-bold ${statusColor}">${card.status}</td>`;
+            const balance = card.balance !== undefined ? card.balance : card.amount;
+            let status = card.status;
+            let statusColor = 'text-gray-500';
+            if (balance > 0) {
+                status = 'Active';
+                statusColor = 'text-green-600';
+            } else {
+                status = 'Depleted';
+            }
+
+            row.innerHTML = `<td class="px-6 py-4">${new Date(card.createdAt.seconds * 1000).toLocaleDateString()}</td><td class="px-6 py-4 font-mono text-xs">${card.code}</td><td class="px-6 py-4">$${card.amount.toFixed(2)}</td><td class="px-6 py-4 font-bold">$${balance.toFixed(2)}</td><td class="px-6 py-4">${card.recipientName}<br><span class="text-xs text-gray-500">${card.recipientEmail || 'Physical Card'}</span></td><td class="px-6 py-4">${card.senderName}</td><td class="px-6 py-4 font-bold ${statusColor}">${status}</td><td class="px-6 py-4 text-center"><button data-id="${card.id}" class="edit-gift-card-btn text-blue-500 hover:text-blue-700" title="Manage Card"><i class="fas fa-edit text-lg"></i></button></td>`;
         });
     };
 
@@ -2646,181 +2656,18 @@ function initMainApp(userRole) {
         reader.readAsArrayBuffer(file);
         e.target.value = '';
     });
-
-    // --- Gift Card Designer Logic ---
-    const createPrintableCardBtn = document.getElementById('create-printable-card-btn');
-    const closeDesignerModalBtn = document.getElementById('close-designer-modal-btn');
-    const designerForm = document.getElementById('physical-gift-card-form');
-    const designerBackgroundTabs = document.getElementById('designer-background-tabs');
-    const designerBackgroundOptions = document.getElementById('designer-background-options');
-    const printableCardArea = document.getElementById('printable-gift-card-area');
-    const printableCard = document.getElementById('printable-gift-card');
-    const saveAndPrintBtn = document.getElementById('save-and-print-btn');
-
-    const updateDesignerPreview = () => {
-        const showTo = document.getElementById('designer-show-to').checked;
-        const showFrom = document.getElementById('designer-show-from').checked;
-        const setExpiry = document.getElementById('designer-set-expiry').checked;
-        
-        document.getElementById('preview-to').parentElement.style.display = showTo ? '' : 'none';
-        document.getElementById('preview-from').parentElement.style.display = showFrom ? '' : 'none';
-        document.getElementById('designer-to-wrapper').style.display = showTo ? '' : 'none';
-        document.getElementById('designer-from-wrapper').style.display = showFrom ? '' : 'none';
-
-        document.getElementById('preview-to').textContent = document.getElementById('designer-to').value || 'Recipient';
-        document.getElementById('preview-from').textContent = document.getElementById('designer-from').value || 'Sender';
-        
-        const amount = parseFloat(document.getElementById('designer-amount').value) || 0;
-        document.getElementById('preview-amount').textContent = `$${amount.toFixed(2)}`;
-        
-        const expiryPreview = document.getElementById('preview-expiry');
-        if (setExpiry) {
-            const value = parseInt(document.getElementById('designer-expiry-value').value, 10);
-            const unit = document.getElementById('designer-expiry-unit').value;
-            const expiryDate = new Date();
-            if (unit === 'months') {
-                expiryDate.setMonth(expiryDate.getMonth() + value);
-            } else {
-                expiryDate.setFullYear(expiryDate.getFullYear() + value);
-            }
-            expiryPreview.textContent = `Expires: ${expiryDate.toLocaleDateString()}`;
-            expiryPreview.style.display = '';
-        } else {
-            expiryPreview.style.display = 'none';
-        }
-    };
-
-    const populateBackgrounds = (category) => {
-        designerBackgroundOptions.innerHTML = giftCardBackgrounds[category].map(url => 
-            `<button type="button" data-bg="${url}" class="w-full h-16 bg-cover bg-center rounded-md border-2 border-transparent hover:border-pink-400" style="background-image: url('${url}')"></button>`
-        ).join('');
-        const firstBgBtn = designerBackgroundOptions.querySelector('button');
-        if (firstBgBtn) {
-            firstBgBtn.classList.add('ring-2', 'ring-pink-500');
-            printableCard.style.backgroundImage = `url('${firstBgBtn.dataset.bg}')`;
-        }
-    };
-
-    const openDesignerModal = () => {
-        designerForm.reset();
-        document.getElementById('designer-quantity').value = 1;
-        document.getElementById('preview-code').textContent = `GC-${Date.now()}${[...Array(4)].map(() => Math.floor(Math.random() * 10)).join('')}`;
-        
-        designerBackgroundTabs.innerHTML = Object.keys(giftCardBackgrounds).map(cat => 
-            `<button type="button" data-category="${cat}" class="px-3 py-1 text-sm font-medium rounded-t-lg">${cat}</button>`
-        ).join('');
-        
-        const firstTab = designerBackgroundTabs.querySelector('button');
-        firstTab.classList.add('bg-gray-200');
-        populateBackgrounds(firstTab.dataset.category);
-
-        updateDesignerPreview();
-        giftCardDesignerModal.classList.remove('hidden');
-        giftCardDesignerModal.classList.add('flex');
-    };
-
-    designerBackgroundTabs.addEventListener('click', e => {
-        const tab = e.target.closest('button');
-        if (tab) {
-            designerBackgroundTabs.querySelectorAll('button').forEach(t => t.classList.remove('bg-gray-200'));
-            tab.classList.add('bg-gray-200');
-            populateBackgrounds(tab.dataset.category);
-        }
-    });
-
-    const closeDesignerModal = () => {
-        giftCardDesignerModal.classList.add('hidden');
-        giftCardDesignerModal.classList.remove('flex');
-    };
-
-    designerBackgroundOptions.addEventListener('click', (e) => {
-        const target = e.target.closest('button');
-        if (target && target.dataset.bg) {
-            designerBackgroundOptions.querySelectorAll('button').forEach(btn => btn.classList.remove('ring-2', 'ring-pink-500'));
-            target.classList.add('ring-2', 'ring-pink-500');
-            printableCard.style.backgroundImage = `url('${target.dataset.bg}')`;
-        }
-    });
-
-    const handleSaveAndPrint = async () => {
-        const quantity = parseInt(document.getElementById('designer-quantity').value, 10);
-        if (isNaN(quantity) || quantity < 1) {
-            alert("Please enter a valid quantity.");
-            return;
-        }
-
-        const amount = parseFloat(document.getElementById('designer-amount').value);
-        if (isNaN(amount) || amount <= 0) {
-            alert("Please enter a valid amount.");
-            return;
-        }
-
-        const batch = writeBatch(db);
-        const cardsToPrint = [];
-
-        for (let i = 0; i < quantity; i++) {
-            const cardData = {
-                amount: amount,
-                recipientName: document.getElementById('designer-show-to').checked ? document.getElementById('designer-to').value : '',
-                senderName: document.getElementById('designer-show-from').checked ? document.getElementById('designer-from').value : '',
-                code: `GC-${Date.now()}-${i}`,
-                status: 'Active',
-                type: 'Physical',
-                createdAt: serverTimestamp()
-            };
-
-            if (document.getElementById('designer-set-expiry').checked) {
-                const value = parseInt(document.getElementById('designer-expiry-value').value, 10);
-                const unit = document.getElementById('designer-expiry-unit').value;
-                const expiryDate = new Date();
-                if (unit === 'months') expiryDate.setMonth(expiryDate.getMonth() + value);
-                else expiryDate.setFullYear(expiryDate.getFullYear() + value);
-                cardData.expiresAt = Timestamp.fromDate(expiryDate);
-            }
-
-            const newCardRef = doc(collection(db, "gift_cards"));
-            batch.set(newCardRef, cardData);
-            cardsToPrint.push(cardData);
-        }
-
-        try {
-            await batch.commit();
-            
-            printableCardArea.innerHTML = cardsToPrint.map(card => {
-                 const expiryText = card.expiresAt ? `Expires: ${card.expiresAt.toDate().toLocaleDateString()}` : '';
-                 return `
-                    <div class="printable-gift-card w-[400px] h-[228px] shadow-lg rounded-lg p-4 flex flex-col justify-between bg-cover bg-center text-white" style="background-image: url('${printableCard.style.backgroundImage.slice(5, -2)}');">
-                        <div class="flex justify-between items-start" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
-                            <img src="${document.getElementById('preview-logo').src}" class="w-12 h-12 rounded-full border-2 border-white"/>
-                            <div class="text-right">
-                                <p class="font-parisienne text-3xl">Gift Card</p>
-                                <p class="text-xs font-semibold tracking-wider">Nails Express</p>
-                            </div>
-                        </div>
-                        <div class="text-center" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.7);"><p class="text-5xl font-bold">$${card.amount.toFixed(2)}</p></div>
-                        <div class="text-xs" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
-                            <div class="flex justify-between font-semibold">
-                                <span style="display: ${card.recipientName ? 'inline' : 'none'}">FOR: <span class="font-normal">${card.recipientName}</span></span>
-                                <span style="display: ${card.senderName ? 'inline' : 'none'}">FROM: <span class="font-normal">${card.senderName}</span></span>
-                            </div>
-                            <p class="mt-2 text-center font-mono tracking-widest text-sm">${card.code}</p>
-                            <p class="mt-1 text-center text-[10px] opacity-80" style="display: ${expiryText ? 'block' : 'none'}">${expiryText}</p>
-                        </div>
-                    </div>`;
-            }).join('');
-
-            window.print();
-        } catch (error) {
-            console.error("Error saving physical gift cards:", error);
-            alert("Could not save the gift cards. Please try again.");
-        }
-    };
     
-    createPrintableCardBtn.addEventListener('click', openDesignerModal);
-    closeDesignerModalBtn.addEventListener('click', closeDesignerModal);
-    giftCardDesignerModal.querySelector('.modal-overlay').addEventListener('click', closeDesignerModal);
-    designerForm.addEventListener('input', updateDesignerPreview);
-    saveAndPrintBtn.addEventListener('click', handleSaveAndPrint);
+    // --- Initialize a few event listeners for the new gift card modals ---
+    document.getElementById('gift-cards-table tbody').addEventListener('click', e => {
+        const editBtn = e.target.closest('.edit-gift-card-btn');
+        if (editBtn) {
+            const card = allGiftCards.find(c => c.id === editBtn.dataset.id);
+            if(card) openEditGiftCardModal(card);
+        }
+    });
+
+    document.getElementById('close-edit-gift-card-modal-btn').addEventListener('click', () => editGiftCardModal.classList.add('hidden'));
+    editGiftCardModal.querySelector('.modal-overlay').addEventListener('click', () => editGiftCardModal.classList.add('hidden'));
 
 
     loadAndRenderServices();
