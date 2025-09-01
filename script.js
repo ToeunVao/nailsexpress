@@ -36,14 +36,14 @@ let bookingsChart, servicesChart, earningsChart;
 let notifications = [];
 let currentUserRole = null;
 let currentUserId = null;
-
-// --- Global Data Arrays (will be populated by listeners) ---
+let initialAppointmentsLoaded = false;
+let initialInventoryLoaded = false;
 let allFinishedClients = [], allAppointments = [], allClients = [], allActiveClients = [], servicesData = {};
 let allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [];
 let allInventoryUsage = [], allGiftCards = [], allPromotions = [];
 let techniciansAndStaff = [], technicians = [];
 let allExpenseCategories = [], allPaymentAccounts = [], allSuppliers = [];
-let dataLoaded = { appointments: false, finishedClients: false, users: false, services: false };
+let dataLoaded = { appointments: false, finishedClients: false, users: false, services: false, clients: false };
 
 
 const giftCardBackgrounds = {
