@@ -2578,187 +2578,89 @@ function initMainApp(userRole) {
                 document.getElementById('nail-idea-categories').value = idea.categories.join(', ');
                 document.getElementById('add-nail-idea-btn').textContent = 'Update Idea';
                 document.getElementById('cancel-edit-nail-idea-btn').classList.remove('hidden');
-            }
-        } else if (deleteBtn) {
-            const ideaId = deleteBtn.dataset.id;
-            showConfirmModal("Delete this nail idea? This will also delete the image.", async () => {
-                const ideaToDelete = allNailIdeas.find(i => i.id === ideaId);
-                if (ideaToDelete.imageURL) {
-                    const imageRef = ref(storage, ideaToDelete.imageURL);
-                    await deleteObject(imageRef).catch(err => console.error("Error deleting image from storage", err));
-                }
-                await deleteDoc(doc(db, "nail_ideas", ideaId));
-            });
-        }
-    });
+    }
 
-    const giftCardsTableBody = document.querySelector('#gift-cards-table tbody');
+    // --- Client Profile Modal Logic ---
+    const openClientProfileModal = async (client) => {
+        if (!client) return;
+        
+        const clientProfileModal = document.getElementById('client-profile-modal');
+        // 1. Populate basic info
+        document.getElementById('profile-client-name').textContent = client.name;
+        document.getElementById('profile-client-phone').textContent = client.phone || 'No phone number';
+       
+        // 2. Fetch and render history
+        const historyBody = document.getElementById('profile-history-table-body');
+        historyBody.innerHTML = '<tr><td colspan="4" class="py-4 text-center">Loading history...</td></tr>';
 
-    const renderGiftCardsAdminTable = (cards) => {
-        giftCardsTableBody.innerHTML = '';
-        if (cards.length === 0) {
-            giftCardsTableBody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-gray-400">No gift cards have been sold.</td></tr>`;
-            return;
-        }
-        cards.forEach(card => {
-            const row = giftCardsTableBody.insertRow();
-            const balance = card.balance !== undefined ? card.balance : card.amount;
-            let status = card.status;
-            let statusColor = 'text-gray-500';
-            if (balance > 0) {
-                status = 'Active';
-                statusColor = 'text-green-600';
-            } else {
-                status = 'Depleted';
-            }
-
-            row.innerHTML = `<td class="px-6 py-4">${new Date(card.createdAt.seconds * 1000).toLocaleDateString()}</td><td class="px-6 py-4 font-mono text-xs">${card.code}</td><td class="px-6 py-4">$${card.amount.toFixed(2)}</td><td class="px-6 py-4 font-bold">$${balance.toFixed(2)}</td><td class="px-6 py-4">${card.recipientName}<br><span class="text-xs text-gray-500">${card.recipientEmail || 'Physical Card'}</span></td><td class="px-6 py-4">${card.senderName}</td><td class="px-6 py-4 font-bold ${statusColor}">${status}</td><td class="px-6 py-4 text-center"><button data-id="${card.id}" class="edit-gift-card-btn text-blue-500 hover:text-blue-700" title="Manage Card"><i class="fas fa-edit text-lg"></i></button></td>`;
-        });
-    };
-
-    onSnapshot(query(collection(db, "gift_cards"), orderBy("createdAt", "desc")), (snapshot) => {
-        allGiftCards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderGiftCardsAdminTable(allGiftCards);
-    });
-
-    const addPromotionForm = document.getElementById('add-promotion-form');
-    const promotionsTableBody = document.querySelector('#promotions-table tbody');
-    const promotionsContainerLanding = document.getElementById('promotions-container-landing');
-    
-    const renderPromotionsAdminTable = (promotions) => {
-        promotionsTableBody.innerHTML = '';
-        const now = new Date();
-        promotions.forEach(promo => {
-            const startDate = promo.startDate.toDate();
-            const endDate = promo.endDate.toDate();
-            let status, statusColor;
-            if (now < startDate) { status = 'Scheduled'; statusColor = 'text-blue-600'; } 
-            else if (now > endDate) { status = 'Expired'; statusColor = 'text-gray-500'; } 
-            else { status = 'Active'; statusColor = 'text-green-600'; }
-            const row = promotionsTableBody.insertRow();
-            row.innerHTML = `<td class="px-6 py-4">${promo.title}</td><td class="px-6 py-4">${promo.description}</td><td class="px-6 py-4">${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</td><td class="px-6 py-4 font-bold ${statusColor}">${status}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${promo.id}" class="send-promo-notification-btn text-purple-500" title="Send Notification"><i class="fas fa-paper-plane"></i></button><button data-id="${promo.id}" class="edit-promotion-btn text-blue-500"><i class="fas fa-edit"></i></button><button data-id="${promo.id}" class="delete-promotion-btn text-red-500"><i class="fas fa-trash"></i></button></td>`;
-        });
-    };
-
-    const renderPromotionsLanding = (promotions) => {
-        promotionsContainerLanding.innerHTML = '';
-        const now = new Date();
-        const activePromos = promotions.filter(promo => {
-            const startDate = promo.startDate.toDate();
-            const endDate = promo.endDate.toDate();
-            return now >= startDate && now <= endDate;
-        });
-        if (activePromos.length === 0) { promotionsContainerLanding.innerHTML = '<p class="text-gray-600 col-span-full text-center">No active promotions right now. Check back soon!</p>'; return; }
-        activePromos.forEach(promo => { const promoEl = document.createElement('div'); promoEl.className = 'bg-white p-6 rounded-lg shadow-md text-center'; promoEl.innerHTML = `<h3 class="text-xl font-bold text-pink-700 mb-2">${promo.title}</h3><p class="text-gray-600">${promo.description}</p>`; promotionsContainerLanding.appendChild(promoEl); });
-    };
-
-    onSnapshot(query(collection(db, "promotions"), orderBy("startDate", "desc")), (snapshot) => {
-        allPromotions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        renderPromotionsAdminTable(allPromotions);
-        renderPromotionsLanding(allPromotions);
-    });
-
-    addPromotionForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const promoId = document.getElementById('edit-promotion-id').value;
-        const promoData = { title: document.getElementById('promotion-title').value, description: document.getElementById('promotion-description').value, startDate: Timestamp.fromDate(new Date(document.getElementById('promotion-start-date').value + 'T00:00:00')), endDate: Timestamp.fromDate(new Date(document.getElementById('promotion-end-date').value + 'T23:59:59')), };
-        try {
-            if (promoId) { await updateDoc(doc(db, "promotions", promoId), promoData); } 
-            else { promoData.createdAt = serverTimestamp(); await addDoc(collection(db, "promotions"), promoData); }
-            addPromotionForm.reset(); document.getElementById('edit-promotion-id').value = '';
-        } catch (error) { console.error("Error saving promotion:", error); alert("Could not save promotion."); }
-    });
-
-    promotionsTableBody.addEventListener('click', (e) => {
-        const editBtn = e.target.closest('.edit-promotion-btn');
-        const deleteBtn = e.target.closest('.delete-promotion-btn');
-        const sendBtn = e.target.closest('.send-promo-notification-btn');
-        if (editBtn) {
-            const promo = allPromotions.find(p => p.id === editBtn.dataset.id);
-            if (promo) { document.getElementById('edit-promotion-id').value = promo.id; document.getElementById('promotion-title').value = promo.title; document.getElementById('promotion-description').value = promo.description; document.getElementById('promotion-start-date').value = promo.startDate.toDate().toISOString().split('T')[0]; document.getElementById('promotion-end-date').value = promo.endDate.toDate().toISOString().split('T')[0]; document.getElementById('add-promotion-btn').textContent = 'Update Promotion'; document.getElementById('cancel-edit-promotion-btn').classList.remove('hidden'); }
-        } else if (deleteBtn) { showConfirmModal("Are you sure you want to delete this promotion?", async () => { await deleteDoc(doc(db, "promotions", deleteBtn.dataset.id)); });
-        } else if (sendBtn) {
-            const promo = allPromotions.find(p => p.id === sendBtn.dataset.id);
-            if (promo) { showConfirmModal(`Send a notification for "${promo.title}" to all clients?`, () => { addNotification('promo', `New Promotion: ${promo.title}! ${promo.description}`); alert('Promotion notification sent!'); }); }
-        }
-    });
-
-    document.getElementById('cancel-edit-promotion-btn').addEventListener('click', () => {
-        addPromotionForm.reset();
-        document.getElementById('edit-promotion-id').value = '';
-        document.getElementById('add-promotion-btn').textContent = 'Add Promotion';
-        document.getElementById('cancel-edit-promotion-btn').classList.add('hidden');
-    });
-
-    const openClientModal = (client = null) => {
-        clientForm.reset();
-        const modalTitle = document.getElementById('client-form-title');
-        if (client) {
-            modalTitle.textContent = 'Edit Client Information';
-            document.getElementById('edit-client-id').value = client.id;
-            document.getElementById('client-form-name').value = client.name;
-            document.getElementById('client-form-phone').value = client.phone || '';
-            document.getElementById('client-form-dob').value = client.dob || '';
+        const historyQuery = query(collection(db, "finished_clients"), where("name", "==", client.name), orderBy("checkOutTimestamp", "desc"));
+        const historySnapshot = await getDocs(historyQuery);
+        const history = historySnapshot.docs.map(doc => doc.data());
+        
+        let totalSpent = 0;
+        if (history.length === 0) {
+            historyBody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-gray-500">No visit history found.</td></tr>';
         } else {
-            modalTitle.textContent = 'Create New Client';
-            document.getElementById('edit-client-id').value = '';
+            historyBody.innerHTML = history.map(visit => {
+                let visitTotal = 0;
+                if (typeof visit.services === 'string') {
+                    const prices = visit.services.match(/\$\d+(\.\d{2})?/g) || [];
+                    visitTotal = prices.reduce((sum, price) => sum + parseFloat(price.substring(1)), 0);
+                    totalSpent += visitTotal;
+                }
+                return `
+                    <tr class="border-b">
+                        <td class="px-4 py-2">${new Date(visit.checkOutTimestamp.seconds * 1000).toLocaleDateString()}</td>
+                        <td class="px-4 py-2">${visit.services}</td>
+                        <td class="px-4 py-2">${visit.technician}</td>
+                        <td class="px-4 py-2 text-right font-medium">$${visitTotal.toFixed(2)}</td>
+                    </tr>`;
+            }).join('');
         }
-        clientFormModal.classList.remove('hidden');
-        clientFormModal.classList.add('flex');
+        
+        document.getElementById('profile-total-visits').textContent = history.length;
+        document.getElementById('profile-total-spent').textContent = `$${totalSpent.toFixed(2)}`;
+        document.getElementById('profile-fav-tech').textContent = client.favoriteTech || 'N/A';
+        document.getElementById('profile-fav-color').textContent = client.favoriteColor || 'N/A';
+        
+        clientProfileModal.classList.remove('hidden');
+        clientProfileModal.classList.add('flex');
     };
 
-    const closeClientModal = () => { clientFormModal.classList.add('hidden'); clientFormModal.classList.remove('flex'); };
-    document.getElementById('create-new-client-btn').addEventListener('click', () => openClientModal());
-    document.getElementById('client-form-cancel-btn').addEventListener('click', closeClientModal);
-    document.querySelector('.client-form-modal-overlay').addEventListener('click', closeClientModal);
-
-    clientForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const clientId = document.getElementById('edit-client-id').value;
-        const clientData = { name: document.getElementById('client-form-name').value, phone: document.getElementById('client-form-phone').value, dob: document.getElementById('client-form-dob').value, };
-        if (!clientData.name) { alert('Client name is required.'); return; }
-        try {
-            if (clientId) { await updateDoc(doc(db, "clients", clientId), clientData); } 
-            else { await addDoc(collection(db, "clients"), clientData); }
-            closeClientModal();
-        } catch (error) { console.error("Error saving client:", error); alert("Could not save client data."); }
-    });
-
-    const importClientsBtn = document.getElementById('import-clients-btn');
-    const importClientsInput = document.getElementById('import-clients-input');
-    importClientsBtn.addEventListener('click', () => importClientsInput.click());
-    importClientsInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const data = new Uint8Array(event.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            const clientsToImport = XLSX.utils.sheet_to_json(firstSheet);
-            if (clientsToImport.length === 0) { alert('No clients found in the file.'); return; }
-            const batch = writeBatch(db);
-            clientsToImport.forEach(client => { const newClientRef = doc(collection(db, "clients")); batch.set(newClientRef, { name: client.Name || 'N/A', phone: client.Phone || '', dob: client.DOB || '' }); });
-            try { await batch.commit(); alert(`${clientsToImport.length} clients imported successfully!`); } 
-            catch (error) { console.error("Error importing clients: ", error); alert("An error occurred during import."); }
-        };
-        reader.readAsArrayBuffer(file);
-        e.target.value = '';
-    });
+    const closeClientProfileModal = () => {
+        const clientProfileModal = document.getElementById('client-profile-modal');
+        clientProfileModal.classList.add('hidden');
+        clientProfileModal.classList.remove('flex');
+    };
     
+    document.getElementById('close-client-profile-modal-btn').addEventListener('click', closeClientProfileModal);
+    clientProfileModal.querySelector('.modal-overlay').addEventListener('click', closeClientProfileModal);
+
     document.getElementById('clients-list-report-content').addEventListener('click', (e) => {
         const viewProfileBtn = e.target.closest('.view-client-profile-btn');
         const editBtn = e.target.closest('.edit-client-btn');
         const deleteBtn = e.target.closest('.delete-client-btn');
-        if (viewProfileBtn) { const client = aggregatedClients.find(c => c.id === viewProfileBtn.dataset.id); if(client) { openClientProfileModal(client); } } 
-        else if (editBtn) { const client = aggregatedClients.find(c => c.id === editBtn.dataset.id); if(client) { openClientModal(client); } } 
-        else if (deleteBtn) { const clientId = deleteBtn.dataset.id; const client = aggregatedClients.find(c => c.id === clientId); if (client) { showConfirmModal(`Delete all records for ${client.name}? This cannot be undone.`, async () => { await deleteDoc(doc(db, "clients", clientId)); }); } }
+        
+        if (viewProfileBtn) {
+            const client = aggregatedClients.find(c => c.id === viewProfileBtn.dataset.id);
+            if(client) {
+                openClientProfileModal(client);
+            }
+        } else if (editBtn) {
+            const client = aggregatedClients.find(c => c.id === editBtn.dataset.id);
+            if(client) {
+                openClientModal(client);
+            }
+        } else if (deleteBtn) {
+            const clientId = deleteBtn.dataset.id;
+            const client = aggregatedClients.find(c => c.id === clientId);
+            if (client) {
+                showConfirmModal(`Delete all records for ${client.name}? This cannot be undone.`, async () => {
+                   await deleteDoc(doc(db, "clients", clientId));
+                });
+            }
+        }
     });
-    
-    document.getElementById('gemini-sms-close-btn').addEventListener('click', () => { geminiSmsModal.classList.add('hidden'); geminiSmsModal.classList.remove('flex'); });
-    document.querySelector('.gemini-sms-modal-overlay').addEventListener('click', () => { geminiSmsModal.classList.add('hidden'); geminiSmsModal.classList.remove('flex'); });
-    
-    document.getElementById('floating-booking-btn').addEventListener('click', () => { openAddAppointmentModal(getLocalDateString()); });
 
     loadAndRenderServices();
     const todayString = getLocalDateString();
@@ -2781,4 +2683,5 @@ function initMainApp(userRole) {
     document.getElementById('expense-date').value = todayString;
     document.getElementById('sign-out-btn').addEventListener('click', () => { signOut(auth); });
 }
+
 
