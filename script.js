@@ -234,15 +234,16 @@ addAppointmentForm.addEventListener('submit', async (e) => {
 
 // --- Primary Authentication Router ---
 onAuthStateChanged(auth, async (user) => {
-    const hoursDoc = await getDoc(doc(db, "settings", "salonHours")).catch(err => {
-        console.error("Failed to fetch salon hours:", err);
-        salonHours = {}; 
-    });
-    if (hoursDoc && hoursDoc.exists()) {
-        salonHours = hoursDoc.data();
-    }
-
     if (user) {
+        // Moved settings fetch inside the user check to ensure authentication
+        const hoursDoc = await getDoc(doc(db, "settings", "salonHours")).catch(err => {
+            console.error("Failed to fetch salon hours:", err);
+            salonHours = {}; 
+        });
+        if (hoursDoc && hoursDoc.exists()) {
+            salonHours = hoursDoc.data();
+        }
+
         currentUserId = user.uid;
         if (user.isAnonymous) {
             anonymousUserId = user.uid;
@@ -277,9 +278,9 @@ onAuthStateChanged(auth, async (user) => {
                     landingPageContent.style.display = 'none';
                     appContent.style.display = 'none';
                     clientDashboardContent.style.display = 'block';
-                     if (!clientDashboardInitialized) {
-                        initClientDashboard(user.uid, clientDoc.data());
-                        clientDashboardInitialized = true;
+             if (!clientDashboardInitialized) {
+                initClientDashboard(user.uid, clientDoc.data());
+                clientDashboardInitialized = true;
                     }
                 } else {
                      console.error("User authenticated but no user/client document found. Logging out.");
@@ -2683,5 +2684,6 @@ function initMainApp(userRole) {
     document.getElementById('expense-date').value = todayString;
     document.getElementById('sign-out-btn').addEventListener('click', () => { signOut(auth); });
 }
+
 
 
