@@ -418,6 +418,7 @@ function initLandingPage() {
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
+            closeAuthModal(); // Hide modal on success
             localStorage.removeItem(emailKey); 
             localStorage.removeItem(lockoutKey);
         } catch (error) {
@@ -455,6 +456,7 @@ function initLandingPage() {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
             await setDoc(doc(db, "clients", user.uid), { name: name, email: email, role: 'client', createdAt: serverTimestamp() });
+            closeAuthModal(); // Hide modal on success
         } catch (error) {
             alert(`Sign Up Failed: ${error.message}`);
         } finally {
