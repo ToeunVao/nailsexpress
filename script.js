@@ -234,66 +234,70 @@ addAppointmentForm.addEventListener('submit', async (e) => {
 
 // --- Primary Authentication Router ---
 onAuthStateChanged(auth, async (user) => {
-    try {
-        const hoursDoc = await getDoc(doc(db, "settings", "salonHours"));
-        if (hoursDoc.exists()) {
-            salonHours = hoursDoc.data();
-        }
+    const hoursDoc = await getDoc(doc(db, "settings", "salonHours")).catch(err => {
+        console.error("Failed to fetch salon hours:", err);
+        salonHours = {}; 
+    });
+    if (hoursDoc && hoursDoc.exists()) {
+        salonHours = hoursDoc.data();
+    }
 
-        if (user) {
-            currentUserId = user.uid;
-            if (user.isAnonymous) {
-                anonymousUserId = user.uid;
-                loadingScreen.style.display = 'none';
-                appContent.style.display = 'none';
-                clientDashboardContent.style.display = 'none';
-                landingPageContent.style.display = 'block';
-                if (!landingPageInitialized) {
-                    initLandingPage();
-                    landingPageInitialized = true;
-                }
-            } else {
-                const userDocRef = doc(db, "users", user.uid);
-                const userDoc = await getDoc(userDocRef);
-                
-                if (userDoc.exists()) { 
-                    currentUserRole = userDoc.data().role;
-                    loadingScreen.style.display = 'none';
-                    landingPageContent.style.display = 'none';
-                    clientDashboardContent.style.display = 'none';
-                    appContent.style.display = 'block';
-                    if (!mainAppInitialized) {
-                        initMainApp(currentUserRole);
-                        mainAppInitialized = true;
-                    }
-                } else { 
-                    const clientDocRef = doc(db, "clients", user.uid);
-                    const clientDoc = await getDoc(clientDocRef);
-                    if (clientDoc.exists()) {
-                        currentUserRole = clientDoc.data().role; 
-                        loadingScreen.style.display = 'none';
-                        landingPageContent.style.display = 'none';
-                        appContent.style.display = 'none';
-                        clientDashboardContent.style.display = 'block';
-                         if (!clientDashboardInitialized) {
-                            initClientDashboard(user.uid, clientDoc.data());
-                            clientDashboardInitialized = true;
-                        }
-                    } else {
-                         console.error("User authenticated but no user/client document found. Logging out.");
-                         await signOut(auth);
-                         alert("Login error: User data not found.");
-                    }
-                }
+    if (user) {
+        currentUserId = user.uid;
+        if (user.isAnonymous) {
+            anonymousUserId = user.uid;
+            loadingScreen.style.display = 'none';
+            appContent.style.display = 'none';
+            clientDashboardContent.style.display = 'none';
+            landingPageContent.style.display = 'block';
+            if (!landingPageInitialized) {
+                initLandingPage();
+                landingPageInitialized = true;
             }
         } else {
-            currentUserId = null;
-            currentUserRole = null;
-            await signInAnonymously(auth);
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
+            
+            if (userDoc.exists()) { 
+                currentUserRole = userDoc.data().role;
+                loadingScreen.style.display = 'none';
+                landingPageContent.style.display = 'none';
+                clientDashboardContent.style.display = 'none';
+                appContent.style.display = 'block';
+                 if (!mainAppInitialized) {
+                    initMainApp(currentUserRole);
+                    mainAppInitialized = true;
+                }
+            } else { 
+                const clientDocRef = doc(db, "clients", user.uid);
+                const clientDoc = await getDoc(clientDocRef);
+                if (clientDoc.exists()) {
+                    currentUserRole = clientDoc.data().role; 
+                    loadingScreen.style.display = 'none';
+                    landingPageContent.style.display = 'none';
+                    appContent.style.display = 'none';
+                    clientDashboardContent.style.display = 'block';
+                     if (!clientDashboardInitialized) {
+                        initClientDashboard(user.uid, clientDoc.data());
+                        clientDashboardInitialized = true;
+                    }
+                } else {
+                     console.error("User authenticated but no user/client document found. Logging out.");
+                     await signOut(auth);
+                     alert("Login error: User data not found.");
+                }
+            }
         }
-    } catch (error) {
-        console.error("Authentication or initial data load failed:", error);
-        loadingScreen.innerHTML = '<h2 class="text-3xl font-bold text-red-700">Could not connect. Please refresh.</h2>';
+    } else {
+        signInAnonymously(auth).catch((error) => {
+            console.error("CRITICAL: Anonymous sign-in failed.", error);
+            loadingScreen.innerHTML = `
+                <div class="text-center p-4">
+                    <h2 class="text-3xl font-bold text-red-700">Could not connect.</h2>
+                    <p class="text-gray-600 mt-2">This is likely a Firebase configuration issue.</p>
+                    <p class="text-gray-500 mt-4 text-sm">Please ensure <strong>Anonymous Authentication</strong> is enabled in your Firebase project settings.</p>
+                </div>`;
+        });
     }
 });
 
@@ -1832,6 +1836,9 @@ function initMainApp(userRole) {
         try {
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            if (!response.ok) {
+                throw new Error(`API call failed with status: ${response.status}`);
+            }
             const result = await response.json();
             let text = "Sorry, could not generate a message.";
             if (result.candidates?.[0]?.content?.parts?.[0]) { text = result.candidates[0].content.parts[0].text; }
@@ -1893,7 +1900,7 @@ function initMainApp(userRole) {
         clientProfileModal.classList.add('hidden');
         clientProfileModal.classList.remove('flex');
     };
-
+    
     document.getElementById('close-client-profile-modal-btn').addEventListener('click', closeClientProfileModal);
     clientProfileModal.querySelector('.modal-overlay').addEventListener('click', closeClientProfileModal);
 
@@ -2737,6 +2744,20 @@ function initMainApp(userRole) {
         e.target.value = '';
     });
     
+    document.getElementById('clients-list-report-content').addEventListener('click', (e) => {
+        const viewProfileBtn = e.target.closest('.view-client-profile-btn');
+        const editBtn = e.target.closest('.edit-client-btn');
+        const deleteBtn = e.target.closest('.delete-client-btn');
+        if (viewProfileBtn) { const client = aggregatedClients.find(c => c.id === viewProfileBtn.dataset.id); if(client) { openClientProfileModal(client); } } 
+        else if (editBtn) { const client = aggregatedClients.find(c => c.id === editBtn.dataset.id); if(client) { openClientModal(client); } } 
+        else if (deleteBtn) { const clientId = deleteBtn.dataset.id; const client = aggregatedClients.find(c => c.id === clientId); if (client) { showConfirmModal(`Delete all records for ${client.name}? This cannot be undone.`, async () => { await deleteDoc(doc(db, "clients", clientId)); }); } }
+    });
+    
+    document.getElementById('gemini-sms-close-btn').addEventListener('click', () => { geminiSmsModal.classList.add('hidden'); geminiSmsModal.classList.remove('flex'); });
+    document.querySelector('.gemini-sms-modal-overlay').addEventListener('click', () => { geminiSmsModal.classList.add('hidden'); geminiSmsModal.classList.remove('flex'); });
+    
+    document.getElementById('floating-booking-btn').addEventListener('click', () => { openAddAppointmentModal(getLocalDateString()); });
+
     loadAndRenderServices();
     const todayString = getLocalDateString();
     const currentMonthIndex = new Date().getMonth();
@@ -2758,3 +2779,4 @@ function initMainApp(userRole) {
     document.getElementById('expense-date').value = todayString;
     document.getElementById('sign-out-btn').addEventListener('click', () => { signOut(auth); });
 }
+
