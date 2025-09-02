@@ -1528,8 +1528,65 @@
         </div>
     </div>
 
+    <!-- NEW: Landing Page Modals -->
+    <div id="signup-login-modal" class="modal hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div class="modal-overlay absolute inset-0 bg-black opacity-50"></div>
+        <div class="relative bg-white w-full max-w-md p-8 rounded-2xl shadow-xl m-4">
+            <button id="close-signup-login-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fas fa-times fa-lg"></i></button>
+            <div class="mb-4 border-b border-gray-200">
+                <ul class="flex flex-wrap -mb-px text-sm font-medium text-center">
+                    <li class="mr-2"><button class="tab-btn inline-block p-4 border-b-2 rounded-t-lg active" id="login-tab-btn" type="button">Log In</button></li>
+                    <li class="mr-2"><button class="tab-btn inline-block p-4 border-b-2 rounded-t-lg" id="signup-tab-btn" type="button">Sign Up</button></li>
+                </ul>
+            </div>
+            <div id="login-form-container">
+                <form id="landing-login-form" class="space-y-4">
+                    <div><label for="landing-email" class="block text-sm font-medium text-gray-600">Email</label><input type="email" id="landing-email" class="form-input w-full p-3 mt-1" required></div>
+                    <div><label for="landing-password" class="block text-sm font-medium text-gray-600">Password</label><input type="password" id="landing-password" class="form-input w-full p-3 mt-1" required></div>
+                    <div id="login-lockout-message" class="hidden text-sm text-red-600"></div>
+                    <div><button type="submit" id="landing-login-btn" class="w-full bg-pink-600 text-white font-bold py-3 rounded-lg flex items-center justify-center"><span class="btn-text">Log In</span><i class="fas fa-spinner fa-spin ml-2 hidden"></i></button></div>
+                </form>
+            </div>
+            <div id="signup-form-container" class="hidden">
+                <form id="landing-signup-form" class="space-y-4">
+                    <div><label for="signup-name" class="block text-sm font-medium text-gray-600">Full Name</label><input type="text" id="signup-name" class="form-input w-full p-3 mt-1" required></div>
+                    <div><label for="signup-email" class="block text-sm font-medium text-gray-600">Email</label><input type="email" id="signup-email" class="form-input w-full p-3 mt-1" required></div>
+                    <div><label for="signup-password" class="block text-sm font-medium text-gray-600">Password</label><input type="password" id="signup-password" class="form-input w-full p-3 mt-1" required></div>
+                    <div><button type="submit" id="landing-signup-btn" class="w-full bg-pink-600 text-white font-bold py-3 rounded-lg flex items-center justify-center"><span class="btn-text">Sign Up</span><i class="fas fa-spinner fa-spin ml-2 hidden"></i></button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div id="gift-card-modal" class="modal hidden fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div class="modal-overlay absolute inset-0 bg-black opacity-50"></div>
+        <div class="relative bg-white w-full max-w-lg p-8 rounded-2xl shadow-xl m-4">
+            <button id="close-gift-card-modal-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i class="fas fa-times fa-lg"></i></button>
+            <h2 class="text-2xl font-bold text-center text-pink-700 mb-6">Purchase a Gift Card</h2>
+            <form id="gift-card-form" class="space-y-4">
+                <div><label for="gift-card-amount" class="block text-sm font-medium text-gray-600">Amount</label><select id="gift-card-amount" class="form-select w-full p-3 mt-1"><option value="25">$25</option><option value="50">$50</option><option value="100">$100</option><option value="custom">Custom</option></select></div>
+                <input type="number" id="gift-card-custom-amount" class="form-input w-full p-3 mt-1 hidden" placeholder="Enter custom amount">
+                <div><label for="gift-card-recipient-name" class="block text-sm font-medium text-gray-600">Recipient's Name</label><input type="text" id="gift-card-recipient-name" class="form-input w-full p-3 mt-1" required></div>
+                <div><label for="gift-card-recipient-email" class="block text-sm font-medium text-gray-600">Recipient's Email</label><input type="email" id="gift-card-recipient-email" class="form-input w-full p-3 mt-1" required></div>
+                <div><label for="gift-card-sender-name" class="block text-sm font-medium text-gray-600">Your Name</label><input type="text" id="gift-card-sender-name" class="form-input w-full p-3 mt-1" required></div>
+                <div><label for="gift-card-message" class="block text-sm font-medium text-gray-600">Message (optional)</label><textarea id="gift-card-message" rows="2" class="form-input w-full p-3 mt-1"></textarea></div>
+                <div class="pt-2"><button type="submit" class="w-full bg-pink-600 text-white font-bold py-3 rounded-lg">Proceed to Payment</button></div>
+            </form>
+        </div>
+    </div>
+
+    <div id="landing-booking-service-modal" class="modal hidden fixed inset-0 z-[70] flex items-center justify-center">
+        <div class="modal-overlay absolute inset-0 bg-black opacity-50"></div>
+        <div class="relative bg-white w-full max-w-lg p-6 rounded-2xl shadow-xl m-4">
+            <h3 id="landing-booking-modal-title" class="text-2xl font-bold text-pink-700 mb-4">Select Services</h3>
+            <div id="landing-booking-service-modal-content" class="space-y-3 max-h-96 overflow-y-auto"></div>
+            <div class="mt-6 text-right">
+                <button id="landing-booking-service-modal-done-btn" type="button" class="bg-pink-600 text-white font-semibold py-2 px-6 rounded-lg">Done</button>
+            </div>
+        </div>
+    </div>
+
 
  <script  type="module" src="script.js"></script>
 </body>
 </html>
-
