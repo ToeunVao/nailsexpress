@@ -3,6 +3,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, on
 import { getFirestore, collection, addDoc, onSnapshot, query, doc, getDoc, deleteDoc, serverTimestamp, where, getDocs, orderBy, Timestamp, updateDoc, writeBatch, setDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
+// --- Configuration ---
 const firebaseConfig = {
     apiKey: "AIzaSyAGZBJFVi_o1HeGDmjcSsmCcWxWOkuLc_4",
     authDomain: "nailexpress-10f2f.firebaseapp.com",
@@ -12,6 +13,9 @@ const firebaseConfig = {
     appId: "1:1015991996673:web:b6e8888abae83906d34b00"
 };
 
+const apiKey = ""; // API Key for Gemini API calls
+
+// --- Firebase Initialization ---
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -230,64 +234,66 @@ addAppointmentForm.addEventListener('submit', async (e) => {
 
 // --- Primary Authentication Router ---
 onAuthStateChanged(auth, async (user) => {
-    const hoursDoc = await getDoc(doc(db, "settings", "salonHours"));
-    if (hoursDoc.exists()) {
-        salonHours = hoursDoc.data();
-    }
+    try {
+        const hoursDoc = await getDoc(doc(db, "settings", "salonHours"));
+        if (hoursDoc.exists()) {
+            salonHours = hoursDoc.data();
+        }
 
-    if (user) {
-        currentUserId = user.uid;
-        if (user.isAnonymous) {
-            anonymousUserId = user.uid;
-            loadingScreen.style.display = 'none';
-            appContent.style.display = 'none';
-            clientDashboardContent.style.display = 'none';
-            landingPageContent.style.display = 'block';
-            if (!landingPageInitialized) {
-                initLandingPage();
-                landingPageInitialized = true;
-            }
-        } else {
-            const userDocRef = doc(db, "users", user.uid);
-            const userDoc = await getDoc(userDocRef);
-            
-            if (userDoc.exists()) { 
-                currentUserRole = userDoc.data().role;
+        if (user) {
+            currentUserId = user.uid;
+            if (user.isAnonymous) {
+                anonymousUserId = user.uid;
                 loadingScreen.style.display = 'none';
-                landingPageContent.style.display = 'none';
+                appContent.style.display = 'none';
                 clientDashboardContent.style.display = 'none';
-                appContent.style.display = 'block';
-                if (!mainAppInitialized) {
-                    initMainApp(currentUserRole);
-                    mainAppInitialized = true;
+                landingPageContent.style.display = 'block';
+                if (!landingPageInitialized) {
+                    initLandingPage();
+                    landingPageInitialized = true;
                 }
-            } else { 
-                const clientDocRef = doc(db, "clients", user.uid);
-                const clientDoc = await getDoc(clientDocRef);
-                if (clientDoc.exists()) {
-                    currentUserRole = clientDoc.data().role; 
+            } else {
+                const userDocRef = doc(db, "users", user.uid);
+                const userDoc = await getDoc(userDocRef);
+                
+                if (userDoc.exists()) { 
+                    currentUserRole = userDoc.data().role;
                     loadingScreen.style.display = 'none';
                     landingPageContent.style.display = 'none';
-                    appContent.style.display = 'none';
-                    clientDashboardContent.style.display = 'block';
-                     if (!clientDashboardInitialized) {
-                        initClientDashboard(user.uid, clientDoc.data());
-                        clientDashboardInitialized = true;
+                    clientDashboardContent.style.display = 'none';
+                    appContent.style.display = 'block';
+                    if (!mainAppInitialized) {
+                        initMainApp(currentUserRole);
+                        mainAppInitialized = true;
                     }
-                } else {
-                     console.error("User authenticated but no user/client document found. Logging out.");
-                     await signOut(auth);
-                     alert("Login error: User data not found.");
+                } else { 
+                    const clientDocRef = doc(db, "clients", user.uid);
+                    const clientDoc = await getDoc(clientDocRef);
+                    if (clientDoc.exists()) {
+                        currentUserRole = clientDoc.data().role; 
+                        loadingScreen.style.display = 'none';
+                        landingPageContent.style.display = 'none';
+                        appContent.style.display = 'none';
+                        clientDashboardContent.style.display = 'block';
+                         if (!clientDashboardInitialized) {
+                            initClientDashboard(user.uid, clientDoc.data());
+                            clientDashboardInitialized = true;
+                        }
+                    } else {
+                         console.error("User authenticated but no user/client document found. Logging out.");
+                         await signOut(auth);
+                         alert("Login error: User data not found.");
+                    }
                 }
             }
+        } else {
+            currentUserId = null;
+            currentUserRole = null;
+            await signInAnonymously(auth);
         }
-    } else {
-        currentUserId = null;
-        currentUserRole = null;
-        signInAnonymously(auth).catch((error) => {
-            console.error("Anonymous sign-in failed:", error);
-            loadingScreen.innerHTML = '<h2 class="text-3xl font-bold text-red-700">Could not connect. Please refresh.</h2>';
-        });
+    } catch (error) {
+        console.error("Authentication or initial data load failed:", error);
+        loadingScreen.innerHTML = '<h2 class="text-3xl font-bold text-red-700">Could not connect. Please refresh.</h2>';
     }
 });
 
@@ -1825,7 +1831,7 @@ function initMainApp(userRole) {
         const prompt = `Write a single, friendly, and short SMS message to a nail salon client named ${client.name}. Thank them for their recent visit where they received the following services: ${client.services}. Mention that their technician was ${client.technician}. Ask them to come back soon. Keep it concise and professional.`;
         try {
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             const result = await response.json();
             let text = "Sorry, could not generate a message.";
             if (result.candidates?.[0]?.content?.parts?.[0]) { text = result.candidates[0].content.parts[0].text; }
@@ -1838,15 +1844,12 @@ function initMainApp(userRole) {
     // --- Client Profile Modal Logic ---
     const openClientProfileModal = async (client) => {
         if (!client) return;
-
+        
+        const clientProfileModal = document.getElementById('client-profile-modal');
         // 1. Populate basic info
         document.getElementById('profile-client-name').textContent = client.name;
         document.getElementById('profile-client-phone').textContent = client.phone || 'No phone number';
-        document.getElementById('profile-total-visits').textContent = client.visitCount || 0;
-        document.getElementById('profile-total-spent').textContent = `$${(client.totalSpent || 0).toFixed(2)}`;
-        document.getElementById('profile-fav-tech').textContent = client.favoriteTech || 'N/A';
-        document.getElementById('profile-fav-color').textContent = client.favoriteColor || 'N/A';
-
+       
         // 2. Fetch and render history
         const historyBody = document.getElementById('profile-history-table-body');
         historyBody.innerHTML = '<tr><td colspan="4" class="py-4 text-center">Loading history...</td></tr>';
@@ -1855,30 +1858,38 @@ function initMainApp(userRole) {
         const historySnapshot = await getDocs(historyQuery);
         const history = historySnapshot.docs.map(doc => doc.data());
         
+        let totalSpent = 0;
         if (history.length === 0) {
             historyBody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-gray-500">No visit history found.</td></tr>';
         } else {
             historyBody.innerHTML = history.map(visit => {
-                let total = 0;
+                let visitTotal = 0;
                 if (typeof visit.services === 'string') {
-                    const prices = visit.services.match(/\$\d+/g) || [];
-                    total = prices.reduce((sum, price) => sum + parseFloat(price.substring(1)), 0);
+                    const prices = visit.services.match(/\$\d+(\.\d{2})?/g) || [];
+                    visitTotal = prices.reduce((sum, price) => sum + parseFloat(price.substring(1)), 0);
+                    totalSpent += visitTotal;
                 }
                 return `
                     <tr class="border-b">
                         <td class="px-4 py-2">${new Date(visit.checkOutTimestamp.seconds * 1000).toLocaleDateString()}</td>
                         <td class="px-4 py-2">${visit.services}</td>
                         <td class="px-4 py-2">${visit.technician}</td>
-                        <td class="px-4 py-2 text-right font-medium">$${total.toFixed(2)}</td>
+                        <td class="px-4 py-2 text-right font-medium">$${visitTotal.toFixed(2)}</td>
                     </tr>`;
             }).join('');
         }
+        
+        document.getElementById('profile-total-visits').textContent = history.length;
+        document.getElementById('profile-total-spent').textContent = `$${totalSpent.toFixed(2)}`;
+        document.getElementById('profile-fav-tech').textContent = client.favoriteTech || 'N/A';
+        document.getElementById('profile-fav-color').textContent = client.favoriteColor || 'N/A';
         
         clientProfileModal.classList.remove('hidden');
         clientProfileModal.classList.add('flex');
     };
 
     const closeClientProfileModal = () => {
+        const clientProfileModal = document.getElementById('client-profile-modal');
         clientProfileModal.classList.add('hidden');
         clientProfileModal.classList.remove('flex');
     };
@@ -1890,6 +1901,7 @@ function initMainApp(userRole) {
         const viewProfileBtn = e.target.closest('.view-client-profile-btn');
         const editBtn = e.target.closest('.edit-client-btn');
         const deleteBtn = e.target.closest('.delete-client-btn');
+        
         if (viewProfileBtn) {
             const client = aggregatedClients.find(c => c.id === viewProfileBtn.dataset.id);
             if(client) {
@@ -2725,70 +2737,6 @@ function initMainApp(userRole) {
         e.target.value = '';
     });
     
-    document.getElementById('clients-list-report-content').addEventListener('click', (e) => {
-        const viewProfileBtn = e.target.closest('.view-client-profile-btn');
-        const editBtn = e.target.closest('.edit-client-btn');
-        const deleteBtn = e.target.closest('.delete-client-btn');
-        if (viewProfileBtn) { const client = aggregatedClients.find(c => c.id === viewProfileBtn.dataset.id); if(client) { openClientProfileModal(client); } } 
-        else if (editBtn) { const client = aggregatedClients.find(c => c.id === editBtn.dataset.id); if(client) { openClientModal(client); } } 
-        else if (deleteBtn) { const clientId = deleteBtn.dataset.id; const client = aggregatedClients.find(c => c.id === clientId); if (client) { showConfirmModal(`Delete all records for ${client.name}? This cannot be undone.`, async () => { await deleteDoc(doc(db, "clients", clientId)); }); } }
-    });
-    
-    const openClientProfileModal = async (client) => {
-        if (!client) return;
-
-        document.getElementById('profile-client-name').textContent = client.name;
-        document.getElementById('profile-client-phone').textContent = client.phone || 'No phone number';
-       
-        const historyQuery = query(collection(db, "finished_clients"), where("name", "==", client.name), orderBy("checkOutTimestamp", "desc"));
-        const historySnapshot = await getDocs(historyQuery);
-        const history = historySnapshot.docs.map(doc => doc.data());
-        
-        let totalSpent = 0;
-        const historyBody = document.getElementById('profile-history-table-body');
-        
-        if (history.length === 0) {
-            historyBody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-gray-500">No visit history found.</td></tr>';
-        } else {
-            historyBody.innerHTML = history.map(visit => {
-                let visitTotal = 0;
-                if (typeof visit.services === 'string') {
-                    const prices = visit.services.match(/\$\d+(\.\d{2})?/g) || [];
-                    visitTotal = prices.reduce((sum, price) => sum + parseFloat(price.substring(1)), 0);
-                    totalSpent += visitTotal;
-                }
-                return `
-                    <tr class="border-b">
-                        <td class="px-4 py-2">${new Date(visit.checkOutTimestamp.seconds * 1000).toLocaleDateString()}</td>
-                        <td class="px-4 py-2">${visit.services}</td>
-                        <td class="px-4 py-2">${visit.technician}</td>
-                        <td class="px-4 py-2 text-right font-medium">$${visitTotal.toFixed(2)}</td>
-                    </tr>`;
-            }).join('');
-        }
-        
-        document.getElementById('profile-total-visits').textContent = history.length;
-        document.getElementById('profile-total-spent').textContent = `$${totalSpent.toFixed(2)}`;
-        document.getElementById('profile-fav-tech').textContent = client.favoriteTech || 'N/A';
-        document.getElementById('profile-fav-color').textContent = client.favoriteColor || 'N/A';
-        
-        clientProfileModal.classList.remove('hidden');
-        clientProfileModal.classList.add('flex');
-    };
-
-    const closeClientProfileModal = () => {
-        clientProfileModal.classList.add('hidden');
-        clientProfileModal.classList.remove('flex');
-    };
-    
-    document.getElementById('close-client-profile-modal-btn').addEventListener('click', closeClientProfileModal);
-    clientProfileModal.querySelector('.modal-overlay').addEventListener('click', closeClientProfileModal);
-
-    document.getElementById('gemini-sms-close-btn').addEventListener('click', () => { geminiSmsModal.classList.add('hidden'); geminiSmsModal.classList.remove('flex'); });
-    document.querySelector('.gemini-sms-modal-overlay').addEventListener('click', () => { geminiSmsModal.classList.add('hidden'); geminiSmsModal.classList.remove('flex'); });
-    
-    document.getElementById('floating-booking-btn').addEventListener('click', () => { openAddAppointmentModal(getLocalDateString()); });
-
     loadAndRenderServices();
     const todayString = getLocalDateString();
     const currentMonthIndex = new Date().getMonth();
