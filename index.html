@@ -340,14 +340,8 @@
                     </div>
                 </div>
                 <nav id="top-nav" class="hidden md:flex items-center gap-2 text-sm font-semibold text-gray-600">
-                    <button class="top-nav-btn relative" data-target="check-in">
-                        Check-in
-                        <span id="check-in-nav-count" class="absolute -top-1 -right-1 bg-blue-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
-                    </button>
-                    <button class="top-nav-btn relative" data-target="booking">
-                        Booking
-                        <span id="booking-nav-count" class="absolute -top-1 -right-1 bg-blue-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
-                    </button>
+                    <button class="top-nav-btn" data-target="check-in">Check-in</button>
+                    <button class="top-nav-btn" data-target="booking">Booking</button>
                     <button class="top-nav-btn" data-target="nails-idea">Nails Idea</button>
                     <button class="top-nav-btn" data-target="report">Report</button>
                     <button class="top-nav-btn" data-target="setting">Setting</button>
@@ -1159,48 +1153,6 @@
     </div>
 
     <!-- ========= MODALS (Moved to top level) ========= -->
-     <div id="gift-card-modal" class="modal hidden fixed inset-0 z-50 flex items-center justify-center">
-            <div class="modal-overlay absolute inset-0 bg-black opacity-50"></div>
-            <div class="relative bg-white w-full max-w-lg p-8 rounded-2xl shadow-xl m-4">
-                <button id="close-gift-card-modal-btn" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800"><i class="fas fa-times fa-lg"></i></button>
-                <h2 class="text-3xl font-bold text-center text-pink-700 mb-6">Purchase a Gift Card</h2>
-                <form id="gift-card-form" class="space-y-4">
-                    <div>
-                        <label for="gift-card-amount" class="block text-sm font-medium text-gray-700">Amount</label>
-                        <select id="gift-card-amount" class="form-select w-full p-3 mt-1 border border-gray-300 rounded-lg">
-                            <option value="25">$25</option>
-                            <option value="50">$50</option>
-                            <option value="75">$75</option>
-                            <option value="100">$100</option>
-                            <option value="custom">Custom Amount</option>
-                        </select>
-                        <input type="number" id="gift-card-custom-amount" class="form-input w-full p-3 mt-2 border border-gray-300 rounded-lg hidden" placeholder="Enter custom amount">
-                    </div>
-                    <div>
-                        <label for="gift-card-recipient-name" class="block text-sm font-medium text-gray-700">Recipient's Name</label>
-                        <input type="text" id="gift-card-recipient-name" required class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label for="gift-card-recipient-email" class="block text-sm font-medium text-gray-700">Recipient's Email</label>
-                        <input type="email" id="gift-card-recipient-email" required class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg">
-                    </div>
-                    <div>
-                        <label for="gift-card-sender-name" class="block text-sm font-medium text-gray-700">Your Name</label>
-                        <input type="text" id="gift-card-sender-name" required class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg">
-                    </div>
-                     <div>
-                        <label for="gift-card-message" class="block text-sm font-medium text-gray-700">Message (optional)</label>
-                        <textarea id="gift-card-message" rows="2" class="form-input w-full p-3 mt-1 border border-gray-300 rounded-lg"></textarea>
-                    </div>
-                    <div>
-                        <button type="submit" class="w-full bg-pink-600 text-white font-bold py-3 px-12 rounded-full hover:bg-pink-700">
-                            Proceed to Payment
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
     <div id="service-modal" class="fixed inset-0 z-50 hidden items-center justify-center">
         <div class="absolute inset-0 bg-black opacity-50 modal-overlay"></div>
         <div class="relative bg-white w-full max-w-lg p-6 rounded-2xl shadow-xl m-4">
@@ -1580,3 +1532,4 @@
  <script  type="module" src="script.js"></script>
 </body>
 </html>
+
