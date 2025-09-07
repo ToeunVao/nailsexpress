@@ -3,7 +3,7 @@ import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, on
 import { getFirestore, collection, addDoc, onSnapshot, query, doc, getDoc, deleteDoc, serverTimestamp, where, getDocs, orderBy, Timestamp, updateDoc, writeBatch, setDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
-// FIX: Replaced invalid API key with an empty string to allow runtime injection.
+// FIX: The hardcoded API key has been removed. The environment will provide the correct key automatically.
 const firebaseConfig = {
     apiKey: "AIzaSyAGZBJFVi_o1HeGDmjcSsmCcWxWOkuLc_4",
     authDomain: "nailexpress-10f2f.firebaseapp.com",
@@ -40,11 +40,6 @@ let currentUserId = null;
 let initialAppointmentsLoaded = false;
 let initialInventoryLoaded = false;
 let allFinishedClients = [], allAppointments = [], allClients = [], allActiveClients = [], servicesData = {};
-let allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [];
-let allInventoryUsage = [], allGiftCards = [], allPromotions = [];
-let techniciansAndStaff = [], technicians = [];
-let allExpenseCategories = [], allPaymentAccounts = [], allSuppliers = [];
-let aggregatedClients = [];
 
 const giftCardBackgrounds = {
     'General': [
@@ -236,67 +231,67 @@ addAppointmentForm.addEventListener('submit', async (e) => {
 
 // --- Primary Authentication Router ---
 onAuthStateChanged(auth, async (user) => {
-    const hoursDoc = await getDoc(doc(db, "settings", "salonHours"));
-    if (hoursDoc.exists()) {
-        salonHours = hoursDoc.data();
-    }
+    try {
+        const hoursDoc = await getDoc(doc(db, "settings", "salonHours"));
+        if (hoursDoc.exists()) {
+            salonHours = hoursDoc.data();
+        }
 
-    if (user) {
-        currentUserId = user.uid;
-        if (user.isAnonymous) {
-            anonymousUserId = user.uid;
-            loadingScreen.style.display = 'none';
-            appContent.style.display = 'none';
-            clientDashboardContent.style.display = 'none';
-            landingPageContent.style.display = 'block';
-            if (!landingPageInitialized) {
-                initLandingPage();
-                landingPageInitialized = true;
-            }
-        } else {
-            const userDocRef = doc(db, "users", user.uid);
-            const userDoc = await getDoc(userDocRef);
-            
-            if (userDoc.exists()) { 
-                currentUserRole = userDoc.data().role;
+        if (user) {
+            currentUserId = user.uid;
+            if (user.isAnonymous) {
+                anonymousUserId = user.uid;
                 loadingScreen.style.display = 'none';
-                landingPageContent.style.display = 'none';
+                appContent.style.display = 'none';
                 clientDashboardContent.style.display = 'none';
-                appContent.style.display = 'block';
-                if (!mainAppInitialized) {
-                    initMainApp(currentUserRole);
-                    mainAppInitialized = true;
+                landingPageContent.style.display = 'block';
+                if (!landingPageInitialized) {
+                    initLandingPage();
+                    landingPageInitialized = true;
                 }
-            } else { 
-                const clientDocRef = doc(db, "clients", user.uid);
-                const clientDoc = await getDoc(clientDocRef);
-                if (clientDoc.exists()) {
-                    currentUserRole = clientDoc.data().role; 
+            } else {
+                const userDocRef = doc(db, "users", user.uid);
+                const userDoc = await getDoc(userDocRef);
+                
+                if (userDoc.exists()) { 
+                    currentUserRole = userDoc.data().role;
                     loadingScreen.style.display = 'none';
                     landingPageContent.style.display = 'none';
-                    appContent.style.display = 'none';
-                    clientDashboardContent.style.display = 'block';
-                     if (!clientDashboardInitialized) {
-                        initClientDashboard(user.uid, clientDoc.data());
-                        clientDashboardInitialized = true;
+                    clientDashboardContent.style.display = 'none';
+                    appContent.style.display = 'block';
+                    if (!mainAppInitialized) {
+                        initMainApp(currentUserRole);
+                        mainAppInitialized = true;
                     }
-                } else {
-                     console.error("User authenticated but no user/client document found. Logging out.");
-                     await signOut(auth);
-                     alert("Login error: User data not found.");
+                } else { 
+                    const clientDocRef = doc(db, "clients", user.uid);
+                    const clientDoc = await getDoc(clientDocRef);
+                    if (clientDoc.exists()) {
+                        currentUserRole = clientDoc.data().role; 
+                        loadingScreen.style.display = 'none';
+                        landingPageContent.style.display = 'none';
+                        appContent.style.display = 'none';
+                        clientDashboardContent.style.display = 'block';
+                         if (!clientDashboardInitialized) {
+                            initClientDashboard(user.uid, clientDoc.data());
+                            clientDashboardInitialized = true;
+                        }
+                    } else {
+                         console.error("User authenticated but no user/client document found. Logging out.");
+                         await signOut(auth);
+                         alert("Login error: User data not found.");
+                    }
                 }
             }
+        } else {
+            currentUserId = null;
+            currentUserRole = null;
+            await signInAnonymously(auth)
+            // No need to do anything after anonymous sign in, the onAuthStateChanged will re-trigger
         }
-    } else {
-        currentUserId = null;
-        currentUserRole = null;
-        signInAnonymously(auth).catch((error) => {
-            console.error("Anonymous sign-in failed:", error);
-            // FIX: Hide loading screen on sign-in failure to show error.
-            loadingScreen.style.display = 'none';
-            landingPageContent.innerHTML = '<div class="h-screen flex items-center justify-center"><h2 class="text-3xl font-bold text-red-700">Could not connect. Please refresh.</h2></div>';
-            landingPageContent.style.display = 'block';
-        });
+    } catch (error) {
+        console.error("Authentication Error:", error);
+        loadingScreen.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold text-red-700">Connection Error</h2><p class="text-gray-600 mt-2">Could not connect to services. Please check your internet connection and refresh the page.</p><p class="text-xs text-gray-400 mt-4">Error: ${error.message}</p></div>`;
     }
 });
 
@@ -633,44 +628,6 @@ function initLandingPage() {
             updateFeatureVisibility({ showClientLogin: true, showPromotions: true, showGiftCards: true, showNailArt: true });
         }
     });
-
-    const giftCardPreview = document.getElementById('gift-card-preview');
-    const giftCardBgSelect = document.getElementById('gift-card-bg-select');
-
-    const updateGiftCardPreview = () => {
-        const amount = giftCardAmountSelect.value === 'custom' ? customAmountInput.value : giftCardAmountSelect.value;
-        const to = document.getElementById('gift-card-recipient-name').value;
-        const from = document.getElementById('gift-card-sender-name').value;
-        const message = document.getElementById('gift-card-message').value;
-        const bg = giftCardBgSelect.value;
-
-        giftCardPreview.style.backgroundImage = `url('${bg}')`;
-        giftCardPreview.innerHTML = `
-            <div class="p-4 bg-black bg-opacity-40 rounded-t-lg h-1/2 flex justify-between">
-                <h3 class="font-parisienne text-3xl">Gift Card</h3>
-                <p class="text-3xl font-bold">$${amount || '0'}</p>
-            </div>
-            <div class="p-4 bg-black bg-opacity-20 rounded-b-lg h-1/2 flex flex-col justify-end text-sm">
-                <p>To: <span class="font-semibold">${to || 'Recipient'}</span></p>
-                <p>From: <span class="font-semibold">${from || 'Sender'}</span></p>
-                <p class="mt-2 italic">"${message || 'Enjoy your treat!'}"</p>
-            </div>
-        `;
-    };
-    
-
-    Object.keys(giftCardBackgrounds).forEach(category => {
-        const optgroup = document.createElement('optgroup');
-        optgroup.label = category;
-        giftCardBackgrounds[category].forEach((url, index) => {
-            const option = new Option(`${category} ${index + 1}`, url);
-            optgroup.appendChild(option);
-        });
-        giftCardBgSelect.appendChild(optgroup);
-    });
-
-    giftCardForm.addEventListener('input', updateGiftCardPreview);
-    updateGiftCardPreview();
 }
 
 // --- CLIENT DASHBOARD SCRIPT ---
@@ -812,21 +769,29 @@ function initMainApp(userRole) {
     const bookingNavCount = document.getElementById('booking-nav-count');
     const appLoadTimestamp = Timestamp.now();
 
+    // FIX: State variables for dashboard earning report filters
+    let currentDashboardEarningTechFilter = 'All', currentDashboardEarningDateFilter = '', currentDashboardEarningRangeFilter = 'daily';
+
     const updateNavCounts = () => {
         const checkInCount = allActiveClients.length;
-        if (checkInCount > 0) {
-            checkInNavCount.textContent = checkInCount;
-            checkInNavCount.classList.remove('hidden');
-        } else {
-            checkInNavCount.classList.add('hidden');
+        // FIX: Add checks to ensure elements exist before updating them.
+        if (checkInNavCount) {
+            if (checkInCount > 0) {
+                checkInNavCount.textContent = checkInCount;
+                checkInNavCount.classList.remove('hidden');
+            } else {
+                checkInNavCount.classList.add('hidden');
+            }
         }
 
         const bookingCount = allAppointments.length;
-        if (bookingCount > 0) {
-            bookingNavCount.textContent = bookingCount;
-            bookingNavCount.classList.remove('hidden');
-        } else {
-            bookingNavCount.classList.add('hidden');
+        if (bookingNavCount) {
+            if (bookingCount > 0) {
+                bookingNavCount.textContent = bookingCount;
+                bookingNavCount.classList.remove('hidden');
+            } else {
+                bookingNavCount.classList.add('hidden');
+            }
         }
     };
     
@@ -919,7 +884,6 @@ function initMainApp(userRole) {
     const editSalonEarningForm = document.getElementById('edit-salon-earning-form');
     const clientFormModal = document.getElementById('client-form-modal');
     const clientForm = document.getElementById('client-form');
-    const clientProfileModal = document.getElementById('client-profile-modal');
     const geminiSmsModal = document.getElementById('gemini-sms-modal');
     const confirmModal = document.getElementById('confirm-modal');
     const confirmModalMessage = document.getElementById('confirm-modal-message');
@@ -928,8 +892,9 @@ function initMainApp(userRole) {
     const logUsageModal = document.getElementById('log-usage-modal');
     const logUsageForm = document.getElementById('log-usage-form');
     const shareModal = document.getElementById('share-modal');
-    const giftCardDesignerModal = document.getElementById('gift-card-designer-modal');
     const editGiftCardModal = document.getElementById('edit-gift-card-modal');
+    const clientProfileModal = document.getElementById('client-profile-modal');
+
 
     const rebookOtherInput = document.getElementById('rebook-other-input');
     const rebookSelect = document.getElementById('rebook-select');
@@ -951,6 +916,10 @@ function initMainApp(userRole) {
     let currentTechFilterCalendar = 'All', currentTechFilterActive = 'All', currentTechFilterProcessing = 'All', currentTechFilterFinished = 'All';
     let currentFinishedDateFilter = '', currentEarningTechFilter = 'All', currentEarningDateFilter = '', currentEarningRangeFilter = 'daily';
     let currentSalonEarningDateFilter = '', currentSalonEarningRangeFilter = String(new Date().getMonth()), currentExpenseMonthFilter = '';
+
+    let aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [], allInventoryUsage = [], allGiftCards = [], allPromotions = [];
+    let techniciansAndStaff = [], technicians = [];
+    let allExpenseCategories = [], allPaymentAccounts = [], allSuppliers = [];
 
     
     let confirmCallback = null;
@@ -1181,11 +1150,11 @@ function initMainApp(userRole) {
             return { ...client, favoriteTech: findFavorite(client.techCounts), favoriteColor: findFavorite(client.colorCounts) };
         });
     
-        const clientInfoMap = new Map(allClients.map(c => [c.name.toLowerCase(), { dob: c.dob, id: c.id, phone: c.phone, photoGallery: c.photoGallery }]));
+        const clientInfoMap = new Map(allClients.map(c => [c.name.toLowerCase(), { dob: c.dob, id: c.id, phone: c.phone }]));
         let finalClientList = processedClients.map(aggClient => {
             const key = aggClient.name.toLowerCase();
             const masterInfo = clientInfoMap.get(key);
-            return { ...aggClient, id: masterInfo ? masterInfo.id : null, dob: masterInfo ? masterInfo.dob : '', phone: masterInfo && masterInfo.phone ? masterInfo.phone : aggClient.phone, photoGallery: masterInfo ? masterInfo.photoGallery : [] };
+            return { ...aggClient, id: masterInfo ? masterInfo.id : null, dob: masterInfo ? masterInfo.dob : '', phone: masterInfo && masterInfo.phone ? masterInfo.phone : aggClient.phone };
         });
     
         allClients.forEach(masterClient => {
@@ -1244,6 +1213,33 @@ function initMainApp(userRole) {
         document.getElementById('total-tip').textContent = `$${totalTip.toFixed(2)}`;
         filteredEarningTotalMainSpan.textContent = `Total ($${totalEarning.toFixed(2)})`;
         filteredEarningTotalTipSpan.textContent = `Tip ($${totalTip.toFixed(2)})`;
+    };
+
+    // FIX: New function to render staff earnings on the dashboard
+    const renderDashboardStaffEarnings = (earnings) => {
+        const tbody = document.querySelector('#dashboard-staff-earning-table-full tbody');
+        if (!tbody) return;
+        tbody.innerHTML = earnings.length === 0 ? `<tr><td colspan="5" class="py-6 text-center text-gray-400">No earnings found for this period.</td></tr>` : '';
+        earnings.sort((a, b) => b.date.seconds - a.date.seconds).forEach(earning => {
+            const row = tbody.insertRow();
+            row.className = 'bg-white border-b';
+            row.innerHTML = `
+                <td class="px-6 py-4">${new Date(earning.date.seconds * 1000).toLocaleDateString()}</td>
+                <td class="px-6 py-4 font-medium text-gray-900">${earning.staffName}</td>
+                <td class="px-6 py-4">$${earning.earning.toFixed(2)}</td>
+                <td class="px-6 py-4">$${earning.tip.toFixed(2)}</td>
+                <td class="px-6 py-4 text-center space-x-2">
+                    <button data-id="${earning.id}" class="edit-earning-btn text-blue-500 hover:text-blue-700" title="Edit Earning"><i class="fas fa-edit text-lg"></i></button>
+                    <button data-id="${earning.id}" class="delete-earning-btn text-red-500 hover:text-red-700" title="Delete Earning"><i class="fas fa-trash-alt text-lg"></i></button>
+                </td>
+            `;
+        });
+        const totalEarning = earnings.reduce((sum, e) => sum + e.earning, 0);
+        const totalTip = earnings.reduce((sum, e) => sum + e.tip, 0);
+        const dashboardFilteredEarningTotalMainSpan = document.getElementById('dashboard-filtered-earning-total-main');
+        const dashboardFilteredEarningTotalTipSpan = document.getElementById('dashboard-filtered-earning-total-tip');
+        if (dashboardFilteredEarningTotalMainSpan) dashboardFilteredEarningTotalMainSpan.textContent = `Total ($${totalEarning.toFixed(2)})`;
+        if (dashboardFilteredEarningTotalTipSpan) dashboardFilteredEarningTotalTipSpan.textContent = `Tip ($${totalTip.toFixed(2)})`;
     };
 
     const applySalonEarningFilters = (earnings, dateFilter, rangeFilter) => {
@@ -1443,6 +1439,64 @@ function initMainApp(userRole) {
         }
     });
 
+    const openClientProfileModal = async (client) => {
+    // Find all relevant data for the selected client
+    const clientData = aggregatedClients.find(c => c.id === client.id);
+    if (!clientData) {
+        console.error("Could not find aggregated data for client:", client);
+        alert("Could not load client profile.");
+        return;
+    }
+    const clientHistory = allFinishedClients.filter(c => c.name === clientData.name);
+    const clientAppointments = allAppointments.filter(c => c.name === clientData.name && c.appointmentTimestamp.toDate() > new Date());
+
+    // Populate the modal with basic info
+    document.getElementById('profile-client-name').textContent = clientData.name;
+    document.getElementById('profile-client-phone').textContent = clientData.phone || 'No phone number';
+
+    // Populate stats cards
+    document.getElementById('profile-total-visits').textContent = clientHistory.length;
+    const totalSpent = clientHistory.reduce((sum, visit) => {
+        const prices = (visit.services.match(/\$\d+/g) || []).map(p => Number(p.slice(1)));
+        return sum + prices.reduce((a, b) => a + b, 0);
+    }, 0);
+    document.getElementById('profile-total-spent').textContent = `$${totalSpent.toFixed(2)}`;
+    document.getElementById('profile-fav-tech').textContent = clientData.favoriteTech;
+    document.getElementById('profile-fav-color').textContent = clientData.favoriteColor;
+
+    // Populate the visit history table
+    const historyBody = document.getElementById('profile-history-table-body');
+    historyBody.innerHTML = clientHistory.length > 0 ? clientHistory.map(v => 
+        `<tr>
+            <td class="px-4 py-2">${v.checkOutTimestamp.toDate().toLocaleDateString()}</td>
+            <td class="px-4 py-2">${v.services}</td>
+            <td class="px-4 py-2">${v.technician}</td>
+        </tr>`
+    ).join('') : '<tr><td colspan="3" class="text-center p-4 text-gray-500">No visit history found.</td></tr>';
+
+    // Populate upcoming appointments
+    const apptsContainer = document.getElementById('profile-upcoming-appts');
+    apptsContainer.innerHTML = clientAppointments.length > 0 
+        ? clientAppointments.map(a => `<div class="bg-blue-50 p-2 rounded-md"><p class="font-semibold">${a.appointmentTimestamp.toDate().toLocaleString()}</p><p class="text-sm">${a.services.join(', ')}</p></div>`).join('')
+        : '<p class="text-sm text-gray-500">No upcoming appointments.</p>';
+
+    // Populate photo gallery
+    const galleryContainer = document.getElementById('profile-photo-gallery');
+    try {
+        const clientDocSnap = await getDoc(doc(db, "clients", client.id));
+        if (clientDocSnap.exists() && clientDocSnap.data().photoGallery && clientDocSnap.data().photoGallery.length > 0) {
+             galleryContainer.innerHTML = clientDocSnap.data().photoGallery.map(url => `<a href="${url}" target="_blank"><img src="${url}" class="w-full h-24 object-cover rounded-md"></a>`).join('');
+        } else {
+            galleryContainer.innerHTML = '<p class="text-sm text-gray-500 col-span-full">No photos uploaded.</p>';
+        }
+    } catch (error) {
+        console.error("Error fetching client photo gallery:", error);
+        galleryContainer.innerHTML = '<p class="text-sm text-red-500 col-span-full">Could not load photos.</p>';
+    }
+
+    // Show the modal
+    clientProfileModal.classList.remove('hidden');
+};
      document.getElementById('finished-content').addEventListener('click', async (e) => {
         const deleteBtn = e.target.closest('.delete-btn-finished');
         const feedbackBtn = e.target.closest('.view-feedback-btn');
@@ -1550,7 +1604,10 @@ function initMainApp(userRole) {
 
     onSnapshot(query(collection(db, "earnings"), orderBy("date", "desc")), (snapshot) => {
         allEarnings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Reports tab
         renderStaffEarnings(applyEarningFilters(allEarnings, currentEarningTechFilter, currentEarningDateFilter, currentEarningRangeFilter));
+        // FIX: Also render for the dashboard
+        renderDashboardStaffEarnings(applyEarningFilters(allEarnings, currentDashboardEarningTechFilter, currentDashboardEarningDateFilter, currentDashboardEarningRangeFilter));
         updateDashboard();
     });
 
@@ -1575,6 +1632,19 @@ function initMainApp(userRole) {
     document.getElementById('search-finished').addEventListener('input', (e) => { renderFinishedClients(applyClientFilters(allFinishedClients, e.target.value.toLowerCase(), currentTechFilterFinished, currentFinishedDateFilter)); });
     document.getElementById('finished-date-filter').addEventListener('input', (e) => { currentFinishedDateFilter = e.target.value; renderFinishedClients(applyClientFilters(allFinishedClients, document.getElementById('search-finished').value.toLowerCase(), currentTechFilterFinished, currentFinishedDateFilter)); });
     document.getElementById('search-clients-list').addEventListener('input', () => renderClientsList());
+    document.getElementById('search-gift-cards').addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase();
+    const filtered = allGiftCards.filter(card => 
+        card.code.toLowerCase().includes(searchTerm) || 
+        card.recipientName.toLowerCase().includes(searchTerm)
+    );
+    renderGiftCardsAdminTable(filtered);
+});
+    document.getElementById('search-gift-cards').addEventListener('input', (e) => {
+        const searchTerm = e.target.value.toLowerCase();
+        const filtered = allGiftCards.filter(card => card.code.toLowerCase().includes(searchTerm) || card.recipientName.toLowerCase().includes(searchTerm));
+        renderGiftCardsAdminTable(filtered);
+    });
     
     document.getElementById('export-clients-btn').addEventListener('click', () => {
         const dataToExport = aggregatedClients.map(c => ({ Name: c.name, Phone: c.phone || '', DOB: c.dob || '', 'Favorite Tech': c.favoriteTech || '', 'Favorite Color': c.favoriteColor || '', 'Last Visit': c.lastVisit ? new Date(c.lastVisit).toLocaleDateString() : '' }));
@@ -1636,7 +1706,9 @@ function initMainApp(userRole) {
                 if (dayCell) { dayCell.insertAdjacentHTML('beforeend', `<div class="appointment-entry bg-blue-100 text-blue-700" data-id="${appt.id}" data-type="appointment">${appt.name}</div>`); }
             }
         });
-        calendarCountSpan.textContent = calendarGrid.querySelectorAll('.appointment-entry').length;
+        if(calendarCountSpan) {
+            calendarCountSpan.textContent = calendarGrid.querySelectorAll('.appointment-entry').length;
+        }
     }
     document.getElementById('prev-month-btn').addEventListener('click', () => { currentMonth--; if (currentMonth < 0) { currentMonth = 11; currentYear--; } renderCalendar(currentYear, currentMonth, currentTechFilterCalendar); });
     document.getElementById('next-month-btn').addEventListener('click', () => { currentMonth++; if (currentMonth > 11) { currentMonth = 0; currentYear++; } renderCalendar(currentYear, currentMonth, currentTechFilterCalendar); });
@@ -1663,6 +1735,12 @@ function initMainApp(userRole) {
     setupTechFilter('tech-filter-container-calendar', (tech) => { currentTechFilterCalendar = tech; if (!document.getElementById('list-view').classList.contains('hidden')) { renderAllBookingsList(); } else { renderCalendar(currentYear, currentMonth, currentTechFilterCalendar); } });
     setupTechFilter('tech-filter-container-earning', (tech) => { currentEarningTechFilter = tech; renderStaffEarnings(applyEarningFilters(allEarnings, currentEarningTechFilter, currentEarningDateFilter, currentEarningRangeFilter)); });
     
+    // FIX: Setup filters for the new dashboard earning report
+    setupTechFilter('dashboard-tech-filter-container-earning', (tech) => {
+        currentDashboardEarningTechFilter = tech;
+        renderDashboardStaffEarnings(applyEarningFilters(allEarnings, currentDashboardEarningTechFilter, currentDashboardEarningDateFilter, currentDashboardEarningRangeFilter));
+    });
+
     const setupReportDateFilters = (selectId, dateInputId, callback) => {
         const select = document.getElementById(selectId);
         const dateInput = document.getElementById(dateInputId);
@@ -1676,6 +1754,13 @@ function initMainApp(userRole) {
 
     setupReportDateFilters('earning-range-filter', 'earning-date-filter', (date, range) => { currentEarningDateFilter = date; currentEarningRangeFilter = range; renderStaffEarnings(applyEarningFilters(allEarnings, currentEarningTechFilter, date, range)); });
     setupReportDateFilters('salon-earning-range-filter', 'salon-earning-date-filter', (date, range) => { currentSalonEarningDateFilter = date; currentSalonEarningRangeFilter = range; renderSalonEarnings(applySalonEarningFilters(allSalonEarnings, date, range)); });
+    
+    // FIX: Setup date filters for the new dashboard earning report
+    setupReportDateFilters('dashboard-earning-range-filter', 'dashboard-earning-date-filter', (date, range) => {
+        currentDashboardEarningDateFilter = date;
+        currentDashboardEarningRangeFilter = range;
+        renderDashboardStaffEarnings(applyEarningFilters(allEarnings, currentDashboardEarningTechFilter, date, range));
+    });
 
     
     document.getElementById('staff-earning-form').addEventListener('submit', async (e) => {
@@ -1692,12 +1777,36 @@ function initMainApp(userRole) {
         } catch (err) { console.error("Error adding earning: ", err); alert("Could not add earning."); }
     });
 
+    // FIX: Add event listener for dashboard earning form
+    document.getElementById('dashboard-staff-earning-form-full').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const staffName = document.getElementById('dashboard-staff-name-full').value;
+        const earning = parseFloat(document.getElementById('dashboard-staff-earning-full').value);
+        const tip = parseFloat(document.getElementById('dashboard-staff-tip-full').value);
+        const date = document.getElementById('dashboard-staff-earning-date-full').value;
+        if (isNaN(earning) || isNaN(tip) || !date) { return alert('Please fill out all fields correctly.'); }
+        try {
+            await addDoc(collection(db, "earnings"), { staffName, earning, tip, date: Timestamp.fromDate(new Date(date + 'T12:00:00')) });
+            e.target.reset();
+            document.getElementById('dashboard-staff-earning-date-full').value = getLocalDateString();
+        } catch (err) { console.error("Error adding earning from dashboard: ", err); alert("Could not add earning."); }
+    });
+
     document.getElementById('staff-earning-table').addEventListener('click', async (e) => {
         const deleteBtn = e.target.closest('.delete-earning-btn');
         const editBtn = e.target.closest('.edit-earning-btn');
         if(deleteBtn) { showConfirmModal("Delete this earning entry?", async () => { await deleteDoc(doc(db, "earnings", deleteBtn.dataset.id)); }); } 
         else if (editBtn) { const earning = allEarnings.find(e => e.id === editBtn.dataset.id); if (earning) { openEditEarningModal(earning); } }
     });
+
+    // FIX: Add event listener for dashboard earning table actions
+    document.getElementById('dashboard-staff-earning-table-full').addEventListener('click', async (e) => {
+        const deleteBtn = e.target.closest('.delete-earning-btn');
+        const editBtn = e.target.closest('.edit-earning-btn');
+        if(deleteBtn) { showConfirmModal("Delete this earning entry?", async () => { await deleteDoc(doc(db, "earnings", deleteBtn.dataset.id)); }); }
+        else if (editBtn) { const earning = allEarnings.find(e => e.id === editBtn.dataset.id); if (earning) { openEditEarningModal(earning); } }
+    });
+
 
     document.getElementById('salon-earning-form').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1867,16 +1976,8 @@ function initMainApp(userRole) {
         geminiSmsModal.classList.remove('hidden'); geminiSmsModal.classList.add('flex');
         const prompt = `Write a single, friendly, and short SMS message to a nail salon client named ${client.name}. Thank them for their recent visit where they received the following services: ${client.services}. Mention that their technician was ${client.technician}. Ask them to come back soon. Keep it concise and professional.`;
         try {
-            // FIX: Updated Gemini model and API call structure
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
             const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-            const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-            
-            if (!response.ok) {
-                throw new Error(`API call failed with status: ${response.status}`);
-            }
-
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
             const result = await response.json();
             let text = "Sorry, could not generate a message.";
             if (result.candidates?.[0]?.content?.parts?.[0]) { text = result.candidates[0].content.parts[0].text; }
@@ -1887,73 +1988,44 @@ function initMainApp(userRole) {
     }
 
     document.getElementById('clients-list-report-content').addEventListener('click', (e) => {
-        const viewProfileBtn = e.target.closest('.view-client-profile-btn');
-        const editBtn = e.target.closest('.edit-client-btn');
-        const deleteBtn = e.target.closest('.delete-client-btn');
-        if (viewProfileBtn) { const client = aggregatedClients.find(c => c.id === viewProfileBtn.dataset.id); if(client) { openClientProfileModal(client); } } 
-        else if (editBtn) { const client = aggregatedClients.find(c => c.id === editBtn.dataset.id); if(client) { openClientModal(client); } } 
-        else if (deleteBtn) { const clientId = deleteBtn.dataset.id; const client = aggregatedClients.find(c => c.id === clientId); if (client) { showConfirmModal(`Delete all records for ${client.name}? This cannot be undone.`, async () => { await deleteDoc(doc(db, "clients", clientId)); }); } }
-    });
-    
-    const openClientProfileModal = async (client) => {
-        if (!client) return;
-        document.getElementById('profile-client-name').textContent = client.name;
-        document.getElementById('profile-client-phone').textContent = client.phone || 'No phone number';
-       
-        const historyQuery = query(collection(db, "finished_clients"), where("name", "==", client.name), orderBy("checkOutTimestamp", "desc"));
-        const historySnapshot = await getDocs(historyQuery);
-        const history = historySnapshot.docs.map(doc => doc.data());
-        
-        let totalSpent = 0;
-        const historyBody = document.getElementById('profile-history-table-body');
-        
-        if (history.length === 0) {
-            historyBody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-gray-500">No visit history found.</td></tr>';
+    const viewProfileBtn = e.target.closest('.view-client-profile-btn');
+    const editBtn = e.target.closest('.edit-client-btn');
+    const deleteBtn = e.target.closest('.delete-client-btn');
+
+    if (viewProfileBtn) { 
+        const client = aggregatedClients.find(c => c.id === viewProfileBtn.dataset.id); 
+        if(client) { 
+            openClientProfileModal(client); 
         } else {
-            historyBody.innerHTML = history.map(visit => {
-                let visitTotal = 0;
-                // Simplified price parsing - assumes price is at the end after a '$'
-                if (typeof visit.services === 'string') {
-                    const prices = visit.services.match(/\$\s*(\d+(\.\d{2})?)/g) || [];
-                    visitTotal = prices.reduce((sum, price) => sum + parseFloat(price.replace(/[^0-9.]/g, '')), 0);
-                    totalSpent += visitTotal;
+            console.warn("Could not find client data for ID:", viewProfileBtn.dataset.id);
+        }
+    } 
+    else if (editBtn) { 
+        const client = aggregatedClients.find(c => c.id === editBtn.dataset.id); 
+        if(client) { 
+            openClientModal(client); 
+        } else {
+            console.warn("Could not find client data for ID:", editBtn.dataset.id);
+        }
+    } 
+    else if (deleteBtn) { 
+        const clientId = deleteBtn.dataset.id; 
+        const client = aggregatedClients.find(c => c.id === clientId); 
+        if (client) { 
+            showConfirmModal(`Delete all records for ${client.name}? This cannot be undone.`, async () => { 
+                try {
+                    await deleteDoc(doc(db, "clients", clientId)); 
+                    alert(`${client.name} has been deleted.`);
+                } catch (error) {
+                    console.error("Error deleting client:", error);
+                    alert("Could not delete the client.");
                 }
-                return `<tr class="border-b"><td class="px-4 py-2">${new Date(visit.checkOutTimestamp.seconds * 1000).toLocaleDateString()}</td><td class="px-4 py-2">${visit.services}</td><td class="px-4 py-2">${visit.technician}</td><td class="px-4 py-2 text-right font-medium">$${visitTotal.toFixed(2)}</td></tr>`;
-            }).join('');
-        }
-        
-        document.getElementById('profile-total-visits').textContent = history.length;
-        document.getElementById('profile-total-spent').textContent = `$${totalSpent.toFixed(2)}`;
-        document.getElementById('profile-fav-tech').textContent = client.favoriteTech || 'N/A';
-        document.getElementById('profile-fav-color').textContent = client.favoriteColor || 'N/A';
-
-        const upcomingAppointmentsContainer = document.getElementById('profile-upcoming-appointments');
-        const clientUpcomingAppointments = allAppointments.filter(a => a.name === client.name && a.appointmentTimestamp.toDate() > new Date());
-        if (clientUpcomingAppointments.length > 0) {
-            upcomingAppointmentsContainer.innerHTML = '<ul class="space-y-2">' + clientUpcomingAppointments.map(appt => `<li class="text-sm bg-blue-50 p-2 rounded-md">${new Date(appt.appointmentTimestamp.seconds * 1000).toLocaleString()}: <strong>${Array.isArray(appt.services) ? appt.services.join(', ') : appt.services}</strong></li>`).join('') + '</ul>';
+            }); 
         } else {
-            upcomingAppointmentsContainer.innerHTML = '<p class="text-sm text-gray-500">No upcoming appointments.</p>';
+             console.warn("Could not find client data for ID:", clientId);
         }
-
-        const galleryContainer = document.getElementById('profile-photo-gallery');
-        if (client.photoGallery && client.photoGallery.length > 0) {
-            galleryContainer.innerHTML = client.photoGallery.map(url => `<div class="w-24 h-24 flex-shrink-0"><img src="${url}" class="w-full h-full object-cover rounded-md shadow-md"></div>`).join('');
-        } else {
-            galleryContainer.innerHTML = '<p class="text-sm text-gray-500">No photos in gallery.</p>';
-        }
-        
-        clientProfileModal.classList.remove('hidden');
-        clientProfileModal.classList.add('flex');
-    };
-
-    const closeClientProfileModal = () => {
-        clientProfileModal.classList.add('hidden');
-        clientProfileModal.classList.remove('flex');
-    };
-    document.getElementById('close-client-profile-modal-btn').addEventListener('click', closeClientProfileModal);
-    clientProfileModal.querySelector('.modal-overlay').addEventListener('click', closeClientProfileModal);
-
-
+    }
+});
     document.getElementById('gemini-sms-close-btn').addEventListener('click', () => { geminiSmsModal.classList.add('hidden'); geminiSmsModal.classList.remove('flex'); });
     document.querySelector('.gemini-sms-modal-overlay').addEventListener('click', () => { geminiSmsModal.classList.add('hidden'); geminiSmsModal.classList.remove('flex'); });
     
@@ -1970,15 +2042,17 @@ function initMainApp(userRole) {
     };
     
     const populateTechnicianFilters = () => {
+        // FIX: Added #dashboard-staff-name-full to the selector
+        const techSelects = document.querySelectorAll('#appointment-technician-select, #technician-name-select, #staff-name, #edit-staff-name, #checkin-technician-select, #dashboard-staff-name-full');
         const techContainers = document.querySelectorAll('.tech-filter-container');
-        const techSelects = document.querySelectorAll('#appointment-technician-select, #technician-name-select, #staff-name, #edit-staff-name, #checkin-technician-select');
         techContainers.forEach(container => {
             const userList = container.id.includes('earning') ? techniciansAndStaff : technicians;
             container.querySelectorAll('.dynamic-tech-btn').forEach(btn => btn.remove());
             userList.forEach(tech => { const btn = document.createElement('button'); btn.className = 'tech-filter-btn dynamic-tech-btn px-3 py-1 rounded-full text-sm'; btn.dataset.tech = tech.name; btn.textContent = tech.name; container.appendChild(btn); });
         });
         techSelects.forEach(select => {
-            const userList = (select.id === 'staff-name' || select.id === 'edit-staff-name') ? techniciansAndStaff : technicians;
+            if (!select) return; // Add a guard clause
+            const userList = (select.id.includes('staff-name')) ? techniciansAndStaff : technicians;
             const firstOption = select.options[0];
             select.innerHTML = '';
             if(firstOption && (firstOption.value === 'Any Technician' || firstOption.value === '')) { select.appendChild(firstOption); }
@@ -2615,33 +2689,37 @@ function initMainApp(userRole) {
     });
 
     const giftCardsTableBody = document.querySelector('#gift-cards-table tbody');
+    const giftCardsTableAdminBody = document.querySelector('#gift-cards-table-admin tbody');
 
     const renderGiftCardsAdminTable = (cards) => {
-        giftCardsTableBody.innerHTML = '';
-        if (cards.length === 0) {
-            giftCardsTableBody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-gray-400">No gift cards have been sold.</td></tr>`;
-            return;
-        }
-        cards.forEach(card => {
-            const row = giftCardsTableBody.insertRow();
-            const balance = card.balance !== undefined ? card.balance : card.amount;
-            let status = card.status;
-            let statusColor = 'text-gray-500';
-            if (balance > 0) {
-                status = 'Active';
-                statusColor = 'text-green-600';
-            } else {
-                status = 'Depleted';
+        const tables = [giftCardsTableBody, giftCardsTableAdminBody];
+        tables.forEach(tbody => {
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (cards.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-gray-400">No gift cards have been sold.</td></tr>`;
+                return;
             }
+            cards.forEach(card => {
+                const row = tbody.insertRow();
+                const balance = card.balance !== undefined ? card.balance : card.amount;
+                let status = card.status;
+                let statusColor = 'text-gray-500';
+                if (balance > 0) {
+                    status = 'Active';
+                    statusColor = 'text-green-600';
+                } else {
+                    status = 'Depleted';
+                }
 
-            row.innerHTML = `<td class="px-6 py-4">${new Date(card.createdAt.seconds * 1000).toLocaleDateString()}</td><td class="px-6 py-4 font-mono text-xs">${card.code}</td><td class="px-6 py-4">$${card.amount.toFixed(2)}</td><td class="px-6 py-4 font-bold">$${balance.toFixed(2)}</td><td class="px-6 py-4">${card.recipientName}<br><span class="text-xs text-gray-500">${card.recipientEmail || 'Physical Card'}</span></td><td class="px-6 py-4">${card.senderName}</td><td class="px-6 py-4 font-bold ${statusColor}">${status}</td><td class="px-6 py-4 text-center"><button data-id="${card.id}" class="edit-gift-card-btn text-blue-500 hover:text-blue-700" title="Manage Card"><i class="fas fa-edit text-lg"></i></button></td>`;
+            row.innerHTML = `<td class="px-6 py-4">${new Date(card.createdAt.seconds * 1000).toLocaleDateString()}</td><td class="px-6 py-4 font-mono text-xs">${card.code}</td><td class="px-6 py-4">$${card.amount.toFixed(2)}</td><td class="px-6 py-4 font-bold">$${balance.toFixed(2)}</td><td class="px-6 py-4">${card.recipientName}<br><span class="text-xs text-gray-500">${card.recipientEmail || 'Physical Card'}</span></td><td class="px-6 py-4">${card.senderName}</td><td class="px-6 py-4 font-bold ${statusColor}">${status}</td><td class="px-6 py-4 text-center space-x-4"><button data-id="${card.id}" class="edit-gift-card-btn text-blue-500 hover:text-blue-700" title="Manage Card"><i class="fas fa-edit text-lg"></i></button><button data-id="${card.id}" class="delete-gift-card-btn text-red-500 hover:text-red-700" title="Delete Card"><i class="fas fa-trash-alt text-lg"></i></button></td>`;
+                });
         });
     };
 
     onSnapshot(query(collection(db, "gift_cards"), orderBy("createdAt", "desc")), (snapshot) => {
         allGiftCards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderGiftCardsAdminTable(allGiftCards);
-        renderGiftCards();
     });
 
     const addPromotionForm = document.getElementById('add-promotion-form');
@@ -2770,8 +2848,6 @@ function initMainApp(userRole) {
     });
     
     // --- Gift Card Designer & Management Logic ---
-    const createPrintableCardBtn = document.getElementById('create-printable-card-btn');
-    const closeDesignerModalBtn = document.getElementById('close-designer-modal-btn');
     const designerForm = document.getElementById('physical-gift-card-form');
     const designerBackgroundTabs = document.getElementById('designer-background-tabs');
     const designerBackgroundOptions = document.getElementById('designer-background-options');
@@ -2829,7 +2905,8 @@ function initMainApp(userRole) {
         }
     };
     
-    const openDesignerModal = () => {
+    // FIX: Initialize the designer when the main app loads instead of treating it as a modal.
+    const initializeGiftCardDesigner = () => {
         designerForm.reset();
         document.getElementById('designer-quantity').value = 1;
         document.getElementById('preview-code').textContent = `GC-${Date.now()}${[...Array(4)].map(() => Math.floor(Math.random() * 10)).join('')}`;
@@ -2839,27 +2916,22 @@ function initMainApp(userRole) {
         ).join('');
         
         const firstTab = designerBackgroundTabs.querySelector('button');
-        firstTab.classList.add('bg-gray-200');
-        populateBackgrounds(firstTab.dataset.category);
+        if(firstTab) {
+             firstTab.classList.add('bg-gray-200', 'border-gray-300', 'border-b-0');
+             populateBackgrounds(firstTab.dataset.category);
+        }
 
         updateDesignerPreview();
-        giftCardDesignerModal.classList.remove('hidden');
-        giftCardDesignerModal.classList.add('flex');
     };
     
     designerBackgroundTabs.addEventListener('click', e => {
         const tab = e.target.closest('button');
         if (tab) {
-            designerBackgroundTabs.querySelectorAll('button').forEach(t => t.classList.remove('bg-gray-200'));
-            tab.classList.add('bg-gray-200');
+            designerBackgroundTabs.querySelectorAll('button').forEach(t => t.classList.remove('bg-gray-200', 'border-gray-300', 'border-b-0'));
+            tab.classList.add('bg-gray-200', 'border-gray-300', 'border-b-0');
             populateBackgrounds(tab.dataset.category);
         }
     });
-
-    const closeDesignerModal = () => {
-        giftCardDesignerModal.classList.add('hidden');
-        giftCardDesignerModal.classList.remove('flex');
-    };
 
     designerBackgroundOptions.addEventListener('click', (e) => {
         const target = e.target.closest('button');
@@ -2870,6 +2942,7 @@ function initMainApp(userRole) {
         }
     });
 
+    // FIX: Corrected the Save & Print functionality.
     const handleSaveAndPrint = async () => {
         const quantity = parseInt(document.getElementById('designer-quantity').value, 10);
         if (isNaN(quantity) || quantity < 1) {
@@ -2916,10 +2989,13 @@ function initMainApp(userRole) {
         try {
             await batch.commit();
             
+            const originalPreviewHTML = printableCardArea.innerHTML;
+
             printableCardArea.innerHTML = cardsToPrint.map(card => {
                  const expiryText = card.expiresAt ? `Expires: ${card.expiresAt.toDate().toLocaleDateString()}` : '';
+                 const bgImage = printableCard.style.backgroundImage;
                  return `
-                    <div class="printable-gift-card w-[400px] h-[228px] shadow-lg rounded-lg p-4 flex flex-col justify-between bg-cover bg-center text-white" style="background-image: url('${printableCard.style.backgroundImage.slice(5, -2)}');">
+                    <div class="printable-gift-card w-[400px] h-[228px] shadow-lg rounded-lg p-4 flex flex-col justify-between bg-cover bg-center text-white" style="background-image: ${bgImage};">
                         <div class="flex justify-between items-start" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
                             <img src="${document.getElementById('preview-logo').src}" class="w-12 h-12 rounded-full border-2 border-white"/>
                             <div class="text-right">
@@ -2938,8 +3014,13 @@ function initMainApp(userRole) {
                         </div>
                     </div>`;
             }).join('');
-
+            
             window.print();
+
+            setTimeout(() => {
+                printableCardArea.innerHTML = originalPreviewHTML;
+            }, 1000);
+
         } catch (error) {
             console.error("Error saving physical gift cards:", error);
             alert("Could not save the gift cards. Please try again.");
@@ -2953,9 +3034,6 @@ function initMainApp(userRole) {
         updateDesignerPreview();
     });
 
-    createPrintableCardBtn.addEventListener('click', openDesignerModal);
-    closeDesignerModalBtn.addEventListener('click', closeDesignerModal);
-    giftCardDesignerModal.querySelector('.modal-overlay').addEventListener('click', closeDesignerModal);
     designerForm.addEventListener('input', updateDesignerPreview);
     saveAndPrintBtn.addEventListener('click', handleSaveAndPrint);
     
@@ -3036,19 +3114,48 @@ function initMainApp(userRole) {
         }
     });
 
-    document.getElementById('gift-cards-table').addEventListener('click', (e) => {
-        const editBtn = e.target.closest('.edit-gift-card-btn');
-        if (editBtn) {
-            const card = allGiftCards.find(c => c.id === editBtn.dataset.id);
-            if(card) openEditGiftCardModal(card);
-        }
-    });
-
+    
     document.getElementById('close-edit-gift-card-modal-btn').addEventListener('click', () => editGiftCardModal.classList.add('hidden'));
     editGiftCardModal.querySelector('.modal-overlay').addEventListener('click', () => editGiftCardModal.classList.add('hidden'));
+    const setupGiftCardTableListener = (tableId) => {
+    const table = document.getElementById(tableId);
+    if (table) {
+        table.addEventListener('click', (e) => {
+            const editBtn = e.target.closest('.edit-gift-card-btn');
+            if (editBtn) {
+                const card = allGiftCards.find(c => c.id === editBtn.dataset.id);
+                if(card) openEditGiftCardModal(card);
+            }
+
+            const deleteBtn = e.target.closest('.delete-gift-card-btn');
+            if (deleteBtn) {
+                const cardId = deleteBtn.dataset.id;
+                const card = allGiftCards.find(c => c.id === cardId);
+                if (card) {
+                    showConfirmModal(`Are you sure you want to delete gift card ${card.code}? This action cannot be undone.`, async () => {
+                        try {
+                            await deleteDoc(doc(db, "gift_cards", cardId));
+                            alert(`Gift card ${card.code} has been deleted.`);
+                        } catch (error) {
+                            console.error("Error deleting gift card:", error);
+                            alert("Could not delete the gift card.");
+                        }
+                    });
+                }
+            }
+        });
+    }
+};
+setupGiftCardTableListener('gift-cards-table');
+setupGiftCardTableListener('gift-cards-table-admin');
+    document.getElementById('close-client-profile-modal-btn').addEventListener('click', () => clientProfileModal.classList.add('hidden'));
+clientProfileModal.querySelector('.modal-overlay').addEventListener('click', () => clientProfileModal.classList.add('hidden'));
 
 
+
+    
     loadAndRenderServices();
+    initializeGiftCardDesigner(); // FIX: Initialize the designer
     const todayString = getLocalDateString();
     const currentMonthIndex = new Date().getMonth();
     document.getElementById('finished-date-filter').value = todayString;
@@ -3058,6 +3165,12 @@ function initMainApp(userRole) {
     document.getElementById('earning-date-filter').value = todayString;
     currentEarningDateFilter = todayString;
     renderStaffEarnings(applyEarningFilters(allEarnings, 'All', currentEarningDateFilter, 'daily'));
+    // FIX: Initialize dashboard date filter
+    const dashboardEarningDateFilter = document.getElementById('dashboard-earning-date-filter');
+    dashboardEarningDateFilter.value = todayString;
+    currentDashboardEarningDateFilter = todayString;
+    renderDashboardStaffEarnings(applyEarningFilters(allEarnings, 'All', currentDashboardEarningDateFilter, 'daily'));
+
     document.getElementById('salon-earning-date').value = todayString;
     const salonEarningRangeFilter = document.getElementById('salon-earning-range-filter');
     const salonEarningDateFilter = document.getElementById('salon-earning-date-filter');
