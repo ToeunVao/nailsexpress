@@ -1493,58 +1493,58 @@
                         <!-- Nail Ideas Management Content -->
                         <div id="nail-ideas-management-content" class="sub-tab-content hidden">
                             <h3 class="text-xl font-semibold text-gray-700 mb-4">Manage Nail Ideas</h3>
-                            <form id="add-nail-idea-form"
-                                class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6 p-4 border rounded-lg bg-gray-50 items-end">
-                                <input type="hidden" id="edit-nail-idea-id">
-                                <div><label for="nail-idea-name" class="block text-sm font-medium text-gray-600">Image
-                                        Name</label><input type="text" id="nail-idea-name"
-                                        class="form-input w-full mt-1" required></div>
-                                <div><label for="nail-idea-color" class="block text-sm font-medium text-gray-600">Color
-                                        Code</label><input type="text" id="nail-idea-color"
-                                        class="form-input w-full mt-1" placeholder="e.g., #FFC0CB, Red"></div>
-                                <div><label for="nail-idea-shape" class="block text-sm font-medium text-gray-600">Nail
-                                        Shape</label><input type="text" id="nail-idea-shape"
-                                        class="form-input w-full mt-1" placeholder="e.g., Almond, Square"></div>
-                                <div class="md:col-span-2"><label for="nail-idea-categories"
-                                        class="block text-sm font-medium text-gray-600">Categories</label><input
-                                        type="text" id="nail-idea-categories" class="form-input w-full mt-1"
-                                        placeholder="e.g., minimalist, glitter, holiday (comma-separated)"></div>
-                                <!-- REPLACE the old image input with this new block -->
-                                <div class="md:col-span-3">
-                                    <label class="block text-sm font-medium text-gray-600">Image Source</label>
-                                    <div class="flex items-center space-x-4 mt-2">
-                                        <label class="flex items-center">
-                                            <input type="radio" name="imageSource" value="upload" class="form-radio"
-                                                checked>
-                                            <span class="ml-2">Upload File</span>
-                                        </label>
-                                        <label class="flex items-center">
-                                            <input type="radio" name="imageSource" value="url" class="form-radio">
-                                            <span class="ml-2">From URL</span>
-                                        </label>
-                                    </div>
-                                </div>
-                                <div id="nail-idea-file-upload-container" class="md:col-span-3">
-                                    <label for="nail-idea-image" class="block text-sm font-medium text-gray-600">Image
-                                        File</label>
-                                    <input type="file" id="nail-idea-image" class="form-input w-full mt-1 text-sm"
-                                        accept="image/*">
-                                </div>
-                                <div id="nail-idea-url-container" class="md:col-span-3 hidden">
-                                    <label for="nail-idea-image-url"
-                                        class="block text-sm font-medium text-gray-600">Image URL</label>
-                                    <input type="url" id="nail-idea-image-url"
-                                        class="form-input w-full p-2 mt-1 border border-gray-300 rounded-lg"
-                                        placeholder="https://example.com/image.jpg">
-                                </div>
-                                <div class="self-end flex gap-2">
-                                    <button type="submit" id="add-nail-idea-btn"
-                                        class="w-full bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Add
-                                        Idea</button>
-                                    <button type="button" id="cancel-edit-nail-idea-btn"
-                                        class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 hidden">Cancel</button>
-                                </div>
-                            </form>
+                            <!-- REPLACE the old add-nail-idea-form with this new blog-style layout -->
+<form id="add-nail-idea-form" class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-6 p-6 border rounded-lg bg-gray-50">
+    <input type="hidden" id="edit-nail-idea-id">
+
+    <!-- Left Column (Main Content) -->
+    <div class="lg:col-span-2 space-y-6">
+        <div>
+            <label for="nail-idea-name" class="block text-sm font-medium text-gray-700">Title</label>
+            <input type="text" id="nail-idea-name" class="form-input w-full mt-1 p-3 border border-gray-300 rounded-lg text-lg font-semibold" required placeholder="e.g., Cherry Blossom Dreams">
+        </div>
+        <div>
+            <label for="nail-idea-description" class="block text-sm font-medium text-gray-700">Description</label>
+            <textarea id="nail-idea-description" rows="10" class="form-input w-full mt-1 p-3 border border-gray-300 rounded-lg" placeholder="Write a short description about this nail art, including techniques or products used..."></textarea>
+        </div>
+    </div>
+
+    <!-- Right Column (Metadata & Image) -->
+    <div class="space-y-6">
+        <div>
+            <label class="block text-sm font-medium text-gray-700">Image Source</label>
+            <div class="flex items-center space-x-4 mt-2">
+                <label class="flex items-center"><input type="radio" name="imageSource" value="upload" class="form-radio" checked><span class="ml-2">Upload File</span></label>
+                <label class="flex items-center"><input type="radio" name="imageSource" value="url" class="form-radio"><span class="ml-2">From URL</span></label>
+            </div>
+        </div>
+        <div id="nail-idea-file-upload-container">
+            <label for="nail-idea-image" class="block text-sm font-medium text-gray-700">Image File</label>
+            <input type="file" id="nail-idea-image" class="form-input w-full mt-1 text-sm" accept="image/*">
+        </div>
+        <div id="nail-idea-url-container" class="hidden">
+            <label for="nail-idea-image-url" class="block text-sm font-medium text-gray-700">Image URL</label>
+            <input type="url" id="nail-idea-image-url" class="form-input w-full p-2 mt-1 border border-gray-300 rounded-lg" placeholder="https://example.com/image.jpg">
+        </div>
+        <div>
+            <label for="nail-idea-shape" class="block text-sm font-medium text-gray-700">Nail Shape</label>
+            <input type="text" id="nail-idea-shape" list="nail-shapes-list" class="form-input w-full p-2 mt-1 border border-gray-300 rounded-lg" placeholder="e.g., Almond, Square">
+            <datalist id="nail-shapes-list"></datalist>
+        </div>
+        <div>
+            <label for="nail-idea-color" class="block text-sm font-medium text-gray-700">Color Code</label>
+            <input type="text" id="nail-idea-color" class="form-input w-full p-2 mt-1 border border-gray-300 rounded-lg" placeholder="e.g., #FFC0CB, Red">
+        </div>
+        <div>
+            <label for="nail-idea-categories" class="block text-sm font-medium text-gray-700">Categories</label>
+            <input type="text" id="nail-idea-categories" class="form-input w-full p-2 mt-1 border border-gray-300 rounded-lg" placeholder="e.g., minimalist, glitter">
+        </div>
+        <div class="flex gap-2 pt-4 border-t">
+            <button type="submit" id="add-nail-idea-btn" class="w-full bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Add Idea</button>
+            <button type="button" id="cancel-edit-nail-idea-btn" class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 hidden">Cancel</button>
+        </div>
+    </div>
+</form>
                             <div class="overflow-x-auto">
                                 <table id="nail-ideas-table" class="w-full text-sm text-left text-gray-600">
                                     <thead class="text-xs text-gray-700 uppercase bg-gray-50">
@@ -1572,8 +1572,7 @@
                                 <div>
                                     <h4 class="text-lg font-semibold text-gray-700 mb-2">Printable Gift Card Designer
                                     </h4>
-                                    <div
-                                        class="bg-gray-50 p-6 rounded-2xl border grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                                    <div class="bg-gray-50 p-6 rounded-2xl border grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
                                         <!-- Controls Panel -->
                                         <div id="designer-controls" class="space-y-4">
                                             <form id="physical-gift-card-form" class="space-y-4">
@@ -1706,272 +1705,285 @@
                                         </table>
                                     </div>
                                 </div>
-
-                            </div>
+                                
+                                 </div>
                         </div>
-                        <!-- Promotions Management Content -->
-                        <div id="promotions-management-content" class="sub-tab-content hidden">
-                            <h3 class="text-xl font-semibold text-gray-700 mb-4">Manage Promotions</h3>
-                            <form id="add-promotion-form"
-                                class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 p-4 border rounded-lg bg-gray-50 items-end">
-                                <input type="hidden" id="edit-promotion-id">
-                                <div class="md:col-span-2"><label for="promotion-title"
-                                        class="block text-sm font-medium text-gray-600">Title</label><input type="text"
-                                        id="promotion-title" class="form-input w-full mt-1" required></div>
-                                <div class="md:col-span-2"><label for="promotion-description"
-                                        class="block text-sm font-medium text-gray-600">Description</label><textarea
-                                        id="promotion-description" rows="2" class="form-input w-full mt-1"
-                                        required></textarea></div>
-                                <div><label for="promotion-start-date"
-                                        class="block text-sm font-medium text-gray-600">Start Date</label><input
-                                        type="date" id="promotion-start-date" class="form-input w-full mt-1" required>
+                                <!-- Promotions Management Content -->
+                                <div id="promotions-management-content" class="sub-tab-content hidden">
+                                    <h3 class="text-xl font-semibold text-gray-700 mb-4">Manage Promotions</h3>
+                                    <form id="add-promotion-form"
+                                        class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 p-4 border rounded-lg bg-gray-50 items-end">
+                                        <input type="hidden" id="edit-promotion-id">
+                                        <div class="md:col-span-2"><label for="promotion-title"
+                                                class="block text-sm font-medium text-gray-600">Title</label><input
+                                                type="text" id="promotion-title" class="form-input w-full mt-1"
+                                                required></div>
+                                        <div class="md:col-span-2"><label for="promotion-description"
+                                                class="block text-sm font-medium text-gray-600">Description</label><textarea
+                                                id="promotion-description" rows="2" class="form-input w-full mt-1"
+                                                required></textarea></div>
+                                        <div><label for="promotion-start-date"
+                                                class="block text-sm font-medium text-gray-600">Start Date</label><input
+                                                type="date" id="promotion-start-date" class="form-input w-full mt-1"
+                                                required></div>
+                                        <div><label for="promotion-end-date"
+                                                class="block text-sm font-medium text-gray-600">End Date</label><input
+                                                type="date" id="promotion-end-date" class="form-input w-full mt-1"
+                                                required></div>
+                                        <div class="md:col-span-2 self-end flex gap-2">
+                                            <button type="submit" id="add-promotion-btn"
+                                                class="w-full bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Add
+                                                Promotion</button>
+                                            <button type="button" id="cancel-edit-promotion-btn"
+                                                class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 hidden">Cancel</button>
+                                        </div>
+                                    </form>
+                                    <div class="overflow-x-auto">
+                                        <table id="promotions-table" class="w-full text-sm text-left text-gray-600">
+                                            <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                                <tr>
+                                                    <th scope="col" class="px-6 py-3">Title</th>
+                                                    <th scope="col" class="px-6 py-3">Description</th>
+                                                    <th scope="col" class="px-6 py-3">Duration</th>
+                                                    <th scope="col" class="px-6 py-3">Status</th>
+                                                    <th scope="col" class="px-6 py-3 text-center">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody></tbody>
+                                        </table>
+                                    </div>
                                 </div>
-                                <div><label for="promotion-end-date" class="block text-sm font-medium text-gray-600">End
-                                        Date</label><input type="date" id="promotion-end-date"
-                                        class="form-input w-full mt-1" required></div>
-                                <div class="md:col-span-2 self-end flex gap-2">
-                                    <button type="submit" id="add-promotion-btn"
-                                        class="w-full bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Add
-                                        Promotion</button>
-                                    <button type="button" id="cancel-edit-promotion-btn"
-                                        class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hover:bg-gray-400 hidden">Cancel</button>
-                                </div>
-                            </form>
-                            <div class="overflow-x-auto">
-                                <table id="promotions-table" class="w-full text-sm text-left text-gray-600">
-                                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
-                                        <tr>
-                                            <th scope="col" class="px-6 py-3">Title</th>
-                                            <th scope="col" class="px-6 py-3">Description</th>
-                                            <th scope="col" class="px-6 py-3">Duration</th>
-                                            <th scope="col" class="px-6 py-3">Status</th>
-                                            <th scope="col" class="px-6 py-3 text-center">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                </table>
-                            </div>
-                        </div>
 
-                        <!-- Settings Management Content -->
-                        <div id="settings-management-content" class="sub-tab-content hidden">
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <!-- General Settings -->
-                                <div>
-                                    <h3 class="text-xl font-semibold text-gray-700 mb-4">General Settings</h3>
-                                    <form id="settings-form" class="p-4 border rounded-lg bg-gray-50 mb-6 space-y-4">
+                                <!-- Settings Management Content -->
+                                <div id="settings-management-content" class="sub-tab-content hidden">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <!-- General Settings -->
                                         <div>
-                                            <label for="min-booking-hours"
-                                                class="block text-sm font-medium text-gray-600">Minimum Booking
-                                                Notice (in hours)</label>
-                                            <input type="number" id="min-booking-hours"
-                                                class="form-input w-full md:w-1/3 mt-1" placeholder="e.g., 2" required>
-                                            <p class="text-xs text-gray-500 mt-1">Set the minimum number of
-                                                hours in advance a client can book an appointment.</p>
-                                        </div>
-                                        <div class="border-t pt-4">
-                                            <h4 class="font-semibold text-gray-800 mb-2">Login Security</h4>
-                                            <div>
-                                                <label for="max-login-attempts"
-                                                    class="block text-sm font-medium text-gray-600">Max Login
-                                                    Attempts</label>
-                                                <input type="number" id="max-login-attempts"
-                                                    class="form-input w-full md:w-1/3 mt-1" value="5" required>
-                                                <p class="text-xs text-gray-500 mt-1">Number of failed login
-                                                    attempts before lockout.</p>
-                                            </div>
-                                            <div class="mt-4">
-                                                <label for="login-lockout-minutes"
-                                                    class="block text-sm font-medium text-gray-600">Login
-                                                    Lockout Duration (in minutes)</label>
-                                                <input type="number" id="login-lockout-minutes"
-                                                    class="form-input w-full md:w-1/3 mt-1" value="15" required>
-                                                <p class="text-xs text-gray-500 mt-1">How long to disable login
-                                                    after too many failures.</p>
-                                            </div>
-                                        </div>
-                                        <div class="text-right"><button type="submit"
-                                                class="bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Save
-                                                Settings</button></div>
-                                    </form>
-
-                                    <h3 class="text-xl font-semibold text-gray-700 mb-4">Salon Hours</h3>
-                                    <form id="salon-hours-form" class="p-4 border rounded-lg bg-gray-50 mb-6 space-y-4">
-                                        <div id="salon-hours-inputs" class="space-y-3">
-                                            <!-- JS will populate this -->
-                                        </div>
-                                        <div class="text-right">
-                                            <button type="submit"
-                                                class="bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Save
-                                                Hours</button>
-                                        </div>
-                                    </form>
-
-                                    <h3 class="text-xl font-semibold text-gray-700 mb-4">Frontend Feature
-                                        Management</h3>
-                                    <div id="feature-toggles-form" class="p-4 border rounded-lg bg-gray-50 space-y-4">
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-sm font-medium text-gray-900">Enable Client
-                                                Registration</span>
-                                            <label for="toggle-client-login"
-                                                class="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" id="toggle-client-login" class="sr-only peer">
-                                                <div
-                                                    class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-pink-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600">
+                                            <h3 class="text-xl font-semibold text-gray-700 mb-4">General Settings</h3>
+                                            <form id="settings-form"
+                                                class="p-4 border rounded-lg bg-gray-50 mb-6 space-y-4">
+                                                <div>
+                                                    <label for="min-booking-hours"
+                                                        class="block text-sm font-medium text-gray-600">Minimum Booking
+                                                        Notice (in hours)</label>
+                                                    <input type="number" id="min-booking-hours"
+                                                        class="form-input w-full md:w-1/3 mt-1" placeholder="e.g., 2"
+                                                        required>
+                                                    <p class="text-xs text-gray-500 mt-1">Set the minimum number of
+                                                        hours in advance a client can book an appointment.</p>
                                                 </div>
-                                            </label>
-                                        </div>
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-sm font-medium text-gray-900">Show Promotions
-                                                Section</span>
-                                            <label for="toggle-promotions"
-                                                class="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" id="toggle-promotions" class="sr-only peer">
-                                                <div
-                                                    class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-pink-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600">
+                                                <div class="border-t pt-4">
+                                                    <h4 class="font-semibold text-gray-800 mb-2">Login Security</h4>
+                                                    <div>
+                                                        <label for="max-login-attempts"
+                                                            class="block text-sm font-medium text-gray-600">Max Login
+                                                            Attempts</label>
+                                                        <input type="number" id="max-login-attempts"
+                                                            class="form-input w-full md:w-1/3 mt-1" value="5" required>
+                                                        <p class="text-xs text-gray-500 mt-1">Number of failed login
+                                                            attempts before lockout.</p>
+                                                    </div>
+                                                    <div class="mt-4">
+                                                        <label for="login-lockout-minutes"
+                                                            class="block text-sm font-medium text-gray-600">Login
+                                                            Lockout Duration (in minutes)</label>
+                                                        <input type="number" id="login-lockout-minutes"
+                                                            class="form-input w-full md:w-1/3 mt-1" value="15" required>
+                                                        <p class="text-xs text-gray-500 mt-1">How long to disable login
+                                                            after too many failures.</p>
+                                                    </div>
                                                 </div>
-                                            </label>
-                                        </div>
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-sm font-medium text-gray-900">Show Gift Card
-                                                Section</span>
-                                            <label for="toggle-gift-card"
-                                                class="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" id="toggle-gift-card" class="sr-only peer">
-                                                <div
-                                                    class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-pink-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600">
-                                                </div>
-                                            </label>
-                                        </div>
-                                        <div class="flex items-center justify-between">
-                                            <span class="text-sm font-medium text-gray-900">Show Nail Art
-                                                Gallery</span>
-                                            <label for="toggle-nails-idea"
-                                                class="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" id="toggle-nails-idea" class="sr-only peer">
-                                                <div
-                                                    class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-pink-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600">
-                                                </div>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Expense Settings -->
-                                <div>
-                                    <h3 class="text-xl font-semibold text-gray-700 mb-4">Expense Settings</h3>
-                                    <div class="space-y-6">
-                                        <!-- Manage Categories -->
-                                        <div class="p-4 border rounded-lg bg-gray-50">
-                                            <h4 class="font-semibold mb-2">Manage Categories</h4>
-                                            <form id="add-expense-category-form" class="flex gap-2 mb-2"><input
-                                                    type="text" id="new-expense-category-name" class="form-input w-full"
-                                                    placeholder="New category name" required><button type="submit"
-                                                    class="bg-blue-500 text-white px-4 rounded-lg">Add</button>
+                                                <div class="text-right"><button type="submit"
+                                                        class="bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Save
+                                                        Settings</button></div>
                                             </form>
-                                            <div id="expense-categories-list" class="text-sm max-h-32 overflow-y-auto">
-                                            </div>
-                                        </div>
-                                        <!-- Manage Payment Accounts -->
-                                        <div class="p-4 border rounded-lg bg-gray-50">
-                                            <h4 class="font-semibold mb-2">Manage Payment Accounts</h4>
-                                            <form id="add-payment-account-form" class="flex gap-2 mb-2"><input
-                                                    type="text" id="new-payment-account-name" class="form-input w-full"
-                                                    placeholder="New account name" required><button type="submit"
-                                                    class="bg-blue-500 text-white px-4 rounded-lg">Add</button>
-                                            </form>
-                                            <div id="payment-accounts-list" class="text-sm max-h-32 overflow-y-auto">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Manage Suppliers -->
-                            <div class="mt-8">
-                                <h3 class="text-xl font-semibold text-gray-700 mb-4">Manage Suppliers</h3>
-                                <form id="add-supplier-form"
-                                    class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 p-4 border rounded-lg bg-gray-50 items-end">
-                                    <input type="hidden" id="edit-supplier-id">
-                                    <div><label for="supplier-name" class="block text-sm font-medium">Name</label><input
-                                            type="text" id="supplier-name" class="form-input w-full mt-1" required>
-                                    </div>
-                                    <div><label for="supplier-phone"
-                                            class="block text-sm font-medium">Phone</label><input type="tel"
-                                            id="supplier-phone" class="form-input w-full mt-1"></div>
-                                    <div><label for="supplier-email"
-                                            class="block text-sm font-medium">Email</label><input type="email"
-                                            id="supplier-email" class="form-input w-full mt-1"></div>
-                                    <div><label for="supplier-website"
-                                            class="block text-sm font-medium">Website</label><input type="url"
-                                            id="supplier-website" class="form-input w-full mt-1"></div>
-                                    <div class="flex gap-2"><button type="submit" id="add-supplier-btn"
-                                            class="w-full bg-pink-600 text-white font-bold py-2 px-4 rounded-lg">Add
-                                            Supplier</button><button type="button" id="cancel-edit-supplier-btn"
-                                            class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hidden">Cancel</button>
-                                    </div>
-                                </form>
-                                <div class="overflow-x-auto">
-                                    <table id="suppliers-table" class="w-full text-sm text-left text-gray-600">
-                                        <thead class="text-xs text-gray-700 uppercase bg-gray-50">
-                                            <tr>
-                                                <th class="px-6 py-3">Name</th>
-                                                <th class="px-6 py-3">Phone</th>
-                                                <th class="px-6 py-3">Email</th>
-                                                <th class="px-6 py-3">Website</th>
-                                                <th class="px-6 py-3 text-center">Action</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody></tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
 
-                        <!-- Service Management Content -->
-                        <div id="service-management-content" class="sub-tab-content hidden">
-                            <h3 class="text-xl font-semibold text-gray-700 mb-4">Manage Services</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div>
-                                    <form id="add-category-form" class="p-4 border rounded-lg bg-gray-50 mb-6">
-                                        <label for="new-category-name"
-                                            class="block text-sm font-medium text-gray-600">New Category
-                                            Name</label>
-                                        <div class="flex gap-2 mt-1">
-                                            <input type="text" id="new-category-name" class="form-input w-full"
-                                                required>
-                                            <button type="submit"
-                                                class="bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Add</button>
+                                            <h3 class="text-xl font-semibold text-gray-700 mb-4">Salon Hours</h3>
+                                            <form id="salon-hours-form"
+                                                class="p-4 border rounded-lg bg-gray-50 mb-6 space-y-4">
+                                                <div id="salon-hours-inputs" class="space-y-3">
+                                                    <!-- JS will populate this -->
+                                                </div>
+                                                <div class="text-right">
+                                                    <button type="submit"
+                                                        class="bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Save
+                                                        Hours</button>
+                                                </div>
+                                            </form>
+
+                                            <h3 class="text-xl font-semibold text-gray-700 mb-4">Frontend Feature
+                                                Management</h3>
+                                            <div id="feature-toggles-form"
+                                                class="p-4 border rounded-lg bg-gray-50 space-y-4">
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm font-medium text-gray-900">Enable Client
+                                                        Registration</span>
+                                                    <label for="toggle-client-login"
+                                                        class="relative inline-flex items-center cursor-pointer">
+                                                        <input type="checkbox" id="toggle-client-login"
+                                                            class="sr-only peer">
+                                                        <div
+                                                            class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-pink-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600">
+                                                        </div>
+                                                    </label>
+                                                </div>
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm font-medium text-gray-900">Show Promotions
+                                                        Section</span>
+                                                    <label for="toggle-promotions"
+                                                        class="relative inline-flex items-center cursor-pointer">
+                                                        <input type="checkbox" id="toggle-promotions"
+                                                            class="sr-only peer">
+                                                        <div
+                                                            class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-pink-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600">
+                                                        </div>
+                                                    </label>
+                                                </div>
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm font-medium text-gray-900">Show Gift Card
+                                                        Section</span>
+                                                    <label for="toggle-gift-card"
+                                                        class="relative inline-flex items-center cursor-pointer">
+                                                        <input type="checkbox" id="toggle-gift-card"
+                                                            class="sr-only peer">
+                                                        <div
+                                                            class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-pink-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600">
+                                                        </div>
+                                                    </label>
+                                                </div>
+                                                <div class="flex items-center justify-between">
+                                                    <span class="text-sm font-medium text-gray-900">Show Nail Art
+                                                        Gallery</span>
+                                                    <label for="toggle-nails-idea"
+                                                        class="relative inline-flex items-center cursor-pointer">
+                                                        <input type="checkbox" id="toggle-nails-idea"
+                                                            class="sr-only peer">
+                                                        <div
+                                                            class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-pink-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600">
+                                                        </div>
+                                                    </label>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </form>
-                                    <div id="service-categories-admin" class="space-y-4"></div>
+                                        <!-- Expense Settings -->
+                                        <div>
+                                            <h3 class="text-xl font-semibold text-gray-700 mb-4">Expense Settings</h3>
+                                            <div class="space-y-6">
+                                                <!-- Manage Categories -->
+                                                <div class="p-4 border rounded-lg bg-gray-50">
+                                                    <h4 class="font-semibold mb-2">Manage Categories</h4>
+                                                    <form id="add-expense-category-form" class="flex gap-2 mb-2"><input
+                                                            type="text" id="new-expense-category-name"
+                                                            class="form-input w-full" placeholder="New category name"
+                                                            required><button type="submit"
+                                                            class="bg-blue-500 text-white px-4 rounded-lg">Add</button>
+                                                    </form>
+                                                    <div id="expense-categories-list"
+                                                        class="text-sm max-h-32 overflow-y-auto"></div>
+                                                </div>
+                                                <!-- Manage Payment Accounts -->
+                                                <div class="p-4 border rounded-lg bg-gray-50">
+                                                    <h4 class="font-semibold mb-2">Manage Payment Accounts</h4>
+                                                    <form id="add-payment-account-form" class="flex gap-2 mb-2"><input
+                                                            type="text" id="new-payment-account-name"
+                                                            class="form-input w-full" placeholder="New account name"
+                                                            required><button type="submit"
+                                                            class="bg-blue-500 text-white px-4 rounded-lg">Add</button>
+                                                    </form>
+                                                    <div id="payment-accounts-list"
+                                                        class="text-sm max-h-32 overflow-y-auto"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- Manage Suppliers -->
+                                    <div class="mt-8">
+                                        <h3 class="text-xl font-semibold text-gray-700 mb-4">Manage Suppliers</h3>
+                                        <form id="add-supplier-form"
+                                            class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6 p-4 border rounded-lg bg-gray-50 items-end">
+                                            <input type="hidden" id="edit-supplier-id">
+                                            <div><label for="supplier-name"
+                                                    class="block text-sm font-medium">Name</label><input type="text"
+                                                    id="supplier-name" class="form-input w-full mt-1" required></div>
+                                            <div><label for="supplier-phone"
+                                                    class="block text-sm font-medium">Phone</label><input type="tel"
+                                                    id="supplier-phone" class="form-input w-full mt-1"></div>
+                                            <div><label for="supplier-email"
+                                                    class="block text-sm font-medium">Email</label><input type="email"
+                                                    id="supplier-email" class="form-input w-full mt-1"></div>
+                                            <div><label for="supplier-website"
+                                                    class="block text-sm font-medium">Website</label><input type="url"
+                                                    id="supplier-website" class="form-input w-full mt-1"></div>
+                                            <div class="flex gap-2"><button type="submit" id="add-supplier-btn"
+                                                    class="w-full bg-pink-600 text-white font-bold py-2 px-4 rounded-lg">Add
+                                                    Supplier</button><button type="button" id="cancel-edit-supplier-btn"
+                                                    class="w-full bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg hidden">Cancel</button>
+                                            </div>
+                                        </form>
+                                        <div class="overflow-x-auto">
+                                            <table id="suppliers-table" class="w-full text-sm text-left text-gray-600">
+                                                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                                                    <tr>
+                                                        <th class="px-6 py-3">Name</th>
+                                                        <th class="px-6 py-3">Phone</th>
+                                                        <th class="px-6 py-3">Email</th>
+                                                        <th class="px-6 py-3">Website</th>
+                                                        <th class="px-6 py-3 text-center">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody></tbody>
+                                            </table>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div id="edit-service-section" class="p-4 border rounded-lg bg-gray-50 hidden">
-                                    <h4 id="edit-service-title" class="text-lg font-semibold mb-3">Add/Edit
-                                        Service</h4>
-                                    <form id="add-service-form" class="space-y-3">
-                                        <input type="hidden" id="edit-category-id"><input type="hidden"
-                                            id="edit-service-index">
-                                        <div><label for="service-prefix"
-                                                class="block text-sm font-medium text-gray-600">Prefix
-                                                (Optional)</label><input type="text" id="service-prefix"
-                                                class="form-input w-full mt-1" placeholder="e.g., Gel Polish - "></div>
-                                        <div><label for="service-name"
-                                                class="block text-sm font-medium text-gray-600">Service
-                                                Name</label><input type="text" id="service-name"
-                                                class="form-input w-full mt-1" required></div>
-                                        <div><label for="service-price"
-                                                class="block text-sm font-medium text-gray-600">Price</label><input
-                                                type="text" id="service-price" class="form-input w-full mt-1"
-                                                placeholder="e.g., $50"></div>
-                                        <div class="text-right"><button type="submit"
-                                                class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Save
-                                                Service</button></div>
-                                    </form>
+
+                                <!-- Service Management Content -->
+                                <div id="service-management-content" class="sub-tab-content hidden">
+                                    <h3 class="text-xl font-semibold text-gray-700 mb-4">Manage Services</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                        <div>
+                                            <form id="add-category-form" class="p-4 border rounded-lg bg-gray-50 mb-6">
+                                                <label for="new-category-name"
+                                                    class="block text-sm font-medium text-gray-600">New Category
+                                                    Name</label>
+                                                <div class="flex gap-2 mt-1">
+                                                    <input type="text" id="new-category-name" class="form-input w-full"
+                                                        required>
+                                                    <button type="submit"
+                                                        class="bg-pink-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-pink-700">Add</button>
+                                                </div>
+                                            </form>
+                                            <div id="service-categories-admin" class="space-y-4"></div>
+                                        </div>
+                                        <div id="edit-service-section" class="p-4 border rounded-lg bg-gray-50 hidden">
+                                            <h4 id="edit-service-title" class="text-lg font-semibold mb-3">Add/Edit
+                                                Service</h4>
+                                            <form id="add-service-form" class="space-y-3">
+                                                <input type="hidden" id="edit-category-id"><input type="hidden"
+                                                    id="edit-service-index">
+                                                <div><label for="service-prefix"
+                                                        class="block text-sm font-medium text-gray-600">Prefix
+                                                        (Optional)</label><input type="text" id="service-prefix"
+                                                        class="form-input w-full mt-1"
+                                                        placeholder="e.g., Gel Polish - "></div>
+                                                <div><label for="service-name"
+                                                        class="block text-sm font-medium text-gray-600">Service
+                                                        Name</label><input type="text" id="service-name"
+                                                        class="form-input w-full mt-1" required></div>
+                                                <div><label for="service-price"
+                                                        class="block text-sm font-medium text-gray-600">Price</label><input
+                                                        type="text" id="service-price" class="form-input w-full mt-1"
+                                                        placeholder="e.g., $50"></div>
+                                                <div class="text-right"><button type="submit"
+                                                        class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Save
+                                                        Service</button></div>
+                                            </form>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
         </main>
 
         <footer class="bg-white mt-8">
@@ -1985,6 +1997,56 @@
             class="fixed bottom-6 right-6 bg-pink-600 text-white w-16 h-16 rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-pink-700 transition-colors z-40">
             <i class="fas fa-plus"></i>
         </button>
+        <!-- ADD THIS ENTIRE NEW MODAL BLOCK -->
+<div id="nail-idea-lightbox" class="fixed inset-0 z-[80] hidden items-center justify-center bg-black bg-opacity-80 p-4">
+    <div class="relative w-full max-w-4xl h-full flex items-center justify-center">
+        <!-- Close Button -->
+        <button id="lightbox-close-btn" class="absolute top-0 right-0 mt-4 mr-4 text-white text-3xl z-50">&times;</button>
+
+        <!-- Previous Button -->
+        <button id="lightbox-prev-btn" class="absolute left-0 top-1/2 -translate-y-1/2 bg-white/20 text-white text-4xl p-2 rounded-full hover:bg-white/40 z-50">
+            &#10094;
+        </button>
+
+        <!-- Main Content -->
+        <div class="flex flex-col lg:flex-row h-full max-h-[85vh] w-full bg-white rounded-lg overflow-hidden shadow-2xl">
+            <!-- Image Container -->
+            <div class="w-full lg:w-2/3 h-64 lg:h-full bg-gray-900 flex items-center justify-center">
+                <img id="lightbox-image" src="" alt="Nail Art" class="max-h-full max-w-full object-contain">
+            </div>
+            <!-- Details Container -->
+            <div class="w-full lg:w-1/3 p-6 overflow-y-auto">
+                <h3 id="lightbox-title" class="text-2xl font-bold text-pink-700 mb-2"></h3>
+                <div class="space-y-3 text-sm">
+                    <div>
+                        <p class="font-semibold text-gray-500">Shape</p>
+                        <p id="lightbox-shape" class="text-gray-800"></p>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-500">Color</p>
+                        <p id="lightbox-color" class="text-gray-800"></p>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-gray-500">Categories</p>
+                        <p id="lightbox-categories" class="text-gray-800 flex flex-wrap gap-2">
+                            <!-- JS will populate this -->
+                        </p>
+                    </div>
+                    <!-- ADD THIS NEW DESCRIPTION BLOCK -->
+<div class="border-t pt-3 mt-3">
+    <p class="font-semibold text-gray-500">Description</p>
+    <p id="lightbox-description" class="text-gray-800 mt-1 text-sm whitespace-pre-wrap"></p>
+</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Next Button -->
+        <button id="lightbox-next-btn" class="absolute right-0 top-1/2 -translate-y-1/2 bg-white/20 text-white text-4xl p-2 rounded-full hover:bg-white/40 z-50">
+            &#10095;
+        </button>
+    </div>
+</div>
     </div>
 
     <!-- ========= MODALS (Moved to top level) ========= -->
