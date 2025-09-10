@@ -468,15 +468,17 @@ function initLandingPage() {
         peopleSelect.appendChild(new Option(i, i));
     }
 
-    const technicianSelect = document.getElementById('appointment-technician-select-landing');
-    onSnapshot(collection(db, "users"), (snapshot) => {
-        const users = snapshot.docs.map(doc => doc.data());
-        const technicians = users.filter(user => user.role === 'technician');
+// REPLACE the onSnapshot in initLandingPage with this getDoc
+const technicianSelect = document.getElementById('appointment-technician-select-landing');
+getDoc(doc(db, "public_data", "technicians")).then(docSnap => {
+    if (docSnap.exists()) {
+        const techNames = docSnap.data().names || [];
         technicianSelect.innerHTML = '<option>Any Technician</option>';
-        technicians.forEach(tech => {
-            technicianSelect.appendChild(new Option(tech.name, tech.name));
+        techNames.forEach(name => {
+            technicianSelect.appendChild(new Option(name, name));
         });
-    });
+    }
+});
     
     const step1 = document.getElementById('booking-step-1');
     const step2 = document.getElementById('booking-step-2');
@@ -1002,56 +1004,72 @@ const getDateRange = (filter, specificDate = null) => {
         }
     };
     
-    const updateAdminDashboard = () => {
-        const filter = document.getElementById('dashboard-date-filter').value;
-        const { startDate, endDate } = getDateRange(filter);
-        if (!startDate) return;
+    // REPLACE the old updateAdminDashboard function with this one
+const updateAdminDashboard = () => {
+    const filter = document.getElementById('dashboard-date-filter').value;
+    const { startDate, endDate } = getDateRange(filter);
+    if (!startDate) return;
 
-        const filteredSalonEarnings = allSalonEarnings.filter(e => {
-            const earnDate = e.date.toDate();
-            return earnDate >= startDate && earnDate <= endDate;
+    const filteredSalonEarnings = allSalonEarnings.filter(e => {
+        const earnDate = e.date.toDate();
+        return earnDate >= startDate && earnDate <= endDate;
+    });
+
+    const filteredAppointments = allAppointments.filter(a => {
+        const apptDate = a.appointmentTimestamp.toDate();
+        return apptDate >= startDate && apptDate <= endDate;
+    });
+
+    const filteredExpenses = allExpenses.filter(ex => {
+        const expDate = ex.date.toDate();
+        return expDate >= startDate && expDate <= endDate;
+    });
+
+    // Card Calculations
+    let totalRevenue = 0;
+    let totalCash = 0;
+    const techEarnings = {};
+
+    filteredSalonEarnings.forEach(earning => {
+        let dailyTotal = 0;
+        techniciansAndStaff.forEach(tech => {
+            const techNameLower = tech.name.toLowerCase();
+            const dailyEarning = earning[techNameLower] || 0;
+            dailyTotal += dailyEarning;
+            techEarnings[tech.name] = (techEarnings[tech.name] || 0) + dailyEarning;
         });
+        dailyTotal += earning.sellGiftCard || 0;
+        const dailyCash = dailyTotal - ((earning.totalCredit || 0) + (earning.check || 0) + (earning.returnGiftCard || 0) + (earning.venmo || 0) + (earning.square || 0));
+        totalRevenue += dailyTotal;
+        totalCash += dailyCash;
+    });
 
-        const filteredAppointments = allAppointments.filter(a => {
-            const apptDate = a.appointmentTimestamp.toDate();
-            return apptDate >= startDate && apptDate <= endDate;
-        });
-        
-        let totalRevenue = 0;
-        let totalCash = 0;
-        const techEarnings = {};
+    document.getElementById('total-salon-revenue-card').textContent = `$${totalRevenue.toFixed(2)}`;
+    document.getElementById('total-salon-cash-card').textContent = `$${totalCash.toFixed(2)}`;
 
-        filteredSalonEarnings.forEach(earning => {
-            let dailyTotal = 0;
-            techniciansAndStaff.forEach(tech => {
-                const techNameLower = tech.name.toLowerCase();
-                const dailyEarning = earning[techNameLower] || 0;
-                dailyTotal += dailyEarning;
-                techEarnings[tech.name] = (techEarnings[tech.name] || 0) + dailyEarning;
-            });
-            dailyTotal += earning.sellGiftCard || 0;
-            const dailyCash = dailyTotal - ((earning.totalCredit || 0) + (earning.check || 0) + (earning.returnGiftCard || 0) + (earning.venmo || 0) + (earning.square || 0));
-            totalRevenue += dailyTotal;
-            totalCash += dailyCash;
-        });
+    const topEarningTechnician = Object.keys(techEarnings).reduce((a, b) => techEarnings[a] > techEarnings[b] ? a : b, '-');
+    document.getElementById('top-earning-technician-card').textContent = topEarningTechnician;
 
-        document.getElementById('total-salon-revenue-card').textContent = `$${totalRevenue.toFixed(2)}`;
-        document.getElementById('total-salon-cash-card').textContent = `$${totalCash.toFixed(2)}`;
+    const techBookings = filteredAppointments.reduce((acc, curr) => {
+        if (curr.technician && curr.technician !== 'Any Technician') {
+            acc[curr.technician] = (acc[curr.technician] || 0) + 1;
+        }
+        return acc;
+    }, {});
+    const topBookingTechnician = Object.keys(techBookings).reduce((a, b) => techBookings[a] > techBookings[b] ? a : b, '-');
+    document.getElementById('top-booking-technician-card').textContent = topBookingTechnician;
 
-        const topEarningTechnician = Object.keys(techEarnings).reduce((a, b) => techEarnings[a] > techEarnings[b] ? a : b, '-');
-        document.getElementById('top-earning-technician-card').textContent = topEarningTechnician;
+    // New Card Calculations
+    document.getElementById('total-appointments-card').textContent = allAppointments.length;
+    document.getElementById('total-clients-card').textContent = allClients.length;
+    document.getElementById('total-gift-card-card').textContent = allGiftCards.length;
+    const totalExpense = filteredExpenses.reduce((sum, ex) => sum + ex.amount, 0);
+    document.getElementById('total-expense-card').textContent = `$${totalExpense.toFixed(2)}`;
 
-        const techBookings = filteredAppointments.reduce((acc, curr) => {
-            if (curr.technician && curr.technician !== 'Any Technician') {
-                acc[curr.technician] = (acc[curr.technician] || 0) + 1;
-            }
-            return acc;
-        }, {});
-        const topBookingTechnician = Object.keys(techBookings).reduce((a, b) => techBookings[a] > techBookings[b] ? a : b, '-');
-        document.getElementById('top-booking-technician-card').textContent = topBookingTechnician;
-
-        updateSalonRevenueChart(filteredSalonEarnings, filter);
-    };
+    // Render Graph and Upcoming Appointments
+    updateSalonRevenueChart(filteredSalonEarnings, filter);
+    renderDetailedAppointmentsList('admin-upcoming-appointments-list', allAppointments);
+};
 
 // REPLACE the old updateStaffDashboard function with this one
 const updateStaffDashboard = () => {
@@ -1059,8 +1077,8 @@ const updateStaffDashboard = () => {
     const { startDate, endDate } = getDateRange(filter);
     if (!startDate) return;
 
-    // --- Filter the main Salon Earnings report for the selected date range ---
-    const filteredSalonEarnings = allSalonEarnings.filter(e => {
+    // --- Calculations based on Salon Earnings for Cards & Graph ---
+    const mySalonEarnings = allSalonEarnings.filter(e => {
         const earnDate = e.date.toDate();
         return earnDate >= startDate && earnDate <= endDate;
     });
@@ -1069,7 +1087,7 @@ const updateStaffDashboard = () => {
     let myTotalEarning = 0;
 
     // 1. Calculate "My Overall Earning" from the filtered salon report
-    filteredSalonEarnings.forEach(earning => {
+    mySalonEarnings.forEach(earning => {
         myTotalEarning += earning[staffNameLower] || 0;
     });
 
@@ -1086,18 +1104,75 @@ const updateStaffDashboard = () => {
     document.getElementById('my-cash-payout-card').textContent = `$${myCashPayout.toFixed(2)}`;
     document.getElementById('my-check-payout-card').textContent = `$${myCheckPayout.toFixed(2)}`;
 
-    // Update the graph with the same data
-    updateMyEarningsChart(filteredSalonEarnings, filter, currentUserName);
- // --- Render the detailed earnings table at the bottom ---
-    const { totalEarning, totalTip } = renderStaffEarningsTable(myEarnings, 'staff-dashboard-earning-table', 'staff-dashboard-total-earning', 'staff-dashboard-total-tip');
+    // Update the graph with the same salon data
+    updateMyEarningsChart(mySalonEarnings, filter, currentUserName);
 
-    // --- This part remains the same: it shows the detailed entry list ---
+    // --- This part shows the detailed entry list from the 'earnings' collection ---
     const myPayoutDetails = allEarnings.filter(e => {
         const earnDate = e.date.toDate();
         return e.staffName === currentUserName && earnDate >= startDate && earnDate <= endDate;
     });
-    renderStaffEarningsTable(myPayoutDetails, 'staff-dashboard-earning-table', 'staff-dashboard-total-earning', 'staff-dashboard-total-tip');
+
+    // Capture the totals from the table rendering function
+    const { totalEarning, totalTip } = renderStaffEarningsTable(myPayoutDetails, 'staff-dashboard-earning-table', 'staff-dashboard-total-earning', 'staff-dashboard-total-tip');
+
+    // Update the live count spans for the detailed table
+    const totalMainSpan = document.getElementById('staff-dashboard-filtered-earning-total-main');
+    const totalTipSpan = document.getElementById('staff-dashboard-filtered-earning-total-tip');
+    if(totalMainSpan) totalMainSpan.textContent = `Total ($${totalEarning.toFixed(2)})`;
+    if(totalTipSpan) totalTipSpan.textContent = `Tip ($${totalTip.toFixed(2)})`;
 };
+    // ADD THIS ENTIRE NEW FUNCTION
+const renderDetailedAppointmentsList = (containerId, appointments, techFilter = 'All') => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    let filteredAppointments = appointments.filter(a => a.appointmentTimestamp.toDate() > new Date());
+
+    if (techFilter !== 'All' && techFilter !== 'Any Technician') {
+        filteredAppointments = filteredAppointments.filter(appt => appt.technician === techFilter);
+    } else if (techFilter === 'Any Technician') {
+        filteredAppointments = filteredAppointments.filter(appt => appt.technician === 'Any Technician');
+    }
+
+    if (filteredAppointments.length === 0) {
+        container.innerHTML = '<p class="text-center text-gray-500 py-4">No upcoming appointments found.</p>';
+        return;
+    }
+
+    let tableHTML = `
+        <table class="w-full text-sm text-left text-gray-600">
+            <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+                <tr>
+                    <th scope="col" class="px-6 py-3">Name</th>
+                    <th scope="col" class="px-6 py-3">Services</th>
+                    <th scope="col" class="px-6 py-3">Technician</th>
+                    <th scope="col" class="px-6 py-3">Group</th>
+                    <th scope="col" class="px-6 py-3">Date & Time</th>
+                    <th scope="col" class="px-6 py-3 text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody>`;
+
+    filteredAppointments.sort((a, b) => a.appointmentTimestamp.seconds - b.appointmentTimestamp.seconds);
+
+    filteredAppointments.forEach(appt => {
+        tableHTML += `
+            <tr class="border-b">
+                <td class="px-6 py-3 font-medium">${appt.name}</td>
+                <td class="px-6 py-3">${Array.isArray(appt.services) ? appt.services.join(', ') : appt.services}</td>
+                <td class="px-6 py-3">${appt.technician}</td>
+                <td class="px-6 py-3 text-center">${appt.people || 1}</td>
+                <td class="px-6 py-3">${new Date(appt.appointmentTimestamp.seconds * 1000).toLocaleString([], {dateStyle: 'short', timeStyle: 'short'})}</td>
+                <td class="px-6 py-3 text-center"><button data-id="${appt.id}" class="checkin-today-btn text-blue-500 hover:underline">Check In</button></td>
+            </tr>
+        `;
+    });
+
+    tableHTML += '</tbody></table>';
+    container.innerHTML = tableHTML;
+};
+    
 const updateSalonRevenueChart = (data, filter) => {
     const ctx = document.getElementById('salon-revenue-chart').getContext('2d');
     if (!ctx) return;
@@ -1178,8 +1253,8 @@ const updateMyEarningsChart = (data, filter, staffName) => {
     const datasets = {
         earning: { label: 'My Earning', data: [], backgroundColor: 'rgba(219, 39, 119, 0.5)', borderColor: 'rgba(219, 39, 119, 1)' },
         payout: { label: 'My Total Payout (70%)', data: [], backgroundColor: 'rgba(16, 185, 129, 0.5)', borderColor: 'rgba(16, 185, 129, 1)' },
-        cash: { label: 'My Cash Payout (30%)', data: [], backgroundColor: 'rgba(245, 158, 11, 0.5)', borderColor: 'rgba(245, 158, 11, 1)' },
-        check: { label: 'My Check Payout (70%)', data: [], backgroundColor: 'rgba(59, 130, 246, 0.5)', borderColor: 'rgba(59, 130, 246, 1)' }
+        cash: { label: 'My Cash Payout', data: [], backgroundColor: 'rgba(245, 158, 11, 0.5)', borderColor: 'rgba(245, 158, 11, 1)' },
+        check: { label: 'My Check Payout', data: [], backgroundColor: 'rgba(59, 130, 246, 0.5)', borderColor: 'rgba(59, 130, 246, 1)' }
     };
 
     const timeData = {};
@@ -1200,34 +1275,27 @@ const updateMyEarningsChart = (data, filter, staffName) => {
 
     const populateDatasets = (key) => {
         const earning = timeData[key]?.earning || 0;
-        const payout = earning * 0.7;
+        const payout = earning * 0.70;
+        const checkPayout = payout * 0.70;
+        const cashPayout = payout - checkPayout;
+
         datasets.earning.data.push(earning);
         datasets.payout.data.push(payout);
-        datasets.cash.data.push(payout * 0.3);
-        datasets.check.data.push(payout * 0.7);
+        datasets.cash.data.push(cashPayout);
+        datasets.check.data.push(checkPayout);
     };
 
     if (filter === 'today') {
-        for (let i = 0; i < 24; i++) {
-            labels.push(`${i}:00`);
-            populateDatasets(i);
-        }
+        for (let i = 0; i < 24; i++) { labels.push(`${i}:00`); populateDatasets(i); }
     } else if (filter === 'this_week') {
         labels.push('Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat');
-        for (let i = 0; i < 7; i++) {
-            populateDatasets(i);
-        }
+        for (let i = 0; i < 7; i++) { populateDatasets(i); }
     } else if (filter === 'this_month') {
         const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-        for (let i = 1; i <= daysInMonth; i++) {
-            labels.push(i);
-            populateDatasets(i);
-        }
+        for (let i = 1; i <= daysInMonth; i++) { labels.push(i); populateDatasets(i); }
     } else if (filter === 'this_year') {
         labels.push('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec');
-        for (let i = 0; i < 12; i++) {
-            populateDatasets(i);
-        }
+        for (let i = 0; i < 12; i++) { populateDatasets(i); }
     }
 
     const chartConfig = {
@@ -2182,20 +2250,11 @@ document.getElementById('dashboard-staff-earning-form-full').addEventListener('s
         } catch(err) { console.error("Error updating salon earning:", err); alert("Could not update salon earning."); }
     });
 
-    const renderAllBookingsList = () => {
-        let filteredAppointments = [...allAppointments];
-        if (currentTechFilterCalendar !== 'All' && currentTechFilterCalendar !== 'Any Technician') { filteredAppointments = filteredAppointments.filter(appt => appt.technician === currentTechFilterCalendar); } 
-        else if (currentTechFilterCalendar === 'Any Technician') { filteredAppointments = allAppointments.filter(appt => appt.technician === 'Any Technician'); }
-        filteredAppointments.sort((a, b) => b.appointmentTimestamp.seconds - a.appointmentTimestamp.seconds);
-        todayCountSpan.textContent = filteredAppointments.length;
-        const tbody = document.querySelector('#today-bookings-table tbody');
-        tbody.innerHTML = filteredAppointments.length === 0 ? `<tr><td colspan="6" class="py-6 text-center text-gray-400">No bookings found.</td></tr>` : '';
-        filteredAppointments.forEach(appt => {
-            const row = tbody.insertRow();
-            row.className = 'bg-white border-b';
-            row.innerHTML = `<td class="px-6 py-3">${appt.name}</td><td class="px-6 py-3">${Array.isArray(appt.services) ? appt.services.join(', ') : appt.services}</td><td class="px-6 py-3">${appt.technician}</td><td class="px-6 py-3 text-center">${appt.people || 1}</td><td class="px-6 py-3">${new Date(appt.appointmentTimestamp.seconds * 1000).toLocaleString([], {dateStyle: 'short', timeStyle: 'short'})}</td><td class="px-6 py-3 text-center"><button data-id="${appt.id}" class="checkin-today-btn text-blue-500 hover:underline">Check In</button></td>`;
-        });
-    };
+// REPLACE the old renderAllBookingsList function with this one
+const renderAllBookingsList = () => {
+    todayCountSpan.textContent = allAppointments.filter(a => a.appointmentTimestamp.toDate() > new Date()).length;
+    renderDetailedAppointmentsList('today-bookings-table-container', allAppointments, currentTechFilterCalendar);
+};
 
     document.getElementById('today-btn').addEventListener('click', () => { document.getElementById('month-view').classList.add('hidden'); document.getElementById('month-nav').classList.add('hidden'); document.getElementById('list-view').classList.remove('hidden'); document.getElementById('today-btn').classList.add('hidden'); document.getElementById('month-view-btn').classList.remove('hidden'); renderAllBookingsList(); });
     document.getElementById('month-view-btn').addEventListener('click', () => { document.getElementById('list-view').classList.add('hidden'); document.getElementById('month-view-btn').classList.add('hidden'); document.getElementById('month-view').classList.remove('hidden'); document.getElementById('month-nav').classList.remove('hidden'); document.getElementById('today-btn').classList.remove('hidden'); });
@@ -2333,14 +2392,35 @@ document.getElementById('dashboard-staff-earning-form-full').addEventListener('s
         salonEarningTableFoot.innerHTML = footHTML + commissionHTML + check70HTML + cash30HTML;
     };
 
-    onSnapshot(collection(db, "users"), (snapshot) => {
-        const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        techniciansAndStaff = users.filter(user => user.role === 'technician' || user.role === 'staff');
-        technicians = users.filter(user => user.role === 'technician');
-        renderUsers(users);
-        populateTechnicianFilters();
-    });
+    // ADD THIS ENTIRE NEW FUNCTION FOR LOAD TECHNICIAN IN LANDING PAGE 
+const updatePublicTechnicianList = async (users) => {
+    try {
+        const technicians = users
+            .filter(user => user.role === 'technician')
+            .map(user => user.name);
 
+        const publicDataRef = doc(db, "public_data", "technicians");
+        await setDoc(publicDataRef, { names: technicians });
+        console.log("Public technician list updated.");
+    } catch (error) {
+        console.error("Error updating public technician list:", error);
+    }
+};
+    
+
+// REPLACE the old "users" onSnapshot listener with this one
+onSnapshot(collection(db, "users"), (snapshot) => {
+    const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    techniciansAndStaff = users.filter(user => user.role === 'technician' || user.role === 'staff');
+    technicians = users.filter(user => user.role === 'technician');
+    renderUsers(users);
+    populateTechnicianFilters();
+
+    // If the current user is an admin, update the public list
+    if (currentUserRole === 'admin') {
+        updatePublicTechnicianList(users);
+    }
+});
     addUserForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const userId = document.getElementById('edit-user-id').value;
