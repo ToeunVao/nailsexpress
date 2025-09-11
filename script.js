@@ -764,6 +764,11 @@ function initClientDashboard(clientId, clientData) {
 
 // --- MAIN CHECK-IN APP SCRIPT ---
 function initMainApp(userRole, userName) {
+     // Personalize the header subtitle
+    const appSubtitle = document.getElementById('app-subtitle');
+    if (appSubtitle) {
+        appSubtitle.textContent = `Welcome, ${userName}!`;
+    }
     const dashboardContent = document.getElementById('dashboard-content');
     const mainAppContainer = document.getElementById('main-app-container');
     const logoLink = document.getElementById('logo-link');
@@ -1200,7 +1205,7 @@ const updateAdminDashboard = () => {
     document.getElementById('total-expense-card').textContent = `$${totalExpense.toFixed(2)}`;
 
     // Render Graph and Upcoming Appointments
-    updateSalonRevenueChart(filteredSalonEarnings, filter);
+   updateSalonRevenueChart(filteredSalonEarnings, currentDashboardRangeFilter);
     updateStaffEarningsReport(filteredSalonEarnings); // <-- ADD THIS LINE
     renderDetailedAppointmentsList('admin-upcoming-appointments-list', allAppointments);
 };
@@ -1233,7 +1238,7 @@ const { startDate, endDate } = getDateRange(currentStaffDashboardRangeFilter, cu
     document.getElementById('my-cash-payout-card').textContent = `$${myCashPayout.toFixed(2)}`;
     document.getElementById('my-check-payout-card').textContent = `$${myCheckPayout.toFixed(2)}`;
 
-    updateMyEarningsChart(mySalonEarnings, filter, currentUserName);
+    updateMyEarningsChart(mySalonEarnings, currentStaffDashboardRangeFilter, currentUserName);
 
     // --- NEW: Logic for the Earning Details Table ---
     const detailsDateFilter = document.getElementById('staff-details-date-filter').value;
