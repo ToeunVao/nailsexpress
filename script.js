@@ -32,7 +32,7 @@ let anonymousUserId = null;
 let bookingSettings = { minBookingHours: 2 };
 let loginSecuritySettings = { maxAttempts: 5, lockoutMinutes: 15 };
 let salonHours = {}; // To store salon operating hours
-let salonRevenueChart, myEarningsChart;
+let salonRevenueChart, myEarningsChart, staffEarningsChart;
 let notifications = [];
 let currentUserRole = null;
 let currentUserName = null; // To store the logged-in user's name
@@ -929,7 +929,10 @@ function initMainApp(userRole, userName) {
     let currentYear = new Date().getFullYear();
 
     let currentTechFilterCalendar = 'All', currentTechFilterActive = 'All', currentTechFilterProcessing = 'All', currentTechFilterFinished = 'All', currentFinishedDateFilter = '';
-    let currentEarningTechFilter = 'All', currentEarningDateFilter = '', currentEarningRangeFilter = 'daily';
+    let currentEarningTechFilter = 'All', currentEarningDateFilter = '', currentEarningRangeFilter = 'daily',
+    currentDashboardDateFilter = '', currentDashboardRangeFilter = String(new Date().getMonth()),
+    currentStaffDashboardDateFilter = '', currentStaffDashboardRangeFilter = String(new Date().getMonth());
+    
     let currentDashboardEarningTechFilter = 'All', currentDashboardEarningDateFilter = '', currentDashboardEarningRangeFilter = 'daily';
     let currentSalonEarningDateFilter = '', currentSalonEarningRangeFilter = String(new Date().getMonth()), currentExpenseMonthFilter = '';
 
@@ -1015,11 +1018,100 @@ const getDateRange = (filter, specificDate = null) => {
             updateStaffDashboard();
         }
     };
-    
+// DELETE the old cardColors array and REPLACE it with this new palette
+const colorPalette = [
+    { card: 'bg-pink-100', text: 'text-pink-800', bg: 'rgba(255, 99, 132, 0.5)', border: 'rgba(255, 99, 132, 1)' },
+    { card: 'bg-blue-100', text: 'text-blue-800', bg: 'rgba(54, 162, 235, 0.5)', border: 'rgba(54, 162, 235, 1)' },
+    { card: 'bg-green-100', text: 'text-green-800', bg: 'rgba(75, 192, 192, 0.5)', border: 'rgba(75, 192, 192, 1)' },
+    { card: 'bg-yellow-100', text: 'text-yellow-800', bg: 'rgba(255, 206, 86, 0.5)', border: 'rgba(255, 206, 86, 1)' },
+    { card: 'bg-purple-100', text: 'text-purple-800', bg: 'rgba(153, 102, 255, 0.5)', border: 'rgba(153, 102, 255, 1)' },
+    { card: 'bg-teal-100', text: 'text-teal-800', bg: 'rgba(32, 201, 151, 0.5)', border: 'rgba(32, 201, 151, 1)' },
+    { card: 'bg-indigo-100', text: 'text-indigo-800', bg: 'rgba(79, 70, 229, 0.5)', border: 'rgba(79, 70, 229, 1)' },
+    { card: 'bg-orange-100', text: 'text-orange-800', bg: 'rgba(255, 159, 64, 0.5)', border: 'rgba(255, 159, 64, 1)' }
+];
+
+    const updateStaffEarningsReport = (filteredData) => {
+    const staffContainer = document.getElementById('staff-earning-cards-container');
+    const ctx = document.getElementById('staff-earnings-chart')?.getContext('2d');
+
+    if (!staffContainer || !ctx) return;
+
+    // Calculate total earnings for each staff member (excluding admin)
+    const staffTotals = {};
+    const staffExcludingAdmins = techniciansAndStaff.filter(user => user.role !== 'admin');
+
+    staffExcludingAdmins.forEach(staff => {
+        staffTotals[staff.name] = 0; // Initialize
+    });
+
+    filteredData.forEach(earning => {
+        staffExcludingAdmins.forEach(staff => {
+            const staffNameLower = staff.name.toLowerCase();
+            if (earning[staffNameLower]) {
+                staffTotals[staff.name] += earning[staffNameLower];
+            }
+        });
+    });
+
+    // Render Staff Earning Cards using the new palette
+    staffContainer.innerHTML = '';
+    if (staffExcludingAdmins.length === 0) {
+        staffContainer.innerHTML = '<p class="col-span-full text-center text-gray-500">No staff found.</p>';
+    } else {
+        staffExcludingAdmins.forEach((staff, index) => {
+            const totalEarning = staffTotals[staff.name] || 0;
+            const colorTheme = colorPalette[index % colorPalette.length];
+            const cardHTML = `
+                <div class="dashboard-card ${colorTheme.card} p-4">
+                    <h4 class="font-bold ${colorTheme.text} truncate">${staff.name}</h4>
+                    <p class="text-2xl font-bold text-gray-700">$${totalEarning.toFixed(2)}</p>
+                </div>
+            `;
+            staffContainer.innerHTML += cardHTML;
+        });
+    }
+
+    // Render Staff Earnings Chart using the new palette
+    const labels = Object.keys(staffTotals);
+    const data = Object.values(staffTotals);
+
+    // Dynamically create color arrays that match the cards
+    const backgroundColors = labels.map((_, index) => colorPalette[index % colorPalette.length].bg);
+    const borderColors = labels.map((_, index) => colorPalette[index % colorPalette.length].border);
+
+    const chartConfig = {
+        labels,
+        datasets: [{
+            label: 'Total Earnings',
+            data: data,
+            backgroundColor: backgroundColors,
+            borderColor: borderColors,
+            borderWidth: 1
+        }]
+    };
+
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    };
+
+    staffEarningsChart = initializeChart(staffEarningsChart, ctx, 'bar', chartConfig, chartOptions);
+};
+        
     // REPLACE the old updateAdminDashboard function with this one
 const updateAdminDashboard = () => {
     const filter = document.getElementById('dashboard-date-filter').value;
-    const { startDate, endDate } = getDateRange(filter);
+    const { startDate, endDate } = getDateRange(currentDashboardRangeFilter, currentDashboardDateFilter);
     if (!startDate) return;
 
     const filteredSalonEarnings = allSalonEarnings.filter(e => {
@@ -1088,13 +1180,15 @@ const updateAdminDashboard = () => {
 
     // Render Graph and Upcoming Appointments
     updateSalonRevenueChart(filteredSalonEarnings, filter);
+    updateStaffEarningsReport(filteredSalonEarnings); // <-- ADD THIS LINE
     renderDetailedAppointmentsList('admin-upcoming-appointments-list', allAppointments);
 };
 
+
 // REPLACE the old updateStaffDashboard function with this one
 const updateStaffDashboard = () => {
-    const filter = document.getElementById('staff-dashboard-date-filter').value;
-    const { startDate, endDate } = getDateRange(filter);
+const filter = document.getElementById('staff-dashboard-date-filter').value;
+const { startDate, endDate } = getDateRange(currentStaffDashboardRangeFilter, currentStaffDashboardDateFilter);
     if (!startDate) return;
 
     // --- Calculations for Cards & Graph (This part remains the same) ---
@@ -1135,6 +1229,7 @@ const updateStaffDashboard = () => {
         });
     }
 
+   
     // Update the title with the client count
     const clientCount = myPayoutDetails.length;
     const detailsTitle = document.getElementById('staff-details-title');
@@ -2100,9 +2195,22 @@ const setupReportDateFilters = (selectId, dateInputId, callback) => {
 
     setupReportDateFilters('earning-range-filter', 'earning-date-filter', (date, range) => { currentEarningDateFilter = date; currentEarningRangeFilter = range; renderAllStaffEarnings(); });
     setupReportDateFilters('dashboard-earning-range-filter', 'dashboard-earning-date-filter', (date, range) => { currentDashboardEarningDateFilter = date; currentDashboardEarningRangeFilter = range; renderAllStaffEarnings(); });
-    setupReportDateFilters('salon-earning-range-filter', 'salon-earning-date-filter', (date, range) => { currentSalonEarningDateFilter = date; currentSalonEarningRangeFilter = range; renderSalonEarnings(applySalonEarningFilters(allSalonEarnings, date, range)); });
-    
-    
+// ... existing filter setups
+setupReportDateFilters('salon-earning-range-filter', 'salon-earning-date-filter', (date, range) => { currentSalonEarningDateFilter = date; currentSalonEarningRangeFilter = range; renderSalonEarnings(applySalonEarningFilters(allSalonEarnings, date, range)); });
+
+// ADD THESE TWO NEW LINES
+setupReportDateFilters('dashboard-range-filter', 'dashboard-date-filter', (date, range) => { currentDashboardRangeFilter = range; currentDashboardDateFilter = date; updateAdminDashboard(); });
+setupReportDateFilters('staff-dashboard-range-filter', 'staff-dashboard-date-filter', (date, range) => { currentStaffDashboardRangeFilter = range; currentStaffDashboardDateFilter = date; updateStaffDashboard(); });
+ // --- Set Default Dashboard Filters to Current Month ---
+    const currentMonthValue = String(new Date().getMonth());
+    const adminDashboardFilter = document.getElementById('dashboard-range-filter');
+    if (adminDashboardFilter) {
+        adminDashboardFilter.value = currentMonthValue;
+    }
+    const staffDashboardFilter = document.getElementById('staff-dashboard-range-filter');
+    if (staffDashboardFilter) {
+        staffDashboardFilter.value = currentMonthValue;
+    }   
    // REPLACE the old staff-earning-form listener with this one
 document.getElementById('staff-earning-form').addEventListener('submit', async (e) => {
     e.preventDefault();
