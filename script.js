@@ -3739,4 +3739,6 @@ if (dashboardEarningSubmitDateInput) dashboardEarningSubmitDateInput.value = tod
     document.getElementById('expense-date').value = todayString;
     document.getElementById('sign-out-btn').addEventListener('click', () => { signOut(auth); });
     document.getElementById('floating-booking-btn').addEventListener('click', () => { openAddAppointmentModal(getLocalDateString()); });
+    // ADD THIS NEW LINE to set the default date
+    document.getElementById('staff-details-date-filter').value = todayString;
 }
