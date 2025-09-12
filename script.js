@@ -760,10 +760,143 @@ function initClientDashboard(clientId, clientData) {
     });
 
     setupClientTabs();
-}
+    // ADD THIS LINE
+enableSwipeableTabs('#client-dashboard-content > main', '#client-dashboard-tabs');
 
+}
+// ADD THIS ENTIRE NEW FUNCTION
+const enableSwipeableTabs = (contentContainerSelector, tabsListSelector) => {
+    const contentContainer = document.querySelector(contentContainerSelector);
+    const tabsList = document.querySelector(tabsListSelector);
+    if (!contentContainer || !tabsList) return;
+
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    contentContainer.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    contentContainer.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        handleSwipe();
+    });
+
+    function handleSwipe() {
+        const swipeThreshold = 50; // Minimum pixels for a swipe
+        const swipeDistance = touchEndX - touchStartX;
+
+        if (Math.abs(swipeDistance) < swipeThreshold) {
+            return; // Not a long enough swipe
+        }
+
+        const tabButtons = Array.from(tabsList.querySelectorAll('button.tab-btn, button.sub-tab-btn'));
+        const currentIndex = tabButtons.findIndex(btn => btn.classList.contains('active'));
+        
+        if (currentIndex === -1) return;
+
+        if (swipeDistance < 0) { // Swiped left
+            const nextIndex = currentIndex + 1;
+            if (nextIndex < tabButtons.length) {
+                tabButtons[nextIndex].click();
+            }
+        } else { // Swiped right
+            const prevIndex = currentIndex - 1;
+            if (prevIndex >= 0) {
+                tabButtons[prevIndex].click();
+            }
+        }
+    }
+};
 // --- MAIN CHECK-IN APP SCRIPT ---
 function initMainApp(userRole, userName) {
+    // --- START: MOBILE MENU LOGIC (REPLACE YOUR OLD BLOCK WITH THIS) ---
+    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+    const mobileSidebar = document.getElementById('mobile-sidebar');
+    const mobileSidebarCloseBtn = document.getElementById('mobile-sidebar-close-btn');
+    const mobileSidebarOverlay = document.getElementById('mobile-sidebar-overlay');
+    const mobileNavLinksContainer = document.getElementById('mobile-nav-links');
+    const topNavContainer = document.getElementById('top-nav');
+
+    // Function to open the sidebar
+    const openSidebar = () => {
+        mobileSidebar.classList.remove('translate-x-full');
+        mobileSidebarOverlay.classList.remove('hidden');
+    };
+
+    // Function to close the sidebar
+    const closeSidebar = () => {
+        mobileSidebar.classList.add('translate-x-full');
+        mobileSidebarOverlay.classList.add('hidden');
+    };
+    
+    // Build and Populate Navigation Links
+    let navHTML = `
+        <button class="top-nav-btn relative" data-target="check-in">
+            Check-in
+            <span id="check-in-nav-count" class="absolute -top-1 -right-1 bg-pink-600 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+        </button>
+        <button class="top-nav-btn relative" data-target="booking">
+            Booking
+            <span id="booking-nav-count" class="absolute -top-1 -right-1 bg-blue-600 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+        </button>
+        <button class="top-nav-btn" data-target="nails-idea">Nails Idea</button>
+    `;
+
+    // Add admin-only links if the user is an admin
+    if (userRole === 'admin') {
+        navHTML += `
+            <button class="top-nav-btn" data-target="report">Report</button>
+            <button class="top-nav-btn" data-target="setting">Setting</button>
+        `;
+    }
+    
+    // Populate both the desktop and mobile navigation containers
+    topNavContainer.innerHTML = navHTML;
+    mobileNavLinksContainer.innerHTML = navHTML;
+   // --- ADD THIS NEW BLOCK TO ADD THE LOGOUT BUTTON ---
+    const mobileLogoutButtonHTML = `
+        <button id="mobile-logout-btn" class="top-nav-btn mt-4 w-full text-left bg-pink-100 text-pink-700">
+            <i class="fas fa-sign-out-alt mr-2"></i>Logout
+        </button>
+    `;
+    mobileNavLinksContainer.insertAdjacentHTML('beforeend', mobileLogoutButtonHTML);
+    // --- END OF NEW BLOCK ---
+    // Add event listeners
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', openSidebar);
+    }
+    if (mobileSidebarCloseBtn) {
+        mobileSidebarCloseBtn.addEventListener('click', closeSidebar);
+    }
+    if (mobileSidebarOverlay) {
+        mobileSidebarOverlay.addEventListener('click', closeSidebar);
+    }
+    
+    // Add listener to close sidebar when a nav link is clicked
+    if (mobileNavLinksContainer) {
+        mobileNavLinksContainer.addEventListener('click', (e) => {
+            if (e.target.closest('.top-nav-btn')) {
+                // We need to find the corresponding desktop button to click it
+                const target = e.target.closest('.top-nav-btn').dataset.target;
+                const desktopButton = topNavContainer.querySelector(`[data-target="${target}"]`);
+                if (desktopButton) {
+                    desktopButton.click();
+                }
+                closeSidebar();
+            }
+        });
+    }
+     // --- ADD THIS NEW BLOCK TO MAKE THE LOGOUT BUTTON WORK ---
+    const mobileLogoutBtn = document.getElementById('mobile-logout-btn');
+    if (mobileLogoutBtn) {
+        mobileLogoutBtn.addEventListener('click', () => {
+            signOut(auth);
+            closeSidebar(); // Also close the sidebar on logout
+        });
+    }
+    // --- END: MOBILE MENU LOGIC ---
+    // --- END OF NEW BLOCK ---
      // Personalize the header subtitle
     const appSubtitle = document.getElementById('app-subtitle');
     if (appSubtitle) {
@@ -855,23 +988,53 @@ function initMainApp(userRole, userName) {
         topNav.querySelectorAll('.top-nav-btn').forEach(btn => btn.classList.remove('active'));
     });
 
-    topNav.addEventListener('click', (e) => {
-        const button = e.target.closest('.top-nav-btn');
-        if (!button) return;
-        const target = button.dataset.target;
-        topNav.querySelectorAll('.top-nav-btn').forEach(btn => btn.classList.remove('active'));
-        button.classList.add('active');
-        dashboardContent.classList.add('hidden');
-        mainAppContainer.classList.remove('hidden');
-        allMainSections.forEach(section => section.classList.add('hidden'));
-        switch (target) {
-            case 'check-in': document.getElementById('check-in-section').classList.remove('hidden'); document.getElementById('check-in-tab').click(); break;
-            case 'booking': document.getElementById('calendar-content').classList.remove('hidden'); break;
-            case 'nails-idea': document.getElementById('nails-idea-content').classList.remove('hidden'); break;
-            case 'report': document.getElementById('reports-content').classList.remove('hidden'); document.getElementById('salon-earning-report-tab').click(); break;
-            case 'setting': document.getElementById('admin-content').classList.remove('hidden'); document.getElementById('user-management-tab').click(); break;
-        }
+// NEW Reusable Navigation Function
+const navigateToSection = (target) => {
+    // De-activate all buttons in both desktop and mobile nav
+    document.querySelectorAll('#top-nav .top-nav-btn, #mobile-nav-links .top-nav-btn').forEach(btn => {
+        btn.classList.remove('active');
     });
+
+    // Activate the correct buttons in both navs
+    const desktopBtn = topNavContainer.querySelector(`[data-target="${target}"]`);
+    if (desktopBtn) desktopBtn.classList.add('active');
+    const mobileBtn = mobileNavLinksContainer.querySelector(`[data-target="${target}"]`);
+    if (mobileBtn) mobileBtn.classList.add('active');
+
+    // Switch the main content view
+    dashboardContent.classList.add('hidden');
+    mainAppContainer.classList.remove('hidden');
+    allMainSections.forEach(section => section.classList.add('hidden'));
+
+    switch (target) {
+        case 'check-in':
+            document.getElementById('check-in-section').classList.remove('hidden');
+            document.getElementById('check-in-tab').click();
+            break;
+        case 'booking':
+            document.getElementById('calendar-content').classList.remove('hidden');
+            break;
+        case 'nails-idea':
+            document.getElementById('nails-idea-content').classList.remove('hidden');
+            break;
+        case 'report':
+            document.getElementById('reports-content').classList.remove('hidden');
+            document.getElementById('salon-earning-report-tab').click();
+            break;
+        case 'setting':
+            document.getElementById('admin-content').classList.remove('hidden');
+            document.getElementById('user-management-tab').click();
+            break;
+    }
+};
+
+// NEW Simplified Desktop Nav Listener
+topNav.addEventListener('click', (e) => {
+    const button = e.target.closest('.top-nav-btn');
+    if (button) {
+        navigateToSection(button.dataset.target);
+    }
+});
     
     notificationBell.addEventListener('click', () => {
         notificationDropdown.classList.toggle('hidden');
@@ -882,10 +1045,6 @@ function initMainApp(userRole, userName) {
     });
 
 
-    if (userRole !== 'admin') {
-        document.querySelector('[data-target="report"]').style.display = 'none';
-        document.querySelector('[data-target="setting"]').style.display = 'none';
-    }
 
     const checkInForm = document.getElementById('check-in-form');
     const peopleCountSelect = document.getElementById('people-count');
@@ -942,7 +1101,7 @@ function initMainApp(userRole, userName) {
     let currentSalonEarningDateFilter = '', currentSalonEarningRangeFilter = String(new Date().getMonth()), currentExpenseMonthFilter = '';
 
    // ... other variables
-let aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [], allInventoryUsage = [], allGiftCards = [], allPromotions = [], allServicesList = [];
+let aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [], allInventoryUsage = [], allGiftCards = [], allPromotions = [], allServicesList = [], technicianColorMap = {}, sentReminderIds = [];
 // ... more variables
     let techniciansAndStaff = [], technicians = [];
     let allExpenseCategories = [], allPaymentAccounts = [], allSuppliers = [];
@@ -2107,13 +2266,16 @@ const updateSalonEarningsForDate = async (dateStr) => {
 
      onSnapshot(query(collection(db, "appointments"), orderBy("appointmentTimestamp", "asc")), (snapshot) => {
         snapshot.docChanges().forEach((change) => {
-            if (change.type === "added" && initialAppointmentsLoaded) {
-                 const data = change.doc.data();
-                 if (data.appointmentTimestamp.seconds > appLoadTimestamp.seconds) {
-                    const apptTime = new Date(data.appointmentTimestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    addNotification('booking', `New booking for ${data.name} at ${apptTime}`);
-                 }
-            }
+if (change.type === "added" && initialAppointmentsLoaded) {
+    const data = change.doc.data();
+    if (data.appointmentTimestamp.seconds > appLoadTimestamp.seconds) {
+        const apptTime = new Date(data.appointmentTimestamp.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        // Create a clean service string
+        const serviceString = Array.isArray(data.services) ? data.services[0] : data.services;
+        // Update the notification message format
+        addNotification('booking', `New booking from ${data.name} for ${serviceString} at ${apptTime}`);
+    }
+}
         });
         
         allAppointments = snapshot.docs.map(doc => ({ id: doc.id, appointmentTime: doc.data().appointmentTimestamp ? new Date(doc.data().appointmentTimestamp.seconds * 1000).toLocaleString() : 'N/A', ...doc.data() }));
@@ -2244,14 +2406,40 @@ onSnapshot(query(collection(db, "earnings"), orderBy("date", "desc")), (snapshot
             dayCell.innerHTML = `<div class="font-bold">${day}</div><div id="day-${day}" class="appointments"></div>`;
             calendarGrid.appendChild(dayCell);
         }
-        let filteredAppointments = allAppointments;
-        if (technicianFilter !== 'All' && technicianFilter !== 'Any Technician') { filteredAppointments = allAppointments.filter(appt => appt.technician === technicianFilter); } 
-        else if (technicianFilter === 'Any Technician') { filteredAppointments = allAppointments.filter(appt => appt.technician === 'Any Technician'); }
+let filteredAppointments = allAppointments;
+        if (technicianFilter !== 'All' && technicianFilter !== 'Any Technician') {
+            filteredAppointments = allAppointments.filter(appt => appt.technician === technicianFilter);
+        } else if (technicianFilter === 'Any Technician') {
+            filteredAppointments = allAppointments.filter(appt => appt.technician === 'Any Technician');
+        }
+
+        // Sort appointments by time to display them chronologically
+        filteredAppointments.sort((a, b) => a.appointmentTimestamp.seconds - b.appointmentTimestamp.seconds);
+
         filteredAppointments.forEach(appt => {
             const apptDate = new Date(appt.appointmentTimestamp.seconds * 1000);
-             if (apptDate.getFullYear() === year && apptDate.getMonth() === month) {
+            if (apptDate.getFullYear() === year && apptDate.getMonth() === month) {
                 const dayCell = document.getElementById(`day-${apptDate.getDate()}`);
-                if (dayCell) { dayCell.insertAdjacentHTML('beforeend', `<div class="appointment-entry bg-blue-100 text-blue-700" data-id="${appt.id}" data-type="appointment">${appt.name}</div>`); }
+                if (dayCell) {
+                    const timeString = apptDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+                    const serviceString = Array.isArray(appt.services) ? appt.services[0] : appt.services;
+                    
+                    // --- Get the color for the assigned technician ---
+                    const technicianName = appt.technician;
+                    let colorTheme = { card: 'bg-gray-100', text: 'text-gray-800' }; // Default for "Any Technician"
+                    if (technicianName && technicianColorMap[technicianName]) {
+                        colorTheme = technicianColorMap[technicianName];
+                    }
+                    // --- End of color logic ---
+
+                    const entryHTML = `
+                        <div class="appointment-entry ${colorTheme.card} p-1" data-id="${appt.id}" data-type="appointment">
+                            <p class="font-semibold text-xs ${colorTheme.text} truncate">${timeString} - ${appt.name}</p>
+                            <p class="text-xs text-gray-600 truncate">${serviceString || 'Service not specified'}</p>
+                        </div>`;
+                    
+                    dayCell.insertAdjacentHTML('beforeend', entryHTML);
+                }
             }
         });
         if(calendarCountSpan) {
@@ -2260,11 +2448,21 @@ onSnapshot(query(collection(db, "earnings"), orderBy("date", "desc")), (snapshot
     }
     document.getElementById('prev-month-btn').addEventListener('click', () => { currentMonth--; if (currentMonth < 0) { currentMonth = 11; currentYear--; } renderCalendar(currentYear, currentMonth, currentTechFilterCalendar); });
     document.getElementById('next-month-btn').addEventListener('click', () => { currentMonth++; if (currentMonth > 11) { currentMonth = 0; currentYear++; } renderCalendar(currentYear, currentMonth, currentTechFilterCalendar); });
-    calendarGrid.addEventListener('click', (e) => {
+calendarGrid.addEventListener('click', (e) => {
+        const appointmentEntry = e.target.closest('.appointment-entry');
         const dayCell = e.target.closest('.calendar-day');
-        if (!dayCell) return;
-        if (e.target.classList.contains('appointment-entry')) { const client = allAppointments.find(a => a.id === e.target.dataset.id); openViewDetailModal(client, "Booking Detail"); } 
-        else { openAddAppointmentModal(dayCell.dataset.date); }
+
+        // First, check if the click was inside an appointment entry
+        if (appointmentEntry) {
+            const client = allAppointments.find(a => a.id === appointmentEntry.dataset.id);
+            if (client) {
+                openViewDetailModal(client, "Booking Detail");
+            }
+        } 
+        // If not, then check if the click was on an empty part of a day cell
+        else if (dayCell) {
+            openAddAppointmentModal(dayCell.dataset.date);
+        }
     });
 
     const setupTechFilter = (containerId, callback) => {
@@ -2337,16 +2535,45 @@ if (dashboardServiceInput && dashboardEarningInput) {
         }
     });
 }
-    
+         // --- ACTIVATE SWIPEABLE TABS ---
+        enableSwipeableTabs('#check-in-section', '#main-tabs');
+        enableSwipeableTabs('#reports-content', '#reports-sub-tabs');
+        enableSwipeableTabs('#admin-content', '#admin-sub-tabs');
+    // --- PASTE THE NEW REMINDER LOGIC HERE ---
+        const checkAppointmentReminders = () => {
+            const now = new Date();
+            allAppointments.forEach(appt => {
+                if (sentReminderIds.includes(appt.id)) {
+                    return; // Reminder already sent for this appointment
+                }
+
+                const apptTime = appt.appointmentTimestamp.toDate();
+                const timeDifferenceMinutes = (apptTime.getTime() - now.getTime()) / 60000;
+
+                // If the appointment is between 0 and 60 minutes from now
+                if (timeDifferenceMinutes > 0 && timeDifferenceMinutes <= 60) {
+                    const timeString = apptTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    const serviceString = Array.isArray(appt.services) ? appt.services[0] : appt.services;
+                    
+                    addNotification('reminder', `Reminder: ${appt.name}'s appointment for ${serviceString} is at ${timeString}.`);
+                    
+                    sentReminderIds.push(appt.id); // Mark reminder as sent
+                }
+            });
+        };
+
+        // Check for reminders every minute
+        setInterval(checkAppointmentReminders, 60000);
+        // --- END OF NEW BLOCK ---
    // REPLACE the old staff-earning-form listener with this one
 document.getElementById('staff-earning-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const staffName = document.getElementById('staff-name').value;
     const service = document.getElementById('staff-earning-service').value; // Get service value
     const earning = parseFloat(document.getElementById('staff-earning').value);
-    const tip = parseFloat(document.getElementById('staff-tip').value);
+    const tip = parseFloat(document.getElementById('staff-tip').value) || 0; // If blank, default to 0
     const date = document.getElementById('staff-earning-date').value;
-    if (isNaN(earning) || isNaN(tip) || !date || !service) { return alert('Please fill out all fields correctly.'); }
+    if (isNaN(earning) || !date ) { return alert('Please ensure Date, and Earning fields are filled out correctly.'); } // Tip is now optional
     try {
         // Add service to the data being saved
         await addDoc(collection(db, "earnings"), { staffName, service, earning, tip, date: Timestamp.fromDate(new Date(date + 'T12:00:00')) });
@@ -2800,6 +3027,13 @@ onSnapshot(collection(db, "users"), (snapshot) => {
     const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     techniciansAndStaff = users.filter(user => user.role === 'technician' || user.role === 'staff');
     technicians = users.filter(user => user.role === 'technician');
+    // --- ADD THIS NEW BLOCK TO CREATE THE COLOR MAP ---
+    technicianColorMap = {};
+    technicians.forEach((tech, index) => {
+        // Assign a color from the palette to each technician
+        technicianColorMap[tech.name] = colorPalette[index % colorPalette.length];
+    });
+    // --- END OF NEW BLOCK ---
     renderUsers(users);
     populateTechnicianFilters();
 
