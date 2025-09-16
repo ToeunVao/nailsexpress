@@ -11,7 +11,7 @@ const firebaseConfig = {
     messagingSenderId: "1015991996673",
     appId: "1:1015991996673:web:b6e8888abae83906d34b00"
 };
-///---2
+///---3
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -306,12 +306,178 @@ function initLandingPage() {
     const landingLoginForm = document.getElementById('landing-login-form');
     const landingSignupForm = document.getElementById('landing-signup-form');
     const addAppointmentFormLanding = document.getElementById('add-appointment-form-landing');
-    const giftCardModal = document.getElementById('gift-card-modal');
-    const buyGiftCardBtn = document.getElementById('buy-gift-card-btn');
-    const closeGiftCardModalBtn = document.getElementById('close-gift-card-modal-btn');
-    const giftCardForm = document.getElementById('gift-card-form');
     const lockoutMessageDiv = document.getElementById('login-lockout-message');
+// --- NEW E-COMMERCE GIFT CARD LOGIC ---
+const purchaseModal = document.getElementById('gift-card-purchase-modal');
+const buyGiftCardBtn = document.getElementById('buy-gift-card-btn');
+const closePurchaseModalBtn = document.getElementById('close-gift-card-purchase-modal-btn');
+const purchaseForm = document.getElementById('landing-gift-card-form');
+const previewCard = document.getElementById('landing-gc-preview-card');
 
+const updateLandingGiftCardPreview = () => {
+    const showTo = document.getElementById('gc-show-to').checked;
+    const showFrom = document.getElementById('gc-show-from').checked;
+
+    document.getElementById('gc-to-wrapper').style.display = showTo ? '' : 'none';
+    document.getElementById('gc-from-wrapper').style.display = showFrom ? '' : 'none';
+
+    document.getElementById('landing-gc-preview-to').parentElement.style.display = showTo ? '' : 'none';
+    document.getElementById('landing-gc-preview-from').parentElement.style.display = showFrom ? '' : 'none';
+
+    document.getElementById('landing-gc-preview-to').textContent = document.getElementById('gc-to').value || 'Recipient';
+    document.getElementById('landing-gc-preview-from').textContent = document.getElementById('gc-from').value || 'Sender';
+
+    const amount = parseFloat(document.getElementById('gc-amount').value) || 0;
+    const quantity = parseInt(document.getElementById('gc-quantity').value, 10) || 0;
+
+    document.getElementById('landing-gc-preview-amount').textContent = `$${amount.toFixed(2)}`;
+    document.getElementById('landing-gc-total-amount').textContent = `$${(amount * quantity).toFixed(2)}`;
+    // --- ADD THIS NEW BLOCK TO DISPLAY THE EXPIRATION DATE ---
+    const expiryDate = new Date();
+    expiryDate.setMonth(expiryDate.getMonth() + 6);
+    const formattedExpiryDate = expiryDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    document.getElementById('landing-gc-preview-expiry').textContent = `Expires: ${formattedExpiryDate}`;
+    // --- END OF NEW BLOCK ---
+};
+
+const initializeLandingGiftCardDesigner = () => {
+    purchaseForm.reset();
+    document.getElementById('gc-quantity').value = 1;
+
+    const backgroundTabs = document.getElementById('landing-gc-background-tabs');
+    const backgroundOptions = document.getElementById('landing-gc-background-options');
+
+    backgroundTabs.innerHTML = Object.keys(giftCardBackgrounds).map(cat => 
+        `<button type="button" data-category="${cat}" class="px-3 py-1 text-sm font-medium rounded-t-lg">${cat}</button>`
+    ).join('');
+
+    const firstTab = backgroundTabs.querySelector('button');
+    if(firstTab) {
+         firstTab.classList.add('bg-gray-200', 'border-gray-300', 'border-b-0');
+         backgroundOptions.innerHTML = giftCardBackgrounds[firstTab.dataset.category].map(url => 
+            `<button type="button" data-bg="${url}" class="w-full h-16 bg-cover bg-center rounded-md border-2 border-transparent hover:border-pink-400" style="background-image: url('${url}')"></button>`
+         ).join('');
+         previewCard.style.backgroundImage = `url('${giftCardBackgrounds[firstTab.dataset.category][0]}')`;
+    }
+    updateLandingGiftCardPreview();
+};
+
+buyGiftCardBtn.addEventListener('click', () => {
+    initializeLandingGiftCardDesigner();
+    purchaseModal.classList.remove('hidden');
+});
+closePurchaseModalBtn.addEventListener('click', () => purchaseModal.classList.add('hidden'));
+purchaseModal.querySelector('.modal-overlay').addEventListener('click', () => purchaseModal.classList.add('hidden'));
+
+purchaseForm.addEventListener('input', updateLandingGiftCardPreview);
+
+document.getElementById('landing-gc-background-tabs').addEventListener('click', e => {
+    const tab = e.target.closest('button');
+    if (tab) {
+         document.getElementById('landing-gc-background-tabs').querySelectorAll('button').forEach(t => t.classList.remove('bg-gray-200', 'border-gray-300', 'border-b-0'));
+         tab.classList.add('bg-gray-200', 'border-gray-300', 'border-b-0');
+         const backgroundOptions = document.getElementById('landing-gc-background-options');
+         backgroundOptions.innerHTML = giftCardBackgrounds[tab.dataset.category].map(url => 
+            `<button type="button" data-bg="${url}" class="w-full h-16 bg-cover bg-center rounded-md border-2 border-transparent hover:border-pink-400" style="background-image: url('${url}')"></button>`
+         ).join('');
+         previewCard.style.backgroundImage = `url('${giftCardBackgrounds[tab.dataset.category][0]}')`;
+    }
+});
+
+document.getElementById('landing-gc-background-options').addEventListener('click', (e) => {
+    const target = e.target.closest('button');
+    if (target && target.dataset.bg) {
+        document.getElementById('landing-gc-background-options').querySelectorAll('button').forEach(btn => btn.classList.remove('ring-2', 'ring-pink-500'));
+        target.classList.add('ring-2', 'ring-pink-500');
+        previewCard.style.backgroundImage = `url('${target.dataset.bg}')`;
+    }
+});
+
+purchaseForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const buyerName = document.getElementById('gc-buyer-name').value;
+    const buyerPhone = document.getElementById('gc-buyer-phone').value;
+    const buyerEmail = document.getElementById('gc-buyer-email').value;
+    const amount = parseFloat(document.getElementById('gc-amount').value);
+    const quantity = parseInt(document.getElementById('gc-quantity').value, 10);
+
+    if (!buyerName || !buyerPhone || !buyerEmail || isNaN(amount) || amount <= 0 || isNaN(quantity) || quantity <= 0) {
+        alert('Please fill out all user and gift card information correctly.');
+        return;
+    }
+
+    const submitBtn = document.getElementById('landing-gc-submit-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Processing...';
+
+    try {
+        // Step 1: Attempt to create a new client account.
+        // NOTE: In a real-world app, you would send a verification email or use a more secure method.
+        // Using the phone number as a password is for demonstration purposes.
+        try {
+            const userCredential = await createUserWithEmailAndPassword(auth, buyerEmail, buyerPhone);
+            const user = userCredential.user;
+            // Create a corresponding document in the 'clients' collection
+            await setDoc(doc(db, "clients", user.uid), {
+                name: buyerName,
+                email: buyerEmail,
+                phone: buyerPhone,
+                role: 'client',
+                createdAt: serverTimestamp()
+            });
+        } catch (error) {
+            if (error.code === 'auth/email-already-in-use') {
+                // This is okay, the user already has an account. We can proceed.
+                console.log("User already exists, proceeding with gift card purchase.");
+            } else {
+                // For other errors (e.g., invalid email), stop the process.
+                throw error;
+            }
+        }
+
+        // Step 2: Create the gift card(s)
+        alert('Redirecting to a secure payment page...'); // Simulate payment
+
+        const batch = writeBatch(db);
+        const expiryDate = new Date();
+        expiryDate.setMonth(expiryDate.getMonth() + 6); // Set expiry to 6 months from now
+
+        for (let i = 0; i < quantity; i++) {
+            const cardData = {
+                amount: amount,
+                balance: amount,
+                history: [],
+                recipientName: document.getElementById('gc-show-to').checked ? document.getElementById('gc-to').value : buyerName,
+                senderName: document.getElementById('gc-show-from').checked ? document.getElementById('gc-from').value : buyerName,
+                code: `GC-${Date.now()}-${i}`,
+                status: 'Active',
+                type: 'E-Gift',
+                createdBy: buyerEmail, // Link card to the buyer
+                createdAt: serverTimestamp(),
+                expiresAt: Timestamp.fromDate(expiryDate)
+            };
+            const newCardRef = doc(collection(db, "gift_cards"));
+            batch.set(newCardRef, cardData);
+        }
+
+        await batch.commit();
+
+        alert(`Success! ${quantity} gift card(s) for $${amount.toFixed(2)} each have been processed. An account has been created for ${buyerEmail}.`);
+        purchaseForm.reset();
+        purchaseModal.classList.add('hidden');
+
+    } catch (error) {
+        console.error("Error during gift card purchase/account creation:", error);
+        alert(`Could not process your request. Error: ${error.message}`);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Proceed to Payment';
+    }
+});
     getDoc(doc(db, "settings", "security")).then(docSnap => {
         if (docSnap.exists()) {
             loginSecuritySettings = docSnap.data();
@@ -343,49 +509,17 @@ function initLandingPage() {
         loginFormContainer.classList.add('hidden');
     });
 
-    const openGiftCardModal = () => { giftCardModal.classList.remove('hidden'); giftCardModal.classList.add('flex'); };
-    const closeGiftCardModal = () => { giftCardModal.classList.add('hidden'); giftCardModal.classList.remove('flex'); };
-    buyGiftCardBtn.addEventListener('click', openGiftCardModal);
-    closeGiftCardModalBtn.addEventListener('click', closeGiftCardModal);
-    giftCardModal.querySelector('.modal-overlay').addEventListener('click', closeGiftCardModal);
-    
-    const giftCardAmountSelect = document.getElementById('gift-card-amount');
-    const customAmountInput = document.getElementById('gift-card-custom-amount');
-    giftCardAmountSelect.addEventListener('change', () => {
-        if (giftCardAmountSelect.value === 'custom') {
-            customAmountInput.classList.remove('hidden');
-            customAmountInput.required = true;
+
+const paymentGuideDisplay = document.getElementById('landing-gc-payment-guide');
+    // Load payment guide text into the purchase form
+    getDoc(doc(db, "settings", "paymentGuide")).then(docSnap => {
+        if (docSnap.exists() && docSnap.data().text) {
+            paymentGuideDisplay.innerHTML = `<p class="font-semibold mb-2">How to Pay:</p><p>${docSnap.data().text.replace(/\n/g, '<br>')}</p>`;
         } else {
-            customAmountInput.classList.add('hidden');
-            customAmountInput.required = false;
+            paymentGuideDisplay.textContent = 'Please contact the salon to complete your payment.';
         }
     });
-
-    giftCardForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const amount = giftCardAmountSelect.value === 'custom' 
-            ? parseFloat(customAmountInput.value) 
-            : parseInt(giftCardAmountSelect.value, 10);
-
-        if (isNaN(amount) || amount <= 0) {
-            alert('Please enter a valid amount.');
-            return;
-        }
-
-        const giftCardData = { amount: amount, balance: amount, history: [], recipientName: document.getElementById('gift-card-recipient-name').value, recipientEmail: document.getElementById('gift-card-recipient-email').value, senderName: document.getElementById('gift-card-sender-name').value, message: document.getElementById('gift-card-message').value, code: `GC-${Date.now()}${[...Array(4)].map(() => Math.floor(Math.random() * 10)).join('')}`, status: 'Active', createdAt: serverTimestamp() };
-
-        try {
-            alert('Redirecting to a secure payment page...');
-            await addDoc(collection(db, "gift_cards"), giftCardData);
-            alert(`Success! Gift card for $${amount} has been sent to ${giftCardData.recipientEmail}.`);
-            giftCardForm.reset();
-            closeGiftCardModal();
-
-        } catch (error) {
-            console.error("Error purchasing gift card:", error);
-            alert("Could not process the gift card purchase. Please try again.");
-        }
-    });
+	
 
     landingLoginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1120,8 +1254,23 @@ let currentLightboxIndex = 0;
 let currentGalleryData = [];
     
     let confirmCallback = null;
-    const showConfirmModal = (message, onConfirm) => { confirmModalMessage.textContent = message; confirmCallback = onConfirm; confirmModal.classList.remove('hidden'); confirmModal.classList.add('flex'); };
-    const closeConfirmModal = () => { confirmModal.classList.add('hidden'); confirmModal.classList.remove('flex'); confirmCallback = null; };
+    const showConfirmModal = (message, onConfirm, confirmText = 'Delete') => {
+        confirmModalMessage.textContent = message;
+        confirmCallback = onConfirm;
+        confirmConfirmBtn.textContent = confirmText;
+
+        // Also update the button color for better user experience
+        confirmConfirmBtn.classList.remove('bg-red-600', 'bg-green-600'); // Reset colors
+        if (confirmText.toLowerCase() === 'activate') {
+            confirmConfirmBtn.classList.add('bg-green-600');
+        } else {
+            confirmConfirmBtn.classList.add('bg-red-600'); // Default to red for delete
+        }
+
+        confirmModal.classList.remove('hidden');
+        confirmModal.classList.add('flex');
+    };
+	const closeConfirmModal = () => { confirmModal.classList.add('hidden'); confirmModal.classList.remove('flex'); confirmCallback = null; };
     confirmConfirmBtn.addEventListener('click', () => { if (confirmCallback) { confirmCallback(); } closeConfirmModal(); });
     confirmCancelBtn.addEventListener('click', closeConfirmModal);
     document.querySelector('.confirm-modal-overlay').addEventListener('click', closeConfirmModal);
@@ -2578,6 +2727,7 @@ document.getElementById('staff-earning-form').addEventListener('submit', async (
         // Add service to the data being saved
         await addDoc(collection(db, "earnings"), { staffName, service, earning, tip, date: Timestamp.fromDate(new Date(date + 'T12:00:00')) });
        // Manually clear only the fields that need it
+document.getElementById('staff-earning-date').value = '';
 document.getElementById('staff-earning-service').value = '';
 document.getElementById('staff-earning').value = '';
 document.getElementById('staff-tip').value = '';
@@ -2606,6 +2756,7 @@ document.getElementById('dashboard-staff-earning-form-full').addEventListener('s
         await addDoc(collection(db, "earnings"), { staffName, service, earning, tip, date: Timestamp.fromDate(date) });
        // alert(`Earning for ${staffName} on ${dateStr} has been saved.`);
        // Manually clear only the fields that need it
+document.getElementById('dashboard-staff-earning-date-full').value = '';
 document.getElementById('dashboard-staff-earning-service').value = '';
 document.getElementById('dashboard-staff-earning-full').value = '';
 document.getElementById('dashboard-staff-tip-full').value = '';
@@ -3318,7 +3469,28 @@ onSnapshot(collection(db, "users"), (snapshot) => {
     loadSettings();
     loadFeatureToggles();
     loadAndRenderSalonHours();
+// --- Setup for Payment Guide ---
+    const paymentGuideForm = document.getElementById('payment-guide-form');
+    const paymentGuideTextarea = document.getElementById('gift-card-payment-guide-textarea');
 
+    // Load existing guide
+    getDoc(doc(db, "settings", "paymentGuide")).then(docSnap => {
+        if (docSnap.exists()) {
+            paymentGuideTextarea.value = docSnap.data().text || '';
+        }
+    });
+
+    // Save new guide
+    paymentGuideForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        try {
+            await setDoc(doc(db, "settings", "paymentGuide"), { text: paymentGuideTextarea.value });
+            alert("Payment guide saved successfully!");
+        } catch (error) {
+            console.error("Error saving payment guide:", error);
+            alert("Could not save payment guide.");
+        }
+    });
     settingsForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const hours = parseInt(minBookingHoursInput.value, 10);
@@ -3801,31 +3973,45 @@ if (ideaToDelete) {
     const giftCardsTableBody = document.querySelector('#gift-cards-table tbody');
     const giftCardsTableAdminBody = document.querySelector('#gift-cards-table-admin tbody');
 
-    const renderGiftCardsAdminTable = (cards) => {
-        const tables = [giftCardsTableBody, giftCardsTableAdminBody];
-        tables.forEach(tbody => {
-            if (!tbody) return;
-            tbody.innerHTML = '';
-            if (cards.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-gray-400">No gift cards have been sold.</td></tr>`;
-                return;
+const renderGiftCardsAdminTable = (cards) => {
+    const tables = [giftCardsTableBody, giftCardsTableAdminBody];
+    tables.forEach(tbody => {
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        if (cards.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-gray-400">No gift cards have been sold.</td></tr>`;
+            return;
+        }
+        cards.forEach(card => {
+            const row = tbody.insertRow();
+            const balance = card.balance !== undefined ? card.balance : card.amount;
+            
+            let statusText = card.status || 'Active'; // Default to Active for older cards
+            let statusColor = 'bg-gray-200 text-gray-800'; // Default
+            switch (statusText) {
+                case 'Active': statusColor = 'bg-green-100 text-green-800'; break;
+                case 'Pending': statusColor = 'bg-yellow-100 text-yellow-800'; break;
+                case 'Depleted': statusColor = 'bg-red-100 text-red-800'; break;
             }
-            cards.forEach(card => {
-                const row = tbody.insertRow();
-                const balance = card.balance !== undefined ? card.balance : card.amount;
-                let status = card.status;
-                let statusColor = 'text-gray-500';
-                if (balance > 0) {
-                    status = 'Active';
-                    statusColor = 'text-green-600';
-                } else {
-                    status = 'Depleted';
-                }
 
-            row.innerHTML = `<td class="px-6 py-4">${new Date(card.createdAt.seconds * 1000).toLocaleDateString()}</td><td class="px-6 py-4 font-mono text-xs">${card.code}</td><td class="px-6 py-4">$${card.amount.toFixed(2)}</td><td class="px-6 py-4 font-bold">$${balance.toFixed(2)}</td><td class="px-6 py-4">${card.recipientName}<br><span class="text-xs text-gray-500">${card.recipientEmail || 'Physical Card'}</span></td><td class="px-6 py-4">${card.senderName}</td><td class="px-6 py-4 font-bold ${statusColor}">${status}</td><td class="px-6 py-4 text-center space-x-4"><button data-id="${card.id}" class="edit-gift-card-btn text-blue-500 hover:text-blue-700" title="Manage Card"><i class="fas fa-edit text-lg"></i></button><button data-id="${card.id}" class="delete-gift-card-btn text-red-500 hover:text-red-700" title="Delete Card"><i class="fas fa-trash-alt text-lg"></i></button></td>`;
-                });
+            let actionButtons = `<button data-id="${card.id}" class="edit-gift-card-btn text-blue-500 hover:text-blue-700" title="Manage Card"><i class="fas fa-edit text-lg"></i></button>
+                                 <button data-id="${card.id}" class="delete-gift-card-btn text-red-500 hover:text-red-700" title="Delete Card"><i class="fas fa-trash-alt text-lg"></i></button>`;
+
+            if (statusText === 'Pending') {
+                actionButtons = `<button data-id="${card.id}" class="activate-gift-card-btn text-green-500 hover:text-green-700" title="Activate Card"><i class="fas fa-check-circle text-lg"></i></button>` + actionButtons;
+            }
+
+            row.innerHTML = `<td class="px-6 py-4">${new Date(card.createdAt.seconds * 1000).toLocaleDateString()}</td>
+                             <td class="px-6 py-4 font-mono text-xs">${card.code}</td>
+                             <td class="px-6 py-4">$${card.amount.toFixed(2)}</td>
+                             <td class="px-6 py-4 font-bold">$${balance.toFixed(2)}</td>
+                             <td class="px-6 py-4">${card.recipientName}<br><span class="text-xs text-gray-500">${card.buyerInfo?.email || 'N/A'}</span></td>
+                             <td class="px-6 py-4">${card.senderName}</td>
+                             <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-semibold rounded-full ${statusColor}">${statusText}</span></td>
+                             <td class="px-6 py-4 text-center space-x-4">${actionButtons}</td>`;
         });
-    };
+    });
+};
 
     onSnapshot(query(collection(db, "gift_cards"), orderBy("createdAt", "desc")), (snapshot) => {
         allGiftCards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -4178,57 +4364,30 @@ if (ideaToDelete) {
         editGiftCardModal.classList.add('flex');
     };
 
-    editGiftCardForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const cardId = document.getElementById('edit-gift-card-id').value;
-        const transactionAmount = parseFloat(document.getElementById('edit-gc-transaction-amount').value);
-        const transactionType = document.getElementById('edit-gc-transaction-type').value;
-        const currentCard = allGiftCards.find(c => c.id === cardId);
-
-        if (!currentCard || isNaN(transactionAmount) || transactionAmount <= 0) {
-            alert("Invalid amount.");
-            return;
-        }
-        
-        let newBalance = currentCard.balance;
-        if (transactionType === 'redeem') {
-            if (transactionAmount > currentCard.balance) {
-                alert("Cannot redeem more than the current balance.");
-                return;
-            }
-            newBalance -= transactionAmount;
-        } else {
-            newBalance += transactionAmount;
-        }
-
-        const newTransaction = {
-            type: transactionType,
-            amount: transactionAmount,
-            notes: document.getElementById('edit-gc-transaction-notes').value,
-            timestamp: Timestamp.now()
-        };
-
-        try {
-            await updateDoc(doc(db, "gift_cards", cardId), {
-                balance: newBalance,
-                history: arrayUnion(newTransaction),
-                status: newBalance > 0 ? 'Active' : 'Depleted'
-            });
-            editGiftCardForm.reset();
-            editGiftCardModal.classList.add('hidden');
-        } catch (error) {
-            console.error("Error updating gift card:", error);
-            alert("Could not update gift card.");
-        }
-    });
-
     
     document.getElementById('close-edit-gift-card-modal-btn').addEventListener('click', () => editGiftCardModal.classList.add('hidden'));
     editGiftCardModal.querySelector('.modal-overlay').addEventListener('click', () => editGiftCardModal.classList.add('hidden'));
     const setupGiftCardTableListener = (tableId) => {
     const table = document.getElementById(tableId);
-    if (table) {
-        table.addEventListener('click', (e) => {
+if (table) {
+    table.addEventListener('click', (e) => {
+        const activateBtn = e.target.closest('.activate-gift-card-btn'); // ADD THIS LINE
+
+        if (activateBtn) { // ADD THIS ENTIRE IF BLOCK
+            const cardId = activateBtn.dataset.id;
+            const card = allGiftCards.find(c => c.id === cardId);
+            if (card) {
+                showConfirmModal(`Activate gift card ${card.code} for $${card.amount.toFixed(2)}?`, async () => {
+                    try {
+                        await updateDoc(doc(db, "gift_cards", cardId), { status: 'Active' });
+                        alert('Gift card has been activated!');
+                    } catch (error) {
+                        console.error("Error activating gift card:", error);
+                        alert("Could not activate the gift card.");
+                    }
+                }, 'Activate'); // Optional: change confirm button text
+            }
+        }
             const editBtn = e.target.closest('.edit-gift-card-btn');
             if (editBtn) {
                 const card = allGiftCards.find(c => c.id === editBtn.dataset.id);
