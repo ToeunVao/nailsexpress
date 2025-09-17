@@ -45,12 +45,17 @@ const giftCardBackgrounds = {
     'General': [
         'https://images.unsplash.com/photo-1596048135132-911961bd4350?q=80&w=1887&auto=format&fit=crop',
         'https://images.unsplash.com/photo-1519638831568-d9897f54ed69?q=80&w=2070&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1558081236-5415b3c5a7a5?q=80&w=1887&auto=format&fit=crop'
+        'https://images.unsplash.com/photo-1519014816548-bf5fe059798b?q=80&w=2070&auto=format&fit=crop'
     ],
     'Holidays': [
         'https://images.unsplash.com/photo-1513297887119-d46091b24bfa?q=80&w=2070&auto=format&fit=crop',
         'https://images.unsplash.com/photo-1541142762-9f70343a4b08?q=80&w=1964&auto=format&fit=crop',
         'https://images.unsplash.com/photo-1577991395684-245a6a5839a8?q=80&w=1887&auto=format&fit=crop'
+    ],
+      'Valentines': [
+        'https://images.unsplash.com/photo-1519014816548-bf5fe059798b?q=80&w=2070&auto=format&fit=crop',
+        'https://images.rawpixel.com/image_800/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIzLTExL2xhdXJhc3RlZmFubzI2Nl9waW5rX3ZhbGVudGluZXNfZGF5X2JhY2tncm91bmRfd2l0aF9oZWFydHNfYm9rZV9kZTAzMWNjMy05MmJmLTQ2NzAtYjliZC0wN2Y2ZDkzYTM1ZDBfMS5qcGc.jpg',
+        'https://cms-artifacts.artlist.io/content/motion_array/1390934/Valentines_Day_Romantic_Background_high_resolution_preview_1390934.jpg?Expires=2037527646045&Key-Pair-Id=K2ZDLYDZI2R1DF&Signature=fCbOC95RTvVc0Ld-pyxhFN5gzuS-VqGG1UYsxvu48kx8A6rdAPf~gjuv0sVBrV~0p0~2u99BYafKT5oRUsRbluBt9c8eH4k~YXVcT2KdNrQUjVD-wKS2qTcgdp8aVDYCCILMkFT4hrWRWzKlsjjgoBe7mAIaHV3cc2iqMErb-qGWlk8jX0J8vLfCvXH~daNNPMqO7tssbeYiHVrD7y89fbJ0YRVfR6wwb1AoBLseF8-7IsAZe8Hh2bn-kUEp8KocRZ4X7DBTFD~9Ho-E0HeRym4oZ37u3BdLAqY-y0a1HdIf3dOXXkF6X~UQpMlPtxTvWj4857QSez20b1mhnBhpsQ__'
     ],
     'Birthday': [
         'https://images.unsplash.com/photo-1509281373149-e957c6296406?q=80&w=1928&auto=format&fit=crop',
@@ -2248,21 +2253,22 @@ const loadAndRenderServices = async () => {
         return filtered;
     };
 
-    // REPLACE the old renderStaffEarningsTable function with this one
+// Located inside initMainApp()
 const renderStaffEarningsTable = (earnings, tableId, totalEarningId, totalTipId) => {
     const tbody = document.querySelector(`#${tableId} tbody`);
     if (!tbody) return;
 
-    const colspan = userRole === 'admin' ? 6 : 5; // Increased colspan for new column
+    const colspan = userRole === 'admin' ? 6 : 5;
     tbody.innerHTML = earnings.length === 0 ? `<tr><td colspan="${colspan}" class="py-6 text-center text-gray-400">No earnings found.</td></tr>` : '';
 
+    // *** FIX IS HERE: Sorting by newest date first (descending) ***
     earnings.sort((a, b) => b.date.seconds - a.date.seconds).forEach(earning => {
         const row = tbody.insertRow();
         row.className = 'bg-white border-b';
         let rowHTML = `
             <td class="px-6 py-4">${new Date(earning.date.seconds * 1000).toLocaleDateString()}</td>
             <td class="px-6 py-4 font-medium text-gray-900">${earning.staffName}</td>
-            <td class="px-6 py-4">${earning.service || ''}</td> <!-- Display the service -->
+            <td class="px-6 py-4">${earning.service || ''}</td>
             <td class="px-6 py-4">$${earning.earning.toFixed(2)}</td>
             <td class="px-6 py-4">$${earning.tip.toFixed(2)}</td>
         `;
@@ -2968,31 +2974,27 @@ if (dashboardServiceInput && dashboardEarningInput) {
 document.getElementById('staff-earning-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const staffName = document.getElementById('staff-name').value;
-    const service = document.getElementById('staff-earning-service').value; // Get service value
+    const service = document.getElementById('staff-earning-service').value;
     const earning = parseFloat(document.getElementById('staff-earning').value);
-    const tip = parseFloat(document.getElementById('staff-tip').value) || 0; // If blank, default to 0
+    const tip = parseFloat(document.getElementById('staff-tip').value) || 0;
     const date = document.getElementById('staff-earning-date').value;
-    if (isNaN(earning) || !date ) { return alert('Please ensure Date, and Earning fields are filled out correctly.'); } // Tip is now optional
+    if (isNaN(earning) || !date ) { return alert('Please ensure Date, and Earning fields are filled out correctly.'); }
     try {
-        // Add service to the data being saved
         await addDoc(collection(db, "earnings"), { staffName, service, earning, tip, date: Timestamp.fromDate(new Date(date + 'T12:00:00')) });
-       // Manually clear only the fields that need it
-document.getElementById('staff-earning-date').value = '';
-document.getElementById('staff-earning-service').value = '';
-document.getElementById('staff-earning').value = '';
-document.getElementById('staff-tip').value = '';
+       
+       // Manually clear only the fields that need it, leaving the date intact
+       document.getElementById('staff-earning-service').value = '';
+       document.getElementById('staff-earning').value = '';
+       document.getElementById('staff-tip').value = '';
 
-       // document.getElementById('staff-earning-date').value = getLocalDateString();
-       // document.getElementById('staff-name').value = 'TJ'; // Reset default to TJ
     } catch (err) { console.error("Error adding earning: ", err); alert("Could not add earning."); }
 });
 
-// REPLACE the old dashboard form listener with this one
-// REPLACE the old dashboard form listener with this one
+// Located inside initMainApp()
 document.getElementById('dashboard-staff-earning-form-full').addEventListener('submit', async (e) => {
     e.preventDefault();
     const staffName = document.getElementById('dashboard-staff-name-full').value;
-    const service = document.getElementById('dashboard-staff-earning-service').value; // Get service value
+    const service = document.getElementById('dashboard-staff-earning-service').value;
     const earning = parseFloat(document.getElementById('dashboard-staff-earning-full').value);
     const tip = parseFloat(document.getElementById('dashboard-staff-tip-full').value) || 0;
     const dateStr = document.getElementById('dashboard-staff-earning-date-full').value;
@@ -3002,16 +3004,13 @@ document.getElementById('dashboard-staff-earning-form-full').addEventListener('s
     const date = new Date(dateStr + 'T12:00:00');
 
     try {
-        // Add service to the data being saved
         await addDoc(collection(db, "earnings"), { staffName, service, earning, tip, date: Timestamp.fromDate(date) });
-       // alert(`Earning for ${staffName} on ${dateStr} has been saved.`);
-       // Manually clear only the fields that need it
-document.getElementById('dashboard-staff-earning-date-full').value = '';
-document.getElementById('dashboard-staff-earning-service').value = '';
-document.getElementById('dashboard-staff-earning-full').value = '';
-document.getElementById('dashboard-staff-tip-full').value = '';
-        //document.getElementById('dashboard-staff-earning-date-full').value = getLocalDateString();
-        //document.getElementById('dashboard-staff-name-full').value = 'TJ'; // Reset default to TJ
+       
+       // Manually clear only the fields that need it, leaving the date intact
+       document.getElementById('dashboard-staff-earning-service').value = '';
+       document.getElementById('dashboard-staff-earning-full').value = '';
+       document.getElementById('dashboard-staff-tip-full').value = '';
+       
     } catch (err) {
         console.error("Error saving earning entry: ", err);
         alert("Could not save the earning entry.");
