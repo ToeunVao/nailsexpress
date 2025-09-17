@@ -341,12 +341,16 @@
             </div>
 
              <!-- Client Gift Cards Content -->
-            <div id="gift-cards-content" class="client-tab-content hidden">
-                <h3 class="text-xl font-semibold text-gray-700 mb-4">My Gift Cards</h3>
-                <div id="client-gift-cards-container" class="space-y-4">
-                    <!-- Client's gift cards will be loaded here -->
-                </div>
-            </div>
+           <div id="gift-cards-content" class="client-tab-content hidden">
+    <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-semibold text-gray-700">My Gift Cards</h3>
+        <button id="client-buy-gift-card-btn" class="bg-pink-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-pink-700">
+            <i class="fas fa-gift mr-2"></i>Buy More
+        </button>
+    </div>
+    <div id="client-gift-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        </div>
+</div>
         </main>
     </div>
 
@@ -1497,7 +1501,28 @@
                         <!-- Gift Card Management Content -->
                         <div id="gift-card-management-content" class="sub-tab-content hidden">
                             <h3 class="text-xl font-semibold text-gray-700 border-b pb-3 mb-6">Gift Card Management</h3>
-                            <div class="space-y-8 mt-6">
+
+<!-- PASTE THIS ENTIRE NEW SECTION HERE -->
+<div class="mb-8 p-4 border-2 border-yellow-300 bg-yellow-50 rounded-lg">
+    <h4 class="text-lg font-semibold text-yellow-800 mb-2">Pending Gift Card Requests</h4>
+    <div class="overflow-x-auto max-h-64">
+        <table id="gift-card-requests-table" class="w-full text-sm text-left text-gray-600">
+            <thead class="text-xs text-gray-700 uppercase bg-yellow-100 sticky top-0">
+                <tr>
+                    <th scope="col" class="px-6 py-3">Date</th>
+                    <th scope="col" class="px-6 py-3">Buyer</th>
+                    <th scope="col" class="px-6 py-3">Amount</th>
+                    <th scope="col" class="px-6 py-3 text-center">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- JS will populate pending requests here -->
+            </tbody>
+        </table>
+    </div>
+</div>
+<!-- END OF NEW SECTION -->
+ <div class="space-y-8 mt-6">
                                 <div>
                                     <h4 class="text-lg font-semibold text-gray-700 mb-2">Printable Gift Card Designer
                                     </h4>
@@ -2392,8 +2417,7 @@
     <div id="nail-idea-lightbox"
         class="fixed inset-0 z-[80] hidden items-center justify-center bg-black bg-opacity-80 p-4">
         <div class="relative w-full max-w-4xl h-full flex items-center justify-center">
-            <button id="lightbox-close-btn"
-                class="absolute top-0 right-0 mt-4 mr-4 text-white text-3xl z-50">&times;</button>
+      
             <button id="lightbox-prev-btn"
                 class="absolute left-0 top-1/2 -translate-y-1/2 bg-white/20 text-white text-4xl p-2 rounded-full hover:bg-white/40 z-50">
                 &#10094;
@@ -2401,6 +2425,10 @@
             <div class="flex flex-col lg:flex-row h-full max-h-[85vh] w-full bg-white rounded-lg overflow-hidden shadow-2xl">
                 <div class="w-full lg:w-2/3 h-64 lg:h-full bg-gray-900 flex items-center justify-center">
                     <img id="lightbox-image" src="" alt="Nail Art" class="max-h-full max-w-full object-contain">
+                      <button id="lightbox-close-btn" class="absolute top-0 right-0 mt-4 mr-4 text-white text-3xl z-50">&times;</button>
+        <button id="lightbox-fullscreen-btn" class="absolute top-12 right-0 mt-5 mr-4 text-white text-xl z-50"><i class="fas fa-expand"></i></button>
+        <button id="lightbox-rotate-btn" class="absolute top-20 right-0 mt-6 mr-4 text-white text-xl z-50"><i class="fas fa-sync-alt"></i></button>
+       
                 </div>
                 <div class="w-full lg:w-1/3 p-6 overflow-y-auto">
                     <h3 id="lightbox-title" class="text-2xl font-bold text-pink-700 mb-2"></h3>
@@ -2496,7 +2524,7 @@
             <!-- Left Column: User & Gift Card Info -->
             <div class="space-y-6">
                 <!-- User Information Section -->
-                <div>
+                <div id="gc-user-info-section">
                     <h3 class="text-xl font-semibold text-gray-700 border-b pb-2 mb-4">Your Information</h3>
                     <div class="space-y-4">
                         <div>
