@@ -43,14 +43,14 @@ let allFinishedClients = [], allAppointments = [], allClients = [], allActiveCli
 
 const giftCardBackgrounds = {
     'General': [
-        'https://images.unsplash.com/photo-1596048135132-911961bd4350?q=80&w=1887&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1519638831568-d9897f54ed69?q=80&w=2070&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1519014816548-bf5fe059798b?q=80&w=2070&auto=format&fit=crop'
+        'https://png.pngtree.com/thumb_back/fh260/background/20240930/pngtree-christmas-banner-with-happy-new-year-festive-for-celebrations-image_16282636.jpg',
+        'https://png.pngtree.com/thumb_back/fh260/background/20250205/pngtree-soft-pastel-floral-design-light-blue-background-image_16896113.jpg',
+        'https://files.123freevectors.com/wp-content/original/119522-abstract-pastel-pink-background-image.jpg'
     ],
     'Holidays': [
-        'https://images.unsplash.com/photo-1513297887119-d46091b24bfa?q=80&w=2070&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1541142762-9f70343a4b08?q=80&w=1964&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1577991395684-245a6a5839a8?q=80&w=1887&auto=format&fit=crop'
+        'https://media.istockphoto.com/id/1281966270/vector/christmas-background-with-snowflakes.jpg?s=612x612&w=0&k=20&c=3t2mJbipFc4aln2M8qDbd3kJvUwtjl1md1F3Rj0xVI4=',
+        'https://media.istockphoto.com/id/1180986336/vector/red-bokeh-snowflakes-background.jpg?s=612x612&w=0&k=20&c=NR_Hf8C2owuvtCxtjk789Ckynqdm6l2oDWLHwI7uqlE=',
+        'https://png.pngtree.com/background/20210710/original/pngtree-red-christmas-snow-winter-cartoon-show-board-background-picture-image_979028.jpg'
     ],
       'Valentines': [
         'https://images.unsplash.com/photo-1519014816548-bf5fe059798b?q=80&w=2070&auto=format&fit=crop',
@@ -58,9 +58,9 @@ const giftCardBackgrounds = {
         'https://cms-artifacts.artlist.io/content/motion_array/1390934/Valentines_Day_Romantic_Background_high_resolution_preview_1390934.jpg?Expires=2037527646045&Key-Pair-Id=K2ZDLYDZI2R1DF&Signature=fCbOC95RTvVc0Ld-pyxhFN5gzuS-VqGG1UYsxvu48kx8A6rdAPf~gjuv0sVBrV~0p0~2u99BYafKT5oRUsRbluBt9c8eH4k~YXVcT2KdNrQUjVD-wKS2qTcgdp8aVDYCCILMkFT4hrWRWzKlsjjgoBe7mAIaHV3cc2iqMErb-qGWlk8jX0J8vLfCvXH~daNNPMqO7tssbeYiHVrD7y89fbJ0YRVfR6wwb1AoBLseF8-7IsAZe8Hh2bn-kUEp8KocRZ4X7DBTFD~9Ho-E0HeRym4oZ37u3BdLAqY-y0a1HdIf3dOXXkF6X~UQpMlPtxTvWj4857QSez20b1mhnBhpsQ__'
     ],
     'Birthday': [
-        'https://images.unsplash.com/photo-1509281373149-e957c6296406?q=80&w=1928&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1513151233558-d860c5398176?q=80&w=2070&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1560240643-6d27e85c251e?q=80&w=1887&auto=format&fit=crop'
+        'https://marketplace.canva.com/EAGhbM7XcuY/1/0/1600w/canva-white-and-blue-birthday-background-card-yqLk4e5MQjY.jpg',
+        'https://images.rawpixel.com/image_800/czNmcy1wcml2YXRlL3Jhd3BpeGVsX2ltYWdlcy93ZWJzaXRlX2NvbnRlbnQvbHIvam9iNTE2LW51bm9vbi0xMC5qcGc.jpg',
+        'https://www.creativefabrica.com/wp-content/uploads/2021/08/30/Happy-birthday-background-design-Graphics-16518598-1-1-580x430.jpg'
     ]
 };
 
@@ -1491,7 +1491,7 @@ topNav.addEventListener('click', (e) => {
     currentStaffDashboardDateFilter = '', currentStaffDashboardRangeFilter = String(new Date().getMonth());
     
     let currentDashboardEarningTechFilter = 'All', currentDashboardEarningDateFilter = '', currentDashboardEarningRangeFilter = 'daily';
-    let currentSalonEarningDateFilter = '', currentSalonEarningRangeFilter = String(new Date().getMonth()), currentExpenseMonthFilter = '';
+    let currentSalonEarningDateFilter = '', currentSalonEarningRangeFilter = String(new Date().getMonth()), currentExpenseMonthFilter = '', currentDashboardApptTechFilter = 'All';
 
    // ... other variables
 let aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [], allInventoryUsage = [], allGiftCards = [], allPromotions = [], allServicesList = [], technicianColorMap = {}, sentReminderIds = [], currentRotation = 0;
@@ -1649,15 +1649,15 @@ const colorPalette = [
                     </div>
                     <div class="mt-auto space-y-1 text-xs text-gray-600 border-t border-gray-400/20 pt-2">
                         <div class="flex justify-between">
-                            <span>Commission (70%):</span>
+                            <span>Total Payout:</span>
                             <span class="font-semibold text-gray-800">$${commission.toFixed(2)}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>Check Payout (70%):</span>
+                            <span>Check Payout:</span>
                             <span class="font-semibold text-gray-800">$${checkPayout.toFixed(2)}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>Cash Payout (30%):</span>
+                            <span>Cash Payout:</span>
                             <span class="font-semibold text-gray-800">$${cashPayout.toFixed(2)}</span>
                         </div>
                     </div>
@@ -1776,7 +1776,7 @@ const updateAdminDashboard = () => {
     // Render Graph and Upcoming Appointments
    updateSalonRevenueChart(filteredSalonEarnings, currentDashboardRangeFilter);
     updateStaffEarningsReport(filteredSalonEarnings); // <-- ADD THIS LINE
-    renderDetailedAppointmentsList('admin-upcoming-appointments-list', allAppointments);
+   renderDetailedAppointmentsList('admin-upcoming-appointments-list', allAppointments, currentDashboardApptTechFilter);
 };
 
 
@@ -2170,66 +2170,69 @@ const loadAndRenderServices = async () => {
         });
     };
 
-    const renderClientsList = () => {
-        if (!allFinishedClients || !allClients) {
-            const tbody = document.querySelector('#clients-list-table tbody');
-            if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-gray-400">Loading client data...</td></tr>`;
-            return;
-        }
-    
-        const clientsMap = new Map();
-        allFinishedClients.forEach(visit => {
-            if (!visit.name) return;
-            const clientKey = visit.name.toLowerCase();
-            if (!clientsMap.has(clientKey)) {
-                clientsMap.set(clientKey, { name: visit.name, phone: visit.phone || '', lastVisit: visit.checkOutTimestamp.toMillis(), techCounts: {}, colorCounts: {} });
-            }
-            const clientData = clientsMap.get(clientKey);
-            if (visit.checkOutTimestamp.toMillis() > clientData.lastVisit) {
-                clientData.lastVisit = visit.checkOutTimestamp.toMillis();
-                clientData.phone = visit.phone || clientData.phone;
-            }
-            if (visit.technician) { clientData.techCounts[visit.technician] = (clientData.techCounts[visit.technician] || 0) + 1; }
-            if (visit.colorCode) { clientData.colorCounts[visit.colorCode] = (clientData.colorCounts[visit.colorCode] || 0) + 1; }
-        });
-    
-        let processedClients = Array.from(clientsMap.values()).map(client => {
-            const findFavorite = (counts) => Object.keys(counts).length > 0 ? Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b) : 'N/A';
-            return { ...client, favoriteTech: findFavorite(client.techCounts), favoriteColor: findFavorite(client.colorCounts) };
-        });
-    
-        const clientInfoMap = new Map(allClients.map(c => [c.name.toLowerCase(), { dob: c.dob, id: c.id, phone: c.phone }]));
-        let finalClientList = processedClients.map(aggClient => {
-            const key = aggClient.name.toLowerCase();
-            const masterInfo = clientInfoMap.get(key);
-            return { ...aggClient, id: masterInfo ? masterInfo.id : null, dob: masterInfo ? masterInfo.dob : '', phone: masterInfo && masterInfo.phone ? masterInfo.phone : aggClient.phone };
-        });
-    
-        allClients.forEach(masterClient => {
-            if (!clientsMap.has(masterClient.name.toLowerCase())) {
-                finalClientList.push({ ...masterClient, lastVisit: null, favoriteTech: 'N/A', favoriteColor: 'N/A' });
-            }
-        });
-        
-        aggregatedClients = finalClientList;
-    
-        const searchTerm = document.getElementById('search-clients-list').value.toLowerCase();
-        const filteredClients = aggregatedClients.filter(c => c.name.toLowerCase().includes(searchTerm));
-    
+   // Located inside initMainApp()
+const renderClientsList = () => {
+    if (!allFinishedClients || !allClients) {
         const tbody = document.querySelector('#clients-list-table tbody');
-        if (!tbody) return;
-        tbody.innerHTML = '';
-        if (filteredClients.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-gray-400">No clients found.</td></tr>`;
-            return;
+        if (tbody) tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-gray-400">Loading client data...</td></tr>`;
+        return;
+    }
+
+    const clientsMap = new Map();
+    allFinishedClients.forEach(visit => {
+        if (!visit.name) return;
+        const clientKey = visit.name.toLowerCase();
+        if (!clientsMap.has(clientKey)) {
+            clientsMap.set(clientKey, { name: visit.name, phone: visit.phone || '', email: visit.email || '', lastVisit: visit.checkOutTimestamp.toMillis(), techCounts: {}, colorCounts: {} });
         }
+        const clientData = clientsMap.get(clientKey);
+        if (visit.checkOutTimestamp.toMillis() > clientData.lastVisit) {
+            clientData.lastVisit = visit.checkOutTimestamp.toMillis();
+            clientData.phone = visit.phone || clientData.phone;
+            clientData.email = visit.email || clientData.email; // Capture email from last visit
+        }
+        if (visit.technician) { clientData.techCounts[visit.technician] = (clientData.techCounts[visit.technician] || 0) + 1; }
+        if (visit.colorCode) { clientData.colorCounts[visit.colorCode] = (clientData.colorCounts[visit.colorCode] || 0) + 1; }
+    });
+
+    let processedClients = Array.from(clientsMap.values()).map(client => {
+        const findFavorite = (counts) => Object.keys(counts).length > 0 ? Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b) : 'N/A';
+        return { ...client, favoriteTech: findFavorite(client.techCounts), favoriteColor: findFavorite(client.colorCounts) };
+    });
+
+    const clientInfoMap = new Map(allClients.map(c => [c.name.toLowerCase(), { dob: c.dob, id: c.id, phone: c.phone, email: c.email }]));
+    let finalClientList = processedClients.map(aggClient => {
+        const key = aggClient.name.toLowerCase();
+        const masterInfo = clientInfoMap.get(key);
+        return { ...aggClient, id: masterInfo ? masterInfo.id : null, dob: masterInfo ? masterInfo.dob : '', phone: masterInfo && masterInfo.phone ? masterInfo.phone : aggClient.phone, email: masterInfo && masterInfo.email ? masterInfo.email : aggClient.email };
+    });
+
+    allClients.forEach(masterClient => {
+        if (!clientsMap.has(masterClient.name.toLowerCase())) {
+            finalClientList.push({ ...masterClient, lastVisit: null, favoriteTech: 'N/A', favoriteColor: 'N/A' });
+        }
+    });
     
-        filteredClients.forEach(client => {
-            const row = tbody.insertRow();
-            row.className = 'bg-white border-b';
-            row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900">${client.name}</td><td class="px-6 py-4">${client.phone || 'N/A'}</td><td class="px-6 py-4">${client.lastVisit ? new Date(client.lastVisit).toLocaleDateString() : 'N/A'}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${client.id}" class="text-indigo-500 hover:text-indigo-700 view-client-profile-btn" title="View Profile"><i class="fas fa-user-circle text-lg"></i></button><button data-id="${client.id}" class="text-blue-500 hover:text-blue-700 edit-client-btn" title="Edit Client"><i class="fas fa-edit text-lg"></i></button><button data-id="${client.id}" class="text-red-500 hover:text-red-700 delete-client-btn" title="Delete Client"><i class="fas fa-trash-alt text-lg"></i></button></td>`;
-        });
-    };
+    aggregatedClients = finalClientList;
+
+    const searchTerm = document.getElementById('search-clients-list').value.toLowerCase();
+    const filteredClients = aggregatedClients.filter(c => c.name.toLowerCase().includes(searchTerm));
+
+    const tbody = document.querySelector('#clients-list-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    if (filteredClients.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-gray-400">No clients found.</td></tr>`;
+        return;
+    }
+
+    filteredClients.forEach(client => {
+        const row = tbody.insertRow();
+        row.className = 'bg-white border-b';
+        // *** UPDATED THIS LINE TO INCLUDE EMAIL ***
+        row.innerHTML = `<td class="px-6 py-4 font-medium text-gray-900">${client.name}</td><td class="px-6 py-4">${client.phone || 'N/A'}</td><td class="px-6 py-4">${client.email || 'N/A'}</td><td class="px-6 py-4">${client.lastVisit ? new Date(client.lastVisit).toLocaleDateString() : 'N/A'}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${client.id}" class="text-indigo-500 hover:text-indigo-700 view-client-profile-btn" title="View Profile"><i class="fas fa-user-circle text-lg"></i></button><button data-id="${client.id}" class="text-blue-500 hover:text-blue-700 edit-client-btn" title="Edit Client"><i class="fas fa-edit text-lg"></i></button><button data-id="${client.id}" class="text-red-500 hover:text-red-700 delete-client-btn" title="Delete Client"><i class="fas fa-trash-alt text-lg"></i></button></td>`;
+    });
+};
 
     const applyEarningFilters = (earnings, techFilter, dateFilter, rangeFilter, role, name) => {
         let filtered = earnings;
@@ -2261,8 +2264,10 @@ const renderStaffEarningsTable = (earnings, tableId, totalEarningId, totalTipId)
     const colspan = userRole === 'admin' ? 6 : 5;
     tbody.innerHTML = earnings.length === 0 ? `<tr><td colspan="${colspan}" class="py-6 text-center text-gray-400">No earnings found.</td></tr>` : '';
 
-    // *** FIX IS HERE: Sorting by newest date first (descending) ***
-    earnings.sort((a, b) => b.date.seconds - a.date.seconds).forEach(earning => {
+    // *** FIX IS HERE: The .sort() method has been removed. ***
+    // The table will now render the data in the exact order it's received
+    // from the Firestore query, which is already sorted by date descending.
+    earnings.forEach(earning => {
         const row = tbody.insertRow();
         row.className = 'bg-white border-b';
         let rowHTML = `
@@ -2289,26 +2294,34 @@ const renderStaffEarningsTable = (earnings, tableId, totalEarningId, totalTipId)
     return { totalEarning, totalTip };
 };
 
-     const renderAllStaffEarnings = () => {
-        // Render for Report Page
-        const reportFiltered = applyEarningFilters(allEarnings, currentEarningTechFilter, currentEarningDateFilter, currentEarningRangeFilter, userRole, userName);
-        const { totalEarning: reportTotalEarning, totalTip: reportTotalTip } = renderStaffEarningsTable(reportFiltered, 'staff-earning-table', 'total-earning', 'total-tip');
-        
-        const reportTotalMainSpan = document.getElementById('filtered-earning-total-main');
-        const reportTotalTipSpan = document.getElementById('filtered-earning-total-tip');
-        if(reportTotalMainSpan) reportTotalMainSpan.textContent = `Total ($${reportTotalEarning.toFixed(2)})`;
-        if(reportTotalTipSpan) reportTotalTipSpan.textContent = `Tip ($${reportTotalTip.toFixed(2)})`;
+// Located inside initMainApp()
+const renderAllStaffEarnings = () => {
+    // Render for Report Page
+    const reportFiltered = applyEarningFilters(allEarnings, currentEarningTechFilter, currentEarningDateFilter, currentEarningRangeFilter, userRole, userName);
+    const { totalEarning: reportTotalEarning, totalTip: reportTotalTip } = renderStaffEarningsTable(reportFiltered, 'staff-earning-table', 'total-earning', 'total-tip');
+    
+    const reportTotalMainSpan = document.getElementById('filtered-earning-total-main');
+    const reportTotalTipSpan = document.getElementById('filtered-earning-total-tip');
+    if(reportTotalMainSpan) reportTotalMainSpan.textContent = `Total ($${reportTotalEarning.toFixed(2)})`;
+    if(reportTotalTipSpan) reportTotalTipSpan.textContent = `Tip ($${reportTotalTip.toFixed(2)})`;
 
 
-        // Render for Dashboard Page
-        const dashboardFiltered = applyEarningFilters(allEarnings, currentDashboardEarningTechFilter, currentDashboardEarningDateFilter, currentDashboardEarningRangeFilter, userRole, userName);
-        const { totalEarning: dashTotalEarning, totalTip: dashTotalTip } = renderStaffEarningsTable(dashboardFiltered, 'dashboard-staff-earning-table-full', 'dashboard-total-earning', 'dashboard-total-tip');
+    // Render for Dashboard Page
+    const dashboardFiltered = applyEarningFilters(allEarnings, currentDashboardEarningTechFilter, currentDashboardEarningDateFilter, currentDashboardEarningRangeFilter, userRole, userName);
+    const { totalEarning: dashTotalEarning, totalTip: dashTotalTip } = renderStaffEarningsTable(dashboardFiltered, 'dashboard-staff-earning-table-full', 'dashboard-total-earning', 'dashboard-total-tip');
 
-        const dashTotalMainSpan = document.getElementById('dashboard-filtered-earning-total-main');
-        const dashTotalTipSpan = document.getElementById('dashboard-filtered-earning-total-tip');
-        if(dashTotalMainSpan) dashTotalMainSpan.textContent = `Total ($${dashTotalEarning.toFixed(2)})`;
-        if(dashTotalTipSpan) dashTotalTipSpan.textContent = `Tip ($${dashTotalTip.toFixed(2)})`;
-     };
+    const dashTotalMainSpan = document.getElementById('dashboard-filtered-earning-total-main');
+    const dashTotalTipSpan = document.getElementById('dashboard-filtered-earning-total-tip');
+    if(dashTotalMainSpan) dashTotalMainSpan.textContent = `Total ($${dashTotalEarning.toFixed(2)})`;
+    if(dashTotalTipSpan) dashTotalTipSpan.textContent = `Tip ($${dashTotalTip.toFixed(2)})`;
+
+    // *** NEW: Add live client count to the dashboard report title ***
+    const clientCount = dashboardFiltered.length;
+    const detailsTitle = document.getElementById('dashboard-staff-earning-title');
+    if (detailsTitle) {
+        detailsTitle.textContent = `Staff Earning Report (${clientCount} Client${clientCount === 1 ? '' : 's'})`;
+    }
+};
     
     const applySalonEarningFilters = (earnings, dateFilter, rangeFilter) => {
         let filtered = [...earnings];
@@ -2751,13 +2764,23 @@ onSnapshot(query(collection(db, "earnings"), orderBy("date", "desc")), (snapshot
         renderGiftCardsAdminTable(filtered);
     });
     
-    document.getElementById('export-clients-btn').addEventListener('click', () => {
-        const dataToExport = aggregatedClients.map(c => ({ Name: c.name, Phone: c.phone || '', DOB: c.dob || '', 'Favorite Tech': c.favoriteTech || '', 'Favorite Color': c.favoriteColor || '', 'Last Visit': c.lastVisit ? new Date(c.lastVisit).toLocaleDateString() : '' }));
-        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Clients");
-        XLSX.writeFile(workbook, "clients_list.xlsx");
-    });
+// Located inside initMainApp()
+document.getElementById('export-clients-btn').addEventListener('click', () => {
+    // *** UPDATED THIS LINE TO INCLUDE EMAIL ***
+    const dataToExport = aggregatedClients.map(c => ({ 
+        Name: c.name, 
+        Phone: c.phone || '', 
+        Email: c.email || '', 
+        DOB: c.dob || '', 
+        'Favorite Tech': c.favoriteTech || '', 
+        'Favorite Color': c.favoriteColor || '', 
+        'Last Visit': c.lastVisit ? new Date(c.lastVisit).toLocaleDateString() : '' 
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Clients");
+    XLSX.writeFile(workbook, "clients_list.xlsx");
+});
 
     document.getElementById('full-name').addEventListener('input', (e) => { const client = allFinishedClients.find(c => c.name === e.target.value); if (client) { document.getElementById('phone-number').value = client.phone; } });
     document.getElementById('phone-number').addEventListener('input', (e) => { const client = allFinishedClients.find(c => c.phone === e.target.value); if (client) { document.getElementById('full-name').value = client.name; } });
@@ -2891,7 +2914,13 @@ calendarGrid.addEventListener('click', (e) => {
     
     setupTechFilter('tech-filter-container-earning', (tech) => { currentEarningTechFilter = tech; renderAllStaffEarnings(); });
     setupTechFilter('dashboard-tech-filter-container-earning', (tech) => { currentDashboardEarningTechFilter = tech; renderAllStaffEarnings(); });
-    
+    // Located inside initMainApp()
+setupTechFilter('tech-filter-container-earning', (tech) => { currentEarningTechFilter = tech; renderAllStaffEarnings(); });
+setupTechFilter('dashboard-tech-filter-container-earning', (tech) => { currentDashboardEarningTechFilter = tech; renderAllStaffEarnings(); });
+
+// *** ADD THIS NEW LINE ***
+setupTechFilter('tech-filter-container-dashboard-appointments', (tech) => { currentDashboardApptTechFilter = tech; updateAdminDashboard(); });
+
     
 const setupReportDateFilters = (selectId, dateInputId, callback) => {
     const select = document.getElementById(selectId);
@@ -3422,7 +3451,7 @@ const updatePublicTechnicianList = async (users) => {
 
         const publicDataRef = doc(db, "public_data", "technicians");
         await setDoc(publicDataRef, { names: technicians });
-        console.log("Public technician list updated.");
+        //console.log("Public technician list updated.");
     } catch (error) {
         console.error("Error updating public technician list:", error);
     }
@@ -4251,6 +4280,7 @@ if (ideaToDelete) {
     const giftCardsTableBody = document.querySelector('#gift-cards-table tbody');
     const giftCardsTableAdminBody = document.querySelector('#gift-cards-table-admin tbody');
 
+// Located inside initMainApp()
 const renderGiftCardsAdminTable = (cards) => {
     const tables = [giftCardsTableBody, giftCardsTableAdminBody];
     tables.forEach(tbody => {
@@ -4264,8 +4294,8 @@ const renderGiftCardsAdminTable = (cards) => {
             const row = tbody.insertRow();
             const balance = card.balance !== undefined ? card.balance : card.amount;
             
-            let statusText = card.status || 'Active'; // Default to Active for older cards
-            let statusColor = 'bg-gray-200 text-gray-800'; // Default
+            let statusText = card.status || 'Active';
+            let statusColor = 'bg-gray-200 text-gray-800';
             switch (statusText) {
                 case 'Active': statusColor = 'bg-green-100 text-green-800'; break;
                 case 'Pending': statusColor = 'bg-yellow-100 text-yellow-800'; break;
@@ -4279,11 +4309,28 @@ const renderGiftCardsAdminTable = (cards) => {
                 actionButtons = `<button data-id="${card.id}" class="activate-gift-card-btn text-green-500 hover:text-green-700" title="Activate Card"><i class="fas fa-check-circle text-lg"></i></button>` + actionButtons;
             }
 
+            // *** NEW: Create detailed HTML for the Buyer/Recipient column ***
+            let buyerRecipientHTML = 'N/A';
+            if (card.buyerInfo) {
+                buyerRecipientHTML = `
+                    <div>
+                        <p class="font-semibold">${card.buyerInfo.name || 'N/A'}</p>
+                        <p class="text-xs text-gray-600">${card.buyerInfo.phone || 'No Phone'}</p>
+                        <p class="text-xs text-gray-600">${card.buyerInfo.email || 'No Email'}</p>
+                    </div>
+                `;
+                // Also show the recipient if their name is different from the buyer's
+                if (card.recipientName && card.recipientName !== card.buyerInfo.name) {
+                    buyerRecipientHTML += `<div class="mt-1 border-t border-gray-200 pt-1 text-sm"><span class="font-semibold text-gray-500">To:</span> ${card.recipientName}</div>`;
+                }
+            }
+
+            // *** UPDATED: The entire row.innerHTML is replaced to use the new HTML ***
             row.innerHTML = `<td class="px-6 py-4">${new Date(card.createdAt.seconds * 1000).toLocaleDateString()}</td>
                              <td class="px-6 py-4 font-mono text-xs">${card.code}</td>
                              <td class="px-6 py-4">$${card.amount.toFixed(2)}</td>
                              <td class="px-6 py-4 font-bold">$${balance.toFixed(2)}</td>
-                             <td class="px-6 py-4">${card.recipientName}<br><span class="text-xs text-gray-500">${card.buyerInfo?.email || 'N/A'}</span></td>
+                             <td class="px-6 py-4">${buyerRecipientHTML}</td>
                              <td class="px-6 py-4">${card.senderName}</td>
                              <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-semibold rounded-full ${statusColor}">${statusText}</span></td>
                              <td class="px-6 py-4 text-center space-x-4">${actionButtons}</td>`;
@@ -4690,92 +4737,7 @@ const setupGiftCardTableListener = (tableId) => {
     }
 };
 
-// PASTE THIS ENTIRE BLOCK AT THE END OF initMainApp
 
-// --- NEW: Gift Card Request Approval Logic ---
-const requestsTableBody = document.getElementById('gift-card-requests-table').querySelector('tbody');
-
-if (userRole === 'admin' && requestsTableBody) {
-    onSnapshot(query(collection(db, "gift_card_requests"), orderBy("createdAt", "desc")), (snapshot) => {
-        const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        requestsTableBody.innerHTML = '';
-        if (requests.length === 0) {
-            requestsTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-gray-400 py-3">No pending requests.</td></tr>`;
-            return;
-        }
-        requests.forEach(req => {
-            const row = requestsTableBody.insertRow();
-            row.innerHTML = `
-                <td class="px-6 py-3">${req.createdAt.toDate().toLocaleDateString()}</td>
-                <td class="px-6 py-3">${req.buyerInfo.name}<br><span class="text-xs text-gray-500">${req.buyerInfo.email}</span></td>
-                <td class="px-6 py-3 font-semibold">$${req.amount.toFixed(2)}</td>
-                <td class="px-6 py-3 text-center">
-                    <button data-id="${req.id}" class="approve-gift-card-btn bg-green-500 text-white px-3 py-1 text-xs font-bold rounded-full hover:bg-green-600">Approve</button>
-                </td>
-            `;
-        });
-    });
-
-  // --- NEW: Gift Card Request Approval Logic ---
-    const requestsTableBody = document.getElementById('gift-card-requests-table').querySelector('tbody');
-
-    if (userRole === 'admin' && requestsTableBody) {
-        onSnapshot(query(collection(db, "gift_card_requests"), orderBy("createdAt", "desc")), (snapshot) => {
-            const requests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            requestsTableBody.innerHTML = '';
-            if (requests.length === 0) {
-                requestsTableBody.innerHTML = `<tr><td colspan="4" class="text-center text-gray-400 py-3">No pending requests.</td></tr>`;
-                return;
-            }
-            requests.forEach(req => {
-                const row = requestsTableBody.insertRow();
-                row.innerHTML = `
-                    <td class="px-6 py-3">${req.createdAt.toDate().toLocaleDateString()}</td>
-                    <td class="px-6 py-3">${req.buyerInfo.name}<br><span class="text-xs text-gray-500">${req.buyerInfo.email}</span></td>
-                    <td class="px-6 py-3 font-semibold">$${req.amount.toFixed(2)}</td>
-                    <td class="px-6 py-3 text-center">
-                        <button data-id="${req.id}" class="approve-gift-card-btn bg-green-500 text-white px-3 py-1 text-xs font-bold rounded-full hover:bg-green-600">Approve</button>
-                    </td>
-                `;
-            });
-        });
-
-        requestsTableBody.addEventListener('click', async (e) => {
-            const approveBtn = e.target.closest('.approve-gift-card-btn');
-            if (approveBtn) {
-                const requestId = approveBtn.dataset.id;
-                const requestDocRef = doc(db, "gift_card_requests", requestId);
-
-                showConfirmModal("Approve this gift card and activate it?", async () => {
-                    try {
-                        const requestDoc = await getDoc(requestDocRef);
-                        if (!requestDoc.exists()) {
-                            alert("This request no longer exists.");
-                            return;
-                        }
-                        const requestData = requestDoc.data();
-
-                        const newCardData = { ...requestData, status: 'Active', code: `GC-${Date.now()}` };
-
-                        const newCardRef = doc(collection(db, "gift_cards"));
-
-                        const batch = writeBatch(db);
-                        batch.set(newCardRef, newCardData);
-                        batch.delete(requestDocRef);
-                        await batch.commit();
-
-                        alert("Gift card has been approved and activated!");
-
-                    } catch (error) {
-                        console.error("Error approving gift card:", error);
-                        alert("Could not approve the gift card.");
-                    }
-                }, "Approve");
-            }
-    });
-    }
-}
-// --- END OF NEW LOGIC ---
 setupGiftCardTableListener('gift-cards-table');
 setupGiftCardTableListener('gift-cards-table-admin');
 document.getElementById('close-client-profile-modal-btn').addEventListener('click', () => clientProfileModal.classList.add('hidden'));
