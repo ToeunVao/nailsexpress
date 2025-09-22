@@ -26,8 +26,8 @@ const policyModal = document.getElementById('policy-modal');
 const addAppointmentModal = document.getElementById('add-appointment-modal');
 const addAppointmentForm = document.getElementById('add-appointment-form');
 let mainAppInitialized = false;
-let clientDashboardInitialized = false;
 let landingPageInitialized = false;
+let clientDashboardInitialized = false;
 let anonymousUserId = null;
 let bookingSettings = { minBookingHours: 2 };
 let loginSecuritySettings = { maxAttempts: 5, lockoutMinutes: 15 };
@@ -41,6 +41,7 @@ let initialAppointmentsLoaded = false;
 let initialInventoryLoaded = false;
 let allFinishedClients = [], allAppointments = [], allClients = [], allActiveClients = [], servicesData = {};
 let allColorBrands = [];
+let allMembershipTiers = [];
 
 const giftCardBackgrounds = {
     'General': [
@@ -54,7 +55,7 @@ const giftCardBackgrounds = {
         'https://png.pngtree.com/background/20210710/original/pngtree-red-christmas-snow-winter-cartoon-show-board-background-picture-image_979028.jpg'
     ],
       'Valentines': [
-        'https://images.unsplash.com/photo-1519014816548-bf5fe059798b?q=80&w=2070&auto=format&fit=crop',
+        'https://slidescorner.com/wp-content/uploads/2023/02/01-Cute-Pink-Hearts-Valentines-Day-Background-Aesthetic-FREE-by-SlidesCorner.com_.jpg',
         'https://images.rawpixel.com/image_800/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIzLTExL2xhdXJhc3RlZmFubzI2Nl9waW5rX3ZhbGVudGluZXNfZGF5X2JhY2tncm91bmRfd2l0aF9oZWFydHNfYm9rZV9kZTAzMWNjMy05MmJmLTQ2NzAtYjliZC0wN2Y2ZDkzYTM1ZDBfMS5qcGc.jpg',
         'https://cms-artifacts.artlist.io/content/motion_array/1390934/Valentines_Day_Romantic_Background_high_resolution_preview_1390934.jpg?Expires=2037527646045&Key-Pair-Id=K2ZDLYDZI2R1DF&Signature=fCbOC95RTvVc0Ld-pyxhFN5gzuS-VqGG1UYsxvu48kx8A6rdAPf~gjuv0sVBrV~0p0~2u99BYafKT5oRUsRbluBt9c8eH4k~YXVcT2KdNrQUjVD-wKS2qTcgdp8aVDYCCILMkFT4hrWRWzKlsjjgoBe7mAIaHV3cc2iqMErb-qGWlk8jX0J8vLfCvXH~daNNPMqO7tssbeYiHVrD7y89fbJ0YRVfR6wwb1AoBLseF8-7IsAZe8Hh2bn-kUEp8KocRZ4X7DBTFD~9Ho-E0HeRym4oZ37u3BdLAqY-y0a1HdIf3dOXXkF6X~UQpMlPtxTvWj4857QSez20b1mhnBhpsQ__'
     ],
@@ -213,29 +214,64 @@ document.addEventListener('click', (e) => { if (e.target.closest('.view-policy-b
 document.getElementById('policy-close-btn').addEventListener('click', closePolicyModal);
 document.querySelector('#policy-modal .policy-modal-overlay').addEventListener('click', closePolicyModal);
 
-// --- Shared Appointment Modal Logic ---
-const openAddAppointmentModal = (date, clientData = null) => {
+// This function is in the global scope
+const openAddAppointmentModal = (date, clientData = null, appointmentData = null) => {
     addAppointmentForm.reset();
-    const now = new Date();
-    const defaultDateTime = `${date}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    document.getElementById('appointment-datetime').value = defaultDateTime;
+    // *** FIX IS HERE: Correctly selecting the elements by their ID ***
+    const titleEl = document.getElementById('add-appointment-modal-title');
+    const submitBtn = document.getElementById('add-appointment-submit-btn');
+    const appointmentIdInput = document.getElementById('edit-appointment-id');
 
-    if (clientData) {
-        document.getElementById('appointment-client-name').value = clientData.name || '';
-        document.getElementById('appointment-phone').value = clientData.phone || '';
-    }
-
+    // Populate dropdowns (this is needed for both new and edit)
     const clientList = document.getElementById('client-names-list');
     const appointmentPhoneList = document.getElementById('appointment-client-phones');
     const uniqueNames = [...new Set(allFinishedClients.map(c => c.name))];
     const uniquePhones = [...new Set(allFinishedClients.filter(c => c.phone && c.phone !== 'N/A').map(c => c.phone))];
     clientList.innerHTML = uniqueNames.map(name => `<option value="${name}"></option>`).join('');
     appointmentPhoneList.innerHTML = uniquePhones.map(phone => `<option value="${phone}"></option>`).join('');
-    
     const mainServicesList = document.getElementById('main-services-list');
     mainServicesList.innerHTML = Object.keys(servicesData).flatMap(category => 
         servicesData[category].map(service => `<option value="${service.p || ''}${service.name}${service.price ? ' ' + service.price : ''}"></option>`)
     ).join('');
+
+    if (appointmentData) {
+        // --- EDIT MODE ---
+        titleEl.textContent = 'Edit Appointment';
+        submitBtn.textContent = 'Update Appointment';
+        appointmentIdInput.value = appointmentData.id;
+
+        // Convert Firestore timestamp to a string for the datetime-local input
+        const apptDate = appointmentData.appointmentTimestamp.toDate();
+        const year = apptDate.getFullYear();
+        const month = String(apptDate.getMonth() + 1).padStart(2, '0');
+        const day = String(apptDate.getDate()).padStart(2, '0');
+        const hours = String(apptDate.getHours()).padStart(2, '0');
+        const minutes = String(apptDate.getMinutes()).padStart(2, '0');
+        document.getElementById('appointment-datetime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+        document.getElementById('appointment-client-name').value = appointmentData.name || '';
+        document.getElementById('appointment-phone').value = appointmentData.phone || '';
+        document.getElementById('appointment-people').value = appointmentData.people || 1;
+        document.getElementById('appointment-booking-type').value = appointmentData.bookingType || 'Booked - Calendar';
+        document.getElementById('appointment-services').value = Array.isArray(appointmentData.services) ? appointmentData.services.join(', ') : (appointmentData.services || '');
+        document.getElementById('appointment-technician-select').value = appointmentData.technician || 'Any Technician';
+        document.getElementById('appointment-notes').value = appointmentData.notes || '';
+
+    } else {
+        // --- ADD NEW MODE (Original logic) ---
+        titleEl.textContent = 'Add New Appointment';
+        submitBtn.textContent = 'Save Appointment';
+        appointmentIdInput.value = '';
+
+        const now = new Date();
+        const defaultDateTime = `${date}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        document.getElementById('appointment-datetime').value = defaultDateTime;
+
+        if (clientData) {
+            document.getElementById('appointment-client-name').value = clientData.name || '';
+            document.getElementById('appointment-phone').value = clientData.phone || '';
+        }
+    }
 
     addAppointmentModal.classList.remove('hidden'); 
     addAppointmentModal.classList.add('flex');
@@ -257,6 +293,7 @@ document.getElementById('appointment-phone').addEventListener('input', (e) => {
     if (client) { document.getElementById('appointment-client-name').value = client.name; } 
 });
 
+// This listener is in the global scope
 addAppointmentForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const datetimeString = document.getElementById('appointment-datetime').value;
@@ -274,27 +311,165 @@ addAppointmentForm.addEventListener('submit', async (e) => {
         phone: document.getElementById('appointment-phone').value,
         people: document.getElementById('appointment-people').value,
         bookingType: document.getElementById('appointment-booking-type').value,
-        services: [document.getElementById('appointment-services').value],
+        services: [document.getElementById('appointment-services').value], // Kept as an array for consistency
         technician: document.getElementById('appointment-technician-select').value,
         notes: document.getElementById('appointment-notes').value,
         appointmentTimestamp: Timestamp.fromDate(bookingDate)
     };
     
+    const appointmentId = document.getElementById('edit-appointment-id').value;
+
     try {
-        await addDoc(collection(db, "appointments"), appointmentData);
-        await sendBookingNotificationEmail(appointmentData);
+        if (appointmentId) {
+            // If an ID exists, UPDATE the existing document
+            await updateDoc(doc(db, "appointments", appointmentId), appointmentData);
+            alert("Appointment updated successfully!");
+        } else {
+            // If no ID, ADD a new document
+            await addDoc(collection(db, "appointments"), appointmentData);
+            await sendBookingNotificationEmail(appointmentData);
+            alert("Appointment saved successfully!");
+        }
         closeAddAppointmentModal();
     } catch (err) {
-        console.error("Error adding appointment:", err);
+        console.error("Error saving appointment:", err);
         alert("Could not save appointment.");
     }
 });
 
+// --- GLOBAL MEMBERSHIP FUNCTIONS ---
+const renderMembershipTiers = (tiers, containerId, isLoggedIn) => {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    
+    tiers.forEach(tier => {
+        const benefitsList = tier.benefits.split('\n').map(b => `<li class="flex items-start"><span class="text-green-500 mr-2">✔</span><span>${b}</span></li>`).join('');
+        const buttonText = isLoggedIn ? 'Select Plan' : 'Become a Member';
 
+        const tierEl = document.createElement('div');
+        tierEl.className = 'border rounded-lg p-6 text-left flex flex-col hover:shadow-lg transition-shadow';
+        tierEl.innerHTML = `
+            <h3 class="text-2xl font-bold text-pink-700">${tier.name}</h3>
+            <p class="text-4xl font-bold my-4">$${tier.price}<span class="text-lg font-normal text-gray-500">/month</span></p>
+            <p class="text-sm text-gray-600 mb-4">${tier.discount}% off all additional services.</p>
+            <ul class="space-y-2 text-gray-700 flex-grow">${benefitsList}</ul>
+            <button data-tier-id="${tier.id}" class="purchase-membership-btn mt-6 w-full bg-pink-600 text-white font-bold py-3 rounded-lg hover:bg-pink-700">${buttonText}</button>
+        `;
+        container.appendChild(tierEl);
+    });
+};
+// REPLACE your old initializeMembershipPurchaseForm function with this one
+
+const initializeMembershipPurchaseForm = (selectedTierId, clientData = null) => {
+    const form = document.getElementById('landing-membership-form');
+    const tierSelect = document.getElementById('ms-tier-select');
+    const amountInput = document.getElementById('ms-amount');
+    const previewCard = document.getElementById('ms-preview-card');
+
+    form.reset();
+
+    // THIS BLOCK IS NOW CORRECTED TO HANDLE BOTH CASES
+    if (clientData) {
+        // For a logged-in client, pre-fill their info and hide the fields
+        document.getElementById('ms-buyer-name').value = clientData.name;
+        document.getElementById('ms-buyer-phone').value = clientData.phone || '';
+        document.getElementById('ms-buyer-email').value = clientData.email;
+        document.getElementById('membership-user-info-section').classList.add('hidden');
+    } else {
+        // For a new visitor, make sure the info fields are visible
+        const userInfoSection = document.getElementById('membership-user-info-section');
+        if (userInfoSection) {
+            userInfoSection.classList.remove('hidden');
+        }
+    }
+
+    tierSelect.innerHTML = '';
+
+    allMembershipTiers.forEach(tier => {
+        const isSelected = tier.id === selectedTierId ? 'selected' : '';
+        tierSelect.innerHTML += `<option value="${tier.id}" ${isSelected}>${tier.name}</option>`;
+    });
+
+    const updatePreview = () => {
+        const tierId = tierSelect.value;
+        const tier = allMembershipTiers.find(t => t.id === tierId);
+        const buyerName = document.getElementById('ms-buyer-name').value || 'Client Name';
+
+        if (tier) {
+            amountInput.value = tier.price.toFixed(2);
+            let cardStyle = 'from-gray-700 via-gray-900 to-black';
+            if (tier.name.toLowerCase().includes('silver')) cardStyle = 'from-gray-400 via-gray-500 to-gray-600';
+            if (tier.name.toLowerCase().includes('gold')) cardStyle = 'from-yellow-400 via-yellow-500 to-yellow-600';
+            if (tier.name.toLowerCase().includes('platinum')) cardStyle = 'from-indigo-500 via-purple-600 to-pink-600';
+
+            previewCard.className = `w-[350px] h-[200px] shadow-lg rounded-lg p-4 flex flex-col justify-between bg-gradient-to-br ${cardStyle} text-white transition-all duration-300`;
+            previewCard.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <div class="font-bold text-lg"><p>${tier.name}</p><p class="text-xs font-normal opacity-80">MEMBERSHIP</p></div>
+                    <p class="font-parisienne text-3xl">Nails Express</p>
+                </div>
+                <div class="text-left"><p class="text-xs opacity-80">MEMBER</p><p class="text-2xl font-semibold tracking-wider">${buyerName}</p></div>
+                <div class="text-right text-xs opacity-80">Member Since: ${new Date().toLocaleDateString()}</div>
+            `;
+        }
+    };
+    
+    tierSelect.addEventListener('change', updatePreview);
+    document.getElementById('ms-buyer-name').addEventListener('input', updatePreview);
+    updatePreview();
+};
+
+const openMembershipPurchaseModal = (tierId, clientData = null) => {
+    initializeMembershipPurchaseForm(tierId, clientData);
+    getDoc(doc(db, "settings", "paymentGuide")).then(docSnap => {
+        const paymentGuideDisplay = document.getElementById('membership-payment-guide');
+        if (docSnap.exists() && docSnap.data().text) {
+            paymentGuideDisplay.innerHTML = `<p class="font-semibold mb-2">How to Pay:</p><p>${docSnap.data().text.replace(/\n/g, '<br>')}</p>`;
+        } else {
+            paymentGuideDisplay.textContent = 'Please contact the salon to complete your payment.';
+        }
+    });
+    document.getElementById('membership-purchase-modal').classList.remove('hidden');
+};
+
+const closeMembershipPurchaseModal = () => {
+    document.getElementById('membership-purchase-modal').classList.add('hidden');
+};
+
+const renderClientMembershipsTable = (members) => {
+    const tbody = document.querySelector('#client-memberships-table tbody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    members.forEach(member => {
+        const row = tbody.insertRow();
+        const status = member.membership.status || 'Active';
+        const statusColor = status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+
+        let actionButtons = `<button data-id="${member.id}" class="delete-membership-record-btn text-red-500"><i class="fas fa-trash"></i></button>`;
+        if (status === 'Pending') {
+            actionButtons = `<button data-id="${member.id}" class="activate-membership-btn text-green-500 mr-2"><i class="fas fa-check-circle"></i></button>` + actionButtons;
+        }
+
+        row.innerHTML = `
+            <td class="px-6 py-4">${member.name}</td>
+            <td class="px-6 py-4">${member.membership.tierName}</td>
+            <td class="px-6 py-4">${member.membership.startDate.toDate().toLocaleDateString()}</td>
+            <td class="px-6 py-4"><span class="px-2 py-1 text-xs font-semibold rounded-full ${statusColor}">${status}</span></td>
+            <td class="px-6 py-4 text-center">${actionButtons}</td>
+        `;
+    });
+};
+
+// --- GLOBAL DATA FETCHING ---
+onSnapshot(query(collection(db, "memberships"), orderBy("price")), (snapshot) => {
+    allMembershipTiers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    if (landingPageContent.style.display === 'block') {
+        renderMembershipTiers(allMembershipTiers, 'landing-memberships-container', false);
+    }
+});
 
 // --- Primary Authentication Router ---
-// REPLACE the entire onAuthStateChanged function
-// REPLACE the entire onAuthStateChanged function
 onAuthStateChanged(auth, async (user) => {
     try {
         const hoursDoc = await getDoc(doc(db, "settings", "salonHours"));
@@ -305,6 +480,7 @@ onAuthStateChanged(auth, async (user) => {
         if (user) {
             currentUserId = user.uid;
             if (user.isAnonymous) {
+                // Anonymous user logic
                 anonymousUserId = user.uid;
                 loadingScreen.style.display = 'none';
                 appContent.style.display = 'none';
@@ -315,13 +491,15 @@ onAuthStateChanged(auth, async (user) => {
                     landingPageInitialized = true;
                 }
             } else {
+                // Authenticated user logic
                 const userDocRef = doc(db, "users", user.uid);
                 const userDoc = await getDoc(userDocRef);
 
                 if (userDoc.exists()) {
+                    // Staff/Admin User
                     const userData = userDoc.data();
                     currentUserRole = userData.role;
-                    currentUserName = userData.name; // Store user's name
+                    currentUserName = userData.name;
                     loadingScreen.style.display = 'none';
                     landingPageContent.style.display = 'none';
                     clientDashboardContent.style.display = 'none';
@@ -331,79 +509,94 @@ onAuthStateChanged(auth, async (user) => {
                         mainAppInitialized = true;
                     }
                 } else {
-                     const clientDocRef = doc(db, "clients", user.uid);
+                    const clientDocRef = doc(db, "clients", user.uid);
                     const clientDoc = await getDoc(clientDocRef);
                     if (clientDoc.exists()) {
+                        // Existing Client User
                         currentUserRole = clientDoc.data().role;
                         loadingScreen.style.display = 'none';
                         landingPageContent.style.display = 'none';
                         appContent.style.display = 'none';
                         clientDashboardContent.style.display = 'block';
-                        
-                        // FIX: Always initialize the dashboard on login to attach listeners
                         initClientDashboard(user.uid, clientDoc.data());
                     } else {
+                        // NEW Client User (just signed up)
                         const pendingPurchaseJSON = sessionStorage.getItem('pendingGiftCardPurchase');
-                        if (pendingPurchaseJSON) {
-                            const details = JSON.parse(pendingPurchaseJSON);
-                            const purchaseModal = document.getElementById('gift-card-purchase-modal');
+                        const pendingMembershipId = sessionStorage.getItem('pendingMembershipPurchase');
+                        let newClientData;
 
-                            const newClientData = {
-                                name: details.buyerName,
-                                email: details.buyerEmail,
-                                phone: details.buyerPhone,
-                                role: 'client',
-                                createdAt: serverTimestamp()
+                       if (pendingPurchaseJSON) {
+    const details = JSON.parse(pendingPurchaseJSON);
+    newClientData = { name: details.buyerName, email: details.buyerEmail, phone: details.buyerPhone, role: 'client', createdAt: serverTimestamp() };
+    await setDoc(doc(db, "clients", user.uid), newClientData);
+
+    // **** COPY AND PASTE THIS ENTIRE BLOCK TO FIX THE BUG ****
+    const batch = writeBatch(db);
+    const expiryDate = new Date();
+    expiryDate.setMonth(expiryDate.getMonth() + 6);
+    const buyerInfo = {
+        name: details.buyerName,
+        email: details.buyerEmail,
+        phone: details.buyerPhone,
+    };
+
+    for (let i = 0; i < details.quantity; i++) {
+        const cardData = {
+            amount: details.amount,
+            balance: details.amount,
+            history: [],
+            recipientName: details.recipientName,
+            senderName: details.senderName,
+            backgroundUrl: details.backgroundUrl,
+            code: `GC-${Date.now()}-${i}`,
+            status: 'Pending',
+            type: 'E-Gift',
+            createdBy: user.uid, // Use the new user's ID
+            buyerInfo: buyerInfo,
+            createdAt: serverTimestamp(),
+            expiresAt: Timestamp.fromDate(expiryDate)
+        };
+        const newCardRef = doc(collection(db, "gift_cards"));
+        batch.set(newCardRef, cardData);
+    }
+    await batch.commit();
+    // **** END OF FIX ****
+
+    sessionStorage.removeItem('pendingGiftCardPurchase');
+    alert("Success! Your account has been created and your gift card request has been sent.");
+} else if (pendingMembershipId) {
+                            const details = JSON.parse(sessionStorage.getItem('signupDetails'));
+                            newClientData = {
+                                name: details.name, email: details.email, phone: details.phone, role: 'client', createdAt: serverTimestamp(),
+                                membership: {
+                                    tierId: pendingMembershipId,
+                                    tierName: allMembershipTiers.find(t => t.id === pendingMembershipId)?.name || 'Unknown',
+                                    startDate: serverTimestamp(),
+                                    status: 'Pending' // **SET TO PENDING**
+                                }
                             };
                             await setDoc(doc(db, "clients", user.uid), newClientData);
-
-                            const batch = writeBatch(db);
-                            const expiryDate = new Date();
-                            expiryDate.setMonth(expiryDate.getMonth() + 6);
-
-                            for (let i = 0; i < details.quantity; i++) {
-                                const cardData = {
-                                    amount: details.amount,
-                                    balance: details.amount,
-                                    history: [],
-                                    recipientName: details.recipientName,
-                                    senderName: details.senderName,
-                                    code: `GC-${Date.now()}-${i}`,
-                                    status: 'Pending',
-                                    type: 'E-Gift',
-                                    createdBy: user.uid,
-                                    buyerInfo: { name: details.buyerName, email: details.buyerEmail, phone: details.buyerPhone },
-                                    createdAt: serverTimestamp(),
-                                    expiresAt: Timestamp.fromDate(expiryDate),
-                                    // *** CHANGE IS HERE: Save the background URL ***
-                                    backgroundUrl: details.backgroundUrl 
-                                };
-                                const newCardRef = doc(collection(db, "gift_cards"));
-                                batch.set(newCardRef, cardData);
-                            }
-
-                            await batch.commit();
-                            sessionStorage.removeItem('pendingGiftCardPurchase');
-
-                            alert("Success! Your account has been created and your gift card request has been sent. It will be activated once payment is confirmed.");
-
-                            if (purchaseModal) {
-                                purchaseModal.classList.add('hidden');
-                            }
-
-                            landingPageContent.style.display = 'none';
-                            appContent.style.display = 'none';
-                            clientDashboardContent.style.display = 'block';
-                            if (!clientDashboardInitialized) {
-                                initClientDashboard(user.uid, newClientData);
-                                clientDashboardInitialized = true;
-                            }
-
+                            sessionStorage.removeItem('pendingMembershipPurchase');
+                            sessionStorage.removeItem('signupDetails');
+                            alert("Welcome! Your account and membership request have been sent.");
                         } else {
-                            console.error("User authenticated but no user/client document found. Logging out.");
-                            await signOut(auth);
-                            alert("Login error: User data not found.");
+                            const details = JSON.parse(sessionStorage.getItem('signupDetails'));
+                            if (details) {
+                                newClientData = { name: details.name, email: details.email, phone: details.phone, role: 'client', createdAt: serverTimestamp() };
+                                await setDoc(doc(db, "clients", user.uid), newClientData);
+                                sessionStorage.removeItem('signupDetails');
+                            } else {
+                                console.error("New user with no client doc and no signup details.");
+                                await signOut(auth);
+                                return;
+                            }
                         }
+                        
+                        loadingScreen.style.display = 'none';
+                        landingPageContent.style.display = 'none';
+                        appContent.style.display = 'none';
+                        clientDashboardContent.style.display = 'block';
+                        initClientDashboard(user.uid, newClientData);
                     }
                 }
             }
@@ -411,15 +604,304 @@ onAuthStateChanged(auth, async (user) => {
             currentUserId = null;
             currentUserRole = null;
             currentUserName = null;
-            await signInAnonymously(auth)
+            await signInAnonymously(auth);
         }
     } catch (error) {
         console.error("Authentication Error:", error);
-        loadingScreen.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold text-red-700">Connection Error</h2><p class="text-gray-600 mt-2">Could not connect to services. Please check your internet connection and refresh the page.</p><p class="text-xs text-gray-400 mt-4">Error: ${error.message}</p></div>`;
+        loadingScreen.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold text-red-700">Connection Error</h2><p>Could not connect to services. Please check your internet connection and refresh the page.</p><p class="text-xs text-gray-400 mt-4">Error: ${error.message}</p></div>`;
     }
+});
+function initClientDashboard(clientId, clientData) {
+    document.getElementById('client-welcome-name').textContent = `Welcome back, ${clientData.name}!`;
+    document.getElementById('client-sign-out-btn').addEventListener('click', () => signOut(auth));
+
+    const openPurchaseModalForClient = (client) => {
+        const purchaseModal = document.getElementById('gift-card-purchase-modal');
+        const userInfoSection = document.getElementById('gc-user-info-section');
+
+        if (userInfoSection) {
+            userInfoSection.classList.add('hidden');
+        }
+        document.getElementById('gc-buyer-name').value = client.name;
+        document.getElementById('gc-buyer-name').readOnly = true;
+        document.getElementById('gc-buyer-phone').value = client.phone || '';
+        document.getElementById('gc-buyer-phone').readOnly = true;
+        document.getElementById('gc-buyer-email').value = clientData.email;
+        document.getElementById('gc-buyer-email').readOnly = true;
+
+        initializeLandingGiftCardDesigner();
+        purchaseModal.classList.remove('hidden');
+    };
+    
+    const openCardForPrint = (card) => {
+        const expiryText = card.expiresAt ? `Expires: ${card.expiresAt.toDate().toLocaleDateString()}` : '';
+        const cardHTML = `
+            <html>
+                <head>
+                    <title>Your Gift Card ${card.code}</title>
+                    <script src="https://cdn.tailwindcss.com"></script>
+                    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&family=Parisienne&display=swap" rel="stylesheet">
+                    <style>
+                        body { font-family: 'Poppins', sans-serif; display: flex; align-items: center; justify-content: center; margin: 0; background-color: #f0f0f0; }
+                        .font-parisienne { font-family: 'Parisienne', cursive; }
+                        .card { text-shadow: 1px 1px 3px rgba(0,0,0,0.6); }
+                    </style>
+                </head>
+                <body>
+                    <div class="card w-[400px] h-[228px] rounded-lg p-4 flex flex-col justify-between bg-cover bg-center text-white" 
+                         style="background-image: url('${card.backgroundUrl}');">
+                        <div class="flex justify-between items-start">
+                            <img src="https://placehold.co/100x100/d63384/FFFFFF?text=NE" class="w-12 h-12 rounded-full border-2 border-white" />
+                            <div class="text-right">
+                                <p class="font-parisienne text-3xl">Gift Card</p>
+                                <p class="text-xs font-semibold tracking-wider">Nails Express</p>
+                            </div>
+                        </div>
+                        <div class="text-center"><p class="text-5xl font-bold">$${card.balance.toFixed(2)}</p></div>
+                        <div class="text-xs">
+                            <div class="flex justify-between font-semibold">
+                                <span style="display: ${card.recipientName ? 'inline' : 'none'}">FOR: <span class="font-normal">${card.recipientName}</span></span>
+                                <span style="display: ${card.senderName ? 'inline' : 'none'}">FROM: <span class="font-normal">${card.senderName}</span></span>
+                            </div>
+                            <p class="mt-2 text-center font-mono tracking-widest text-sm">${card.code}</p>
+                            <p class="mt-1 text-center text-[10px] opacity-80" style="display: ${expiryText ? 'block' : 'none'}">${expiryText}</p>
+                        </div>
+                    </div>
+                </body>
+            </html>
+        `;
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(cardHTML);
+        printWindow.document.close();
+        printWindow.focus();
+    };
+
+    const renderClientGiftCards = (cards) => {
+        const container = document.getElementById('client-gift-cards-container');
+        if (!container) return;
+        container.innerHTML = '';
+        if (cards.length === 0) {
+            container.innerHTML = '<p class="text-gray-500 text-center col-span-full">You do not have any gift cards.</p>';
+            return;
+        }
+        cards.forEach(card => {
+            const cardEl = document.createElement('div');
+            cardEl.className = 'bg-white p-3 rounded-lg shadow-md space-y-3';
+            const expiryText = card.expiresAt ? `Expires: ${card.expiresAt.toDate().toLocaleDateString()}` : '';
+            cardEl.innerHTML = `
+                <div class="w-full h-[200px] shadow-lg rounded-lg p-4 flex flex-col justify-between bg-cover bg-center text-white" 
+                     style="background-image: url('${card.backgroundUrl}'); text-shadow: 1px 1px 3px rgba(0,0,0,0.6);">
+                    <div class="flex justify-between items-start">
+                        <img src="https://placehold.co/100x100/d63384/FFFFFF?text=NE" class="w-12 h-12 rounded-full border-2 border-white" />
+                        <div class="text-right">
+                            <p class="font-parisienne text-3xl">Gift Card</p>
+                            <p class="text-xs font-semibold tracking-wider">Nails Express</p>
+                        </div>
+                    </div>
+                    <div class="text-center"><p class="text-5xl font-bold">$${card.balance.toFixed(2)}</p></div>
+                    <div class="text-xs">
+                        <div class="flex justify-between font-semibold">
+                            <span>FOR: <span class="font-normal">${card.recipientName}</span></span>
+                            <span>FROM: <span class="font-normal">${card.senderName}</span></span>
+                        </div>
+                        <p class="mt-2 text-center font-mono tracking-widest text-sm">${card.code}</p>
+                        <p class="mt-1 text-center text-[10px] opacity-80" style="display: ${expiryText ? 'block' : 'none'}">${expiryText}</p>
+                    </div>
+                </div>
+                <div class="flex justify-between items-center pt-2">
+                     <span class="px-2 py-1 text-xs font-semibold rounded-full ${card.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${card.status}</span>
+                     <div class="flex gap-2">
+                        <button data-card-id="${card.id}" class="download-card-btn text-gray-500 hover:text-blue-600" title="Download/Print"><i class="fas fa-download"></i></button>
+                        <button data-card-id="${card.id}" class="share-card-btn text-gray-500 hover:text-pink-600" title="Share"><i class="fas fa-share-alt"></i></button>
+                     </div>
+                </div>
+            `;
+            container.appendChild(cardEl);
+        });
+    };
+// **** COPY AND PASTE THIS ENTIRE NEW FUNCTION ****
+const renderClientMembership = (clientData) => {
+    const container = document.getElementById('client-membership-display');
+    if (!container) return;
+
+    if (clientData.membership && allMembershipTiers.length > 0) {
+        const tier = allMembershipTiers.find(t => t.id === clientData.membership.tierId);
+        if (tier) {
+            const benefitsList = tier.benefits.split('\n').map(b => `<li class="flex items-start"><span class="text-green-500 mr-2">✔</span><span>${b}</span></li>`).join('');
+           let startDate = new Date().toLocaleDateString(); // Default to today for new signups
+if (clientData.membership.startDate && typeof clientData.membership.startDate.toDate === 'function') {
+    startDate = clientData.membership.startDate.toDate().toLocaleDateString();
+}
+            const status = clientData.membership.status || 'Active';
+            const statusColor = status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800';
+
+            container.innerHTML = `
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-2xl font-bold text-pink-700">${tier.name} Tier</h3>
+                            <p class="text-sm text-gray-500">Member since ${startDate}</p>
+                        </div>
+                        <span class="px-3 py-1 text-sm font-semibold rounded-full ${statusColor}">${status}</span>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-semibold text-gray-800 mb-2">Your Benefits:</h4>
+                            <ul class="space-y-2 text-gray-700">${benefitsList}</ul>
+                        </div>
+                        <div class="bg-gray-50 p-4 rounded-lg">
+                            <h4 class="font-semibold text-gray-800 mb-2">Perks</h4>
+                            <p class="text-lg font-bold">${tier.discount}% off</p>
+                            <p class="text-sm text-gray-600">all additional services.</p>
+                            <p class="mt-4 text-4xl font-bold text-pink-600">$${tier.price}<span class="text-lg font-normal text-gray-500">/month</span></p>
+                        </div>
+                    </div>
+                    ${status === 'Pending' ? '<p class="mt-4 text-center text-sm bg-yellow-100 text-yellow-800 p-3 rounded-lg">Your membership is pending approval. Please contact the salon to complete payment and activate your benefits.</p>' : ''}
+                </div>
+            `;
+        } else {
+             container.innerHTML = '<p class="text-gray-500 text-center col-span-full">Your membership tier could not be found. Please contact the salon.</p>';
+        }
+// Inside the renderClientMembership function...
+} else {
+    container.innerHTML = `
+        <div class="text-center p-8 bg-gray-50 rounded-lg">
+            <h3 class="text-xl font-semibold text-gray-700">You are not a member yet.</h3>
+            <p class="text-gray-500 mt-2 mb-4">Join our VIP program to enjoy exclusive discounts and benefits!</p>
+            <button class="join-membership-btn bg-pink-600 text-white font-semibold py-2 px-5 rounded-lg hover:bg-pink-700">Join Our Membership</button>
+        </div>
+    `;
+}
+};
+    // **** ADD THIS LINE ****
+    renderClientMembership(clientData);
+    // **********************
+
+    const setupClientTabs = () => {
+        const tabs = document.getElementById('client-dashboard-tabs');
+        tabs.addEventListener('click', (e) => {
+            const button = e.target.closest('button');
+            if (!button) return;
+            document.querySelectorAll('#client-dashboard-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            document.querySelectorAll('.client-tab-content').forEach(content => content.classList.add('hidden'));
+            document.getElementById(button.id.replace('-tab', '-content')).classList.remove('hidden');
+        });
+    };
+
+    const renderClientAppointments = (appointments) => {
+        const container = document.getElementById('client-upcoming-appointments');
+        container.innerHTML = '';
+        const upcoming = appointments.filter(a => a.appointmentTimestamp.toDate() > new Date());
+        if (upcoming.length === 0) {
+            container.innerHTML = '<p class="text-gray-500">You have no upcoming appointments.</p>';
+            return;
+        }
+        upcoming.forEach(appt => {
+            const el = document.createElement('div');
+            el.className = 'bg-white p-4 rounded-lg shadow';
+            el.innerHTML = `<p class="font-bold">${new Date(appt.appointmentTimestamp.seconds * 1000).toLocaleString()}</p><p>${appt.services.join(', ')}</p><p class="text-sm text-gray-600">With: ${appt.technician}</p>`;
+            container.appendChild(el);
+        });
+    };
+
+    const renderClientHistory = (history) => {
+         const container = document.getElementById('client-appointment-history');
+        container.innerHTML = '';
+        if (history.length === 0) {
+            container.innerHTML = '<p class="text-gray-500">You have no past appointments.</p>';
+            return;
+        }
+        history.forEach(visit => {
+            const el = document.createElement('div');
+            el.className = 'bg-white p-4 rounded-lg shadow';
+            el.innerHTML = `<p class="font-bold">${new Date(visit.checkOutTimestamp.seconds * 1000).toLocaleDateString()}</p><p>${visit.services}</p><p class="text-sm text-gray-600">With: ${visit.technician}</p>${visit.colorCode ? `<p class="text-sm text-gray-600">Color: ${visit.colorCode}</p>` : ''}`;
+            container.appendChild(el);
+        });
+    };
+
+    const calculateAndRenderFavorites = (history) => {
+        if (history.length === 0) return;
+        const techCounts = history.reduce((acc, visit) => {
+            if (visit.technician) acc[visit.technician] = (acc[visit.technician] || 0) + 1;
+            return acc;
+        }, {});
+        const colorCounts = history.reduce((acc, visit) => {
+            if(visit.colorCode) acc[visit.colorCode] = (acc[visit.colorCode] || 0) + 1;
+            return acc;
+        }, {});
+        const favTech = Object.keys(techCounts).length > 0 ? Object.keys(techCounts).reduce((a, b) => techCounts[a] > techCounts[b] ? a : b) : 'N/A';
+        const favColor = Object.keys(colorCounts).length > 0 ? Object.keys(colorCounts).reduce((a, b) => colorCounts[a] > colorCounts[b] ? a : b) : 'N/A';
+        document.getElementById('favorite-technician').textContent = favTech;
+        document.getElementById('favorite-color').textContent = favColor;
+    };
+
+    onSnapshot(query(collection(db, "appointments"), where("name", "==", clientData.name)), (snapshot) => {
+        const appointments = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
+        renderClientAppointments(appointments);
+    });
+     onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
+        const history = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
+        allFinishedClients = history;
+        renderClientHistory(history);
+        calculateAndRenderFavorites(history);
+    });
+
+    let allClientGiftCards = [];
+    onSnapshot(query(collection(db, "gift_cards"), where("createdBy", "==", clientId), orderBy("createdAt", "desc")), (snapshot) => {
+        allClientGiftCards = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        renderClientGiftCards(allClientGiftCards);
+    });
+
+    document.getElementById('client-gift-cards-container').addEventListener('click', (e) => {
+        const downloadBtn = e.target.closest('.download-card-btn');
+        const shareBtn = e.target.closest('.share-card-btn');
+        if (downloadBtn) {
+            const cardId = downloadBtn.dataset.cardId;
+            const card = allClientGiftCards.find(c => c.id === cardId);
+            if (card) openCardForPrint(card);
+        }
+        if (shareBtn) {
+            const cardId = shareBtn.dataset.cardId;
+            const card = allClientGiftCards.find(c => c.id === cardId);
+            if (card) {
+                if (navigator.share) {
+                    navigator.share({
+                        title: 'Nails Express Gift Card',
+                        text: `Check out this gift card for Nails Express! Code: ${card.code}`,
+                        url: window.location.href,
+                    }).catch(console.error);
+                } else {
+                    alert('Sharing is not supported on this browser. Try the download button!');
+                }
+            }
+        }
+    });
+
+    document.getElementById('client-book-new-btn').addEventListener('click', () => {
+        openAddAppointmentModal(getLocalDateString(), clientData);
+    });
+    
+    document.getElementById('client-buy-gift-card-btn').addEventListener('click', () => {
+        openPurchaseModalForClient(clientData);
+    });
+
+
+    // **** COPY AND PASTE THIS ENTIRE BLOCK ****
+// Located inside the initClientDashboard function
+
+clientDashboardContent.addEventListener('click', (e) => {
+    const joinBtn = e.target.closest('.join-membership-btn');
+if (joinBtn) {
+    // Open the modal, passing the client's data to be handled internally
+    openMembershipPurchaseModal(null, clientData);
+}
 });
 
 
+
+    setupClientTabs();
+}
 // --- LANDING PAGE SCRIPT ---
 function initLandingPage() {
     const signupLoginModal = document.getElementById('signup-login-modal');
@@ -429,12 +911,69 @@ function initLandingPage() {
     const landingSignupForm = document.getElementById('landing-signup-form');
     const addAppointmentFormLanding = document.getElementById('add-appointment-form-landing');
     const lockoutMessageDiv = document.getElementById('login-lockout-message');
+    // **** ADD THIS LINE ****
+    renderMembershipTiers(allMembershipTiers, 'landing-memberships-container', false);
+    // **** END OF FIX ****
 // --- NEW E-COMMERCE GIFT CARD LOGIC ---
     const purchaseModal = document.getElementById('gift-card-purchase-modal');
     const buyGiftCardBtn = document.getElementById('buy-gift-card-btn');
     const closePurchaseModalBtn = document.getElementById('close-gift-card-purchase-modal-btn');
     const purchaseForm = document.getElementById('landing-gift-card-form');
     const previewCard = document.getElementById('landing-gc-preview-card');
+
+
+
+    // UPDATED listener to open the new purchase modal
+    document.getElementById('landing-memberships-container').addEventListener('click', (e) => {
+        const btn = e.target.closest('.purchase-membership-btn');
+        if (btn) {
+            openMembershipPurchaseModal(btn.dataset.tierId);
+        }
+    });
+        
+    // NEW submit listener for the membership form
+    document.getElementById('landing-membership-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const submitBtn = document.getElementById('landing-ms-submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Processing...';
+
+        try {
+            const name = document.getElementById('ms-buyer-name').value;
+            const email = document.getElementById('ms-buyer-email').value;
+            const phone = document.getElementById('ms-buyer-phone').value;
+            
+            if (!name || !email || !phone) {
+                alert("Please fill out all your information to create an account.");
+                throw new Error("Missing buyer info");
+            }
+            
+            const tierId = document.getElementById('ms-tier-select').value;
+            sessionStorage.setItem('pendingMembershipPurchase', tierId);
+            sessionStorage.setItem('signupDetails', JSON.stringify({ name, email, phone }));
+
+            await createUserWithEmailAndPassword(auth, email, phone);
+            // **** ADD THIS LINE TO FIX THE BUG ****
+        closeMembershipPurchaseModal(); 
+        // *************************************
+            // onAuthStateChanged will handle the rest
+            
+        } catch (error) {
+            if (error.code === 'auth/email-already-in-use') {
+                alert("An account with this email already exists. Please log in to purchase a membership.");
+            } else {
+                console.error("Error during membership purchase:", error);
+                alert(`Could not process your request. Error: ${error.message}`);
+            }
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Membership Request';
+        }
+    });
+
+    // Listeners for the new modal
+    document.getElementById('close-membership-purchase-modal-btn').addEventListener('click', closeMembershipPurchaseModal);
+    document.getElementById('membership-purchase-modal').querySelector('.modal-overlay').addEventListener('click', closeMembershipPurchaseModal);
 
     const updateLandingGiftCardPreview = () => {
         const showTo = document.getElementById('gc-show-to').checked;
@@ -580,7 +1119,8 @@ purchaseForm.addEventListener('submit', async (e) => {
             }
             await batch.commit();
             alert("Success! Your gift card request has been sent. It will be activated once payment is confirmed.");
-            document.getElementById('gift-card-purchase-modal').classList.add('hidden');
+            // **** FIX FOR LOGGED-IN USER ****
+        closePurchaseModal();
 
         } else {
             // SCENARIO 2: New or anonymous user (original flow)
@@ -603,6 +1143,9 @@ purchaseForm.addEventListener('submit', async (e) => {
             };
             sessionStorage.setItem('pendingGiftCardPurchase', JSON.stringify(purchaseDetails));
             // onAuthStateChanged will handle the rest
+             // **** FIX FOR NEW USER ****
+        closePurchaseModal();
+
         }
     } catch (error) {
         if (error.code === 'auth/email-already-in-use') {
@@ -735,32 +1278,37 @@ const paymentGuideDisplay = document.getElementById('landing-gc-payment-guide');
         }
     });
 
-    landingSignupForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const name = document.getElementById('signup-name').value;
-        const email = document.getElementById('signup-email').value;
-        const password = document.getElementById('signup-password').value;
-        const signupBtn = document.getElementById('landing-signup-btn');
-        const btnText = signupBtn.querySelector('.btn-text');
-        const spinner = signupBtn.querySelector('i');
+// In initLandingPage, REPLACE the landingSignupForm listener
+landingSignupForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('signup-name').value;
+    const email = document.getElementById('signup-email').value;
+    const password = document.getElementById('signup-password').value;
+    const signupBtn = document.getElementById('landing-signup-btn');
+    const btnText = signupBtn.querySelector('.btn-text');
+    const spinner = signupBtn.querySelector('i');
 
-        btnText.textContent = 'Signing Up...';
-        spinner.classList.remove('hidden');
-        signupBtn.disabled = true;
+    btnText.textContent = 'Signing Up...';
+    spinner.classList.remove('hidden');
+    signupBtn.disabled = true;
 
-        try {
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
-            await setDoc(doc(db, "clients", user.uid), { name: name, email: email, role: 'client', createdAt: serverTimestamp() });
-            closeAuthModal(); 
-        } catch (error) {
-            alert(`Sign Up Failed: ${error.message}`);
-        } finally {
-            btnText.textContent = 'Sign Up';
-            spinner.classList.add('hidden');
-            signupBtn.disabled = false;
-        }
-    });
+    try {
+        // Store signup details in session storage before creating user
+        const signupDetails = { name, email, phone: password };
+        sessionStorage.setItem('signupDetails', JSON.stringify(signupDetails));
+
+        await createUserWithEmailAndPassword(auth, email, password);
+        // The onAuthStateChanged listener will now handle creating the client document
+        closeAuthModal(); 
+    } catch (error) {
+        alert(`Sign Up Failed: ${error.message}`);
+        sessionStorage.removeItem('signupDetails'); // Clean up on failure
+    } finally {
+        btnText.textContent = 'Sign Up';
+        spinner.classList.add('hidden');
+        signupBtn.disabled = false;
+    }
+});
 
     const peopleSelect = document.getElementById('appointment-people-landing');
     for (let i = 1; i <= 20; i++) {
@@ -907,284 +1455,50 @@ getDoc(doc(db, "public_data", "technicians")).then(docSnap => {
         }
     });
 
-    const updateFeatureVisibility = (settings) => {
-        const showClientRegistration = settings.showClientLogin !== false;
-        const showPromos = settings.showPromotions !== false;
-        const showGiftCards = settings.showGiftCards !== false;
-        const showNailArt = settings.showNailArt !== false;
-        
-        const signupTab = document.getElementById('signup-tab-btn').parentElement;
-        if (signupTab) {
-             signupTab.style.display = showClientRegistration ? 'block' : 'none';
-        }
-        
-        document.getElementById('promotions-landing').style.display = showPromos ? '' : 'none';
-        document.querySelector('.nav-item-promotions').style.display = showPromos ? '' : 'none';
-        
-        document.getElementById('gift-card-landing').style.display = showGiftCards ? '' : 'none';
-        document.querySelector('.nav-item-gift-card').style.display = showGiftCards ? '' : 'none';
+// Located inside initLandingPage()
+const updateFeatureVisibility = (settings) => {
+    const showClientRegistration = settings.showClientLogin !== false;
+    const showPromos = settings.showPromotions !== false;
+    const showGiftCards = settings.showGiftCards !== false;
+    const showNailArt = settings.showNailArt !== false;
+    // Safely check for the memberships property
+    const showMemberships = settings.showMemberships !== false;
 
-        document.getElementById('nails-idea-landing').style.display = showNailArt ? '' : 'none';
-        document.querySelector('.nav-item-nails-idea').style.display = showNailArt ? '' : 'none';
-    };
+    const signupTab = document.getElementById('signup-tab-btn').parentElement;
+    if (signupTab) {
+        signupTab.style.display = showClientRegistration ? 'block' : 'none';
+    }
 
-    onSnapshot(doc(db, "settings", "features"), (docSnap) => {
-        if (docSnap.exists()) {
-            updateFeatureVisibility(docSnap.data());
-        } else {
-            updateFeatureVisibility({ showClientLogin: true, showPromotions: true, showGiftCards: true, showNailArt: true });
-        }
-    });
-}
+    document.getElementById('promotions-landing').style.display = showPromos ? '' : 'none';
+    document.querySelector('.nav-item-promotions').style.display = showPromos ? '' : 'none';
 
-// --- CLIENT DASHBOARD SCRIPT ---
-// REPLACE the entire initClientDashboard function
-function initClientDashboard(clientId, clientData) {
-    document.getElementById('client-welcome-name').textContent = `Welcome back, ${clientData.name}!`;
-    document.getElementById('client-sign-out-btn').addEventListener('click', () => signOut(auth));
+    document.getElementById('gift-card-landing').style.display = showGiftCards ? '' : 'none';
+    document.querySelector('.nav-item-gift-card').style.display = showGiftCards ? '' : 'none';
 
-    const openPurchaseModalForClient = (client) => {
-        const purchaseModal = document.getElementById('gift-card-purchase-modal');
-        const userInfoSection = document.getElementById('gc-user-info-section');
+    document.getElementById('nails-idea-landing').style.display = showNailArt ? '' : 'none';
+    document.querySelector('.nav-item-nails-idea').style.display = showNailArt ? '' : 'none';
 
-        // *** HIDE the user info section ***
-        if (userInfoSection) {
-            userInfoSection.classList.add('hidden');
-        }
-        // Pre-fill and disable user info fields
-        document.getElementById('gc-buyer-name').value = client.name;
-        document.getElementById('gc-buyer-name').disabled = true;
-        document.getElementById('gc-buyer-phone').value = client.phone || '';
-        document.getElementById('gc-buyer-phone').disabled = true;
-        document.getElementById('gc-buyer-email').value = clientData.email;
-        document.getElementById('gc-buyer-email').disabled = true;
+    const membershipSection = document.getElementById('memberships-landing');
+    const membershipNavLink = document.querySelector('a[href="#memberships-landing"]');
+    if (membershipSection) membershipSection.style.display = showMemberships ? '' : 'none';
+    if (membershipNavLink) membershipNavLink.style.display = showMemberships ? '' : 'none';
+};
 
-        // Initialize designer and show the modal
-        initializeLandingGiftCardDesigner();
-        purchaseModal.classList.remove('hidden');
-    };
-    // Opens a new tab with just the gift card for printing or saving as an image
-    const openCardForPrint = (card) => {
-        const expiryText = card.expiresAt ? `Expires: ${card.expiresAt.toDate().toLocaleDateString()}` : '';
-        const cardHTML = `
-            <html>
-                <head>
-                    <title>Your Gift Card ${card.code}</title>
-                    <script src="https://cdn.tailwindcss.com"></script>
-                    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&family=Parisienne&display=swap" rel="stylesheet">
-                    <style>
-                        body { font-family: 'Poppins', sans-serif; display: flex; align-items: center; justify-content: center; margin: 0; background-color: #f0f0f0; }
-                        .font-parisienne { font-family: 'Parisienne', cursive; }
-                        .card { text-shadow: 1px 1px 3px rgba(0,0,0,0.6); }
-                    </style>
-                </head>
-                <body>
-                    <div class="card w-[400px] h-[228px] rounded-lg p-4 flex flex-col justify-between bg-cover bg-center text-white" 
-                         style="background-image: url('${card.backgroundUrl}');">
-                        <div class="flex justify-between items-start">
-                            <img src="https://placehold.co/100x100/d63384/FFFFFF?text=NE" class="w-12 h-12 rounded-full border-2 border-white" />
-                            <div class="text-right">
-                                <p class="font-parisienne text-3xl">Gift Card</p>
-                                <p class="text-xs font-semibold tracking-wider">Nails Express</p>
-                            </div>
-                        </div>
-                        <div class="text-center"><p class="text-5xl font-bold">$${card.balance.toFixed(2)}</p></div>
-                        <div class="text-xs">
-                            <div class="flex justify-between font-semibold">
-                                <span style="display: ${card.recipientName ? 'inline' : 'none'}">FOR: <span class="font-normal">${card.recipientName}</span></span>
-                                <span style="display: ${card.senderName ? 'inline' : 'none'}">FROM: <span class="font-normal">${card.senderName}</span></span>
-                            </div>
-                            <p class="mt-2 text-center font-mono tracking-widest text-sm">${card.code}</p>
-                            <p class="mt-1 text-center text-[10px] opacity-80" style="display: ${expiryText ? 'block' : 'none'}">${expiryText}</p>
-                        </div>
-                    </div>
-                </body>
-            </html>
-        `;
-        const printWindow = window.open('', '_blank');
-        printWindow.document.write(cardHTML);
-        printWindow.document.close();
-        printWindow.focus();
-    };
-
-    const renderClientGiftCards = (cards) => {
-        const container = document.getElementById('client-gift-cards-container');
-        if (!container) return;
-
-        container.innerHTML = '';
-        if (cards.length === 0) {
-            container.innerHTML = '<p class="text-gray-500 text-center col-span-full">You do not have any gift cards.</p>';
-            return;
-        }
-
-        cards.forEach(card => {
-            const cardEl = document.createElement('div');
-            cardEl.className = 'bg-white p-3 rounded-lg shadow-md space-y-3';
-            
-            const expiryText = card.expiresAt ? `Expires: ${card.expiresAt.toDate().toLocaleDateString()}` : '';
-            
-            cardEl.innerHTML = `
-                <div class="w-full h-[200px] shadow-lg rounded-lg p-4 flex flex-col justify-between bg-cover bg-center text-white" 
-                     style="background-image: url('${card.backgroundUrl}'); text-shadow: 1px 1px 3px rgba(0,0,0,0.6);">
-                    <div class="flex justify-between items-start">
-                        <img src="https://placehold.co/100x100/d63384/FFFFFF?text=NE" class="w-12 h-12 rounded-full border-2 border-white" />
-                        <div class="text-right">
-                            <p class="font-parisienne text-3xl">Gift Card</p>
-                            <p class="text-xs font-semibold tracking-wider">Nails Express</p>
-                        </div>
-                    </div>
-                    <div class="text-center"><p class="text-5xl font-bold">$${card.balance.toFixed(2)}</p></div>
-                    <div class="text-xs">
-                        <div class="flex justify-between font-semibold">
-                            <span>FOR: <span class="font-normal">${card.recipientName}</span></span>
-                            <span>FROM: <span class="font-normal">${card.senderName}</span></span>
-                        </div>
-                        <p class="mt-2 text-center font-mono tracking-widest text-sm">${card.code}</p>
-                        <p class="mt-1 text-center text-[10px] opacity-80" style="display: ${expiryText ? 'block' : 'none'}">${expiryText}</p>
-                    </div>
-                </div>
-                <div class="flex justify-between items-center pt-2">
-                     <span class="px-2 py-1 text-xs font-semibold rounded-full ${card.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}">${card.status}</span>
-                     <div class="flex gap-2">
-                        <button data-card-id="${card.id}" class="download-card-btn text-gray-500 hover:text-blue-600" title="Download/Print"><i class="fas fa-download"></i></button>
-                        <button data-card-id="${card.id}" class="share-card-btn text-gray-500 hover:text-pink-600" title="Share"><i class="fas fa-share-alt"></i></button>
-                     </div>
-                </div>
-            `;
-            container.appendChild(cardEl);
+// Located at the end of initLandingPage()
+onSnapshot(doc(db, "settings", "features"), (docSnap) => {
+    if (docSnap.exists()) {
+        updateFeatureVisibility(docSnap.data());
+    } else {
+        // FIX IS HERE: Added showMemberships to the default object
+        updateFeatureVisibility({ 
+            showClientLogin: true, 
+            showPromotions: true, 
+            showGiftCards: true, 
+            showNailArt: true,
+            showMemberships: true 
         });
-    };
-
- const setupClientTabs = () => {
-        const tabs = document.getElementById('client-dashboard-tabs');
-        tabs.addEventListener('click', (e) => {
-            const button = e.target.closest('button');
-            if (!button) return;
-            document.querySelectorAll('#client-dashboard-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            document.querySelectorAll('.client-tab-content').forEach(content => content.classList.add('hidden'));
-            document.getElementById(button.id.replace('-tab', '-content')).classList.remove('hidden');
-        });
-    };
-
-
-    const renderClientAppointments = (appointments) => {
-        const container = document.getElementById('client-upcoming-appointments');
-        container.innerHTML = '';
-        const upcoming = appointments.filter(a => a.appointmentTimestamp.toDate() > new Date());
-        if (upcoming.length === 0) {
-            container.innerHTML = '<p class="text-gray-500">You have no upcoming appointments.</p>';
-            return;
-        }
-        upcoming.forEach(appt => {
-            const el = document.createElement('div');
-            el.className = 'bg-white p-4 rounded-lg shadow';
-            el.innerHTML = `<p class="font-bold">${new Date(appt.appointmentTimestamp.seconds * 1000).toLocaleString()}</p><p>${appt.services.join(', ')}</p><p class="text-sm text-gray-600">With: ${appt.technician}</p>`;
-            container.appendChild(el);
-        });
-    };
-
-    const renderClientHistory = (history) => {
-         const container = document.getElementById('client-appointment-history');
-        container.innerHTML = '';
-        if (history.length === 0) {
-            container.innerHTML = '<p class="text-gray-500">You have no past appointments.</p>';
-            return;
-        }
-        history.forEach(visit => {
-            const el = document.createElement('div');
-            el.className = 'bg-white p-4 rounded-lg shadow';
-            el.innerHTML = `<p class="font-bold">${new Date(visit.checkOutTimestamp.seconds * 1000).toLocaleDateString()}</p><p>${visit.services}</p><p class="text-sm text-gray-600">With: ${visit.technician}</p>${visit.colorCode ? `<p class="text-sm text-gray-600">Color: ${visit.colorCode}</p>` : ''}`;
-            container.appendChild(el);
-        });
-    };
-
-    const calculateAndRenderFavorites = (history) => {
-        if (history.length === 0) return;
-        const techCounts = history.reduce((acc, visit) => {
-            if (visit.technician) acc[visit.technician] = (acc[visit.technician] || 0) + 1;
-            return acc;
-        }, {});
-        const colorCounts = history.reduce((acc, visit) => {
-            if(visit.colorCode) acc[visit.colorCode] = (acc[visit.colorCode] || 0) + 1;
-            return acc;
-        }, {});
-
-        const favTech = Object.keys(techCounts).length > 0 ? Object.keys(techCounts).reduce((a, b) => techCounts[a] > techCounts[b] ? a : b) : 'N/A';
-        const favColor = Object.keys(colorCounts).length > 0 ? Object.keys(colorCounts).reduce((a, b) => colorCounts[a] > colorCounts[b] ? a : b) : 'N/A';
-
-        document.getElementById('favorite-technician').textContent = favTech;
-        document.getElementById('favorite-color').textContent = favColor;
-    };
-
-
-    // Listeners for snapshots (appointments, history, etc.)
-    onSnapshot(query(collection(db, "appointments"), where("name", "==", clientData.name)), (snapshot) => { renderClientAppointments(snapshot.docs.map(doc => ({...doc.data(), id: doc.id}))); });
-    onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name), orderBy("checkOutTimestamp", "desc")), (snapshot) => { const history = snapshot.docs.map(doc => ({...doc.data(), id: doc.id})); renderClientHistory(history); calculateAndRenderFavorites(history); });
-
-    let allClientGiftCards = [];
-    onSnapshot(query(collection(db, "gift_cards"), where("createdBy", "==", clientId), orderBy("createdAt", "desc")), (snapshot) => {
-        allClientGiftCards = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-        renderClientGiftCards(allClientGiftCards);
-    });
-
-    // Event listener for the entire gift card container
-    document.getElementById('client-gift-cards-container').addEventListener('click', (e) => {
-        const downloadBtn = e.target.closest('.download-card-btn');
-        const shareBtn = e.target.closest('.share-card-btn');
-        
-        if (downloadBtn) {
-            const cardId = downloadBtn.dataset.cardId;
-            const card = allClientGiftCards.find(c => c.id === cardId);
-            if (card) openCardForPrint(card);
-        }
-
-        if (shareBtn) {
-            const cardId = shareBtn.dataset.cardId;
-            const card = allClientGiftCards.find(c => c.id === cardId);
-            if (card) {
-                // For simplicity, we can use the Web Share API if available, or just copy a link
-                if (navigator.share) {
-                    navigator.share({
-                        title: 'Nails Express Gift Card',
-                        text: `Check out this gift card for Nails Express! Code: ${card.code}`,
-                        url: window.location.href,
-                    }).catch(console.error);
-                } else {
-                    alert('Sharing is not supported on this browser. Try the download button!');
-                }
-            }
-        }
-    });
-
-   document.getElementById('client-photo-upload').addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const storageRef = ref(storage, `client_galleries/${clientId}/${Date.now()}_${file.name}`);
-        try {
-            await uploadBytes(storageRef, file);
-            const downloadURL = await getDownloadURL(storageRef);
-            await updateDoc(doc(db, "clients", clientId), {
-                photoGallery: arrayUnion(downloadURL)
-            });
-            alert('Photo uploaded successfully!');
-        } catch (error) {
-            console.error("Error uploading photo:", error);
-            alert("Could not upload photo.");
-        }
-        e.target.value = '';
-    });
-
-    document.getElementById('client-book-new-btn').addEventListener('click', () => {
-        openAddAppointmentModal(getLocalDateString(), clientData);
-    });
-     // *** NEW LISTENER FOR THE "BUY MORE" BUTTON ***
-    document.getElementById('client-buy-gift-card-btn').addEventListener('click', () => {
-        openPurchaseModalForClient(clientData);
-    });
-
-    setupClientTabs();
+    }
+});
 }
 
 // --- MAIN CHECK-IN APP SCRIPT ---
@@ -1310,28 +1624,30 @@ function initMainApp(userRole, userName) {
         }
     }
 
-    const updateNavCounts = () => {
-        const checkInCount = allActiveClients.length;
-        if (checkInNavCount) {
-            if (checkInCount > 0) {
-                checkInNavCount.textContent = checkInCount;
-                checkInNavCount.classList.remove('hidden');
-            } else {
-                checkInNavCount.classList.add('hidden');
-            }
+// Located inside initMainApp()
+const updateNavCounts = () => {
+    const checkInCount = allActiveClients.length;
+    if (checkInNavCount) {
+        if (checkInCount > 0) {
+            checkInNavCount.textContent = checkInCount;
+            checkInNavCount.classList.remove('hidden');
+        } else {
+            checkInNavCount.classList.add('hidden');
         }
+    }
 
-        const bookingCount = allAppointments.length;
-        if (bookingNavCount) {
-            if (bookingCount > 0) {
-                bookingNavCount.textContent = bookingCount;
-                bookingNavCount.classList.remove('hidden');
-            } else {
-                bookingNavCount.classList.add('hidden');
-            }
+    // *** FIX IS HERE: Filter for future appointments before counting ***
+    const bookingCount = allAppointments.filter(a => a.appointmentTimestamp.toDate() > new Date()).length;
+
+    if (bookingNavCount) {
+        if (bookingCount > 0) {
+            bookingNavCount.textContent = bookingCount;
+            bookingNavCount.classList.remove('hidden');
+        } else {
+            bookingNavCount.classList.add('hidden');
         }
-    };
-    
+    }
+};
     const updateNotificationDisplay = () => {
         const unreadCount = notifications.filter(n => !n.read).length;
         notificationCount.textContent = unreadCount;
@@ -1409,6 +1725,8 @@ const navigateToSection = (target) => {
         case 'setting':
             document.getElementById('admin-content').classList.remove('hidden');
             document.getElementById('user-management-tab').click();
+            // **NEW** Add this line to pre-load memberships for the admin panel
+            if (currentUserRole === 'admin') initMembershipManagement();
             break;
     }
 };
@@ -1486,7 +1804,7 @@ topNav.addEventListener('click', (e) => {
     let currentSalonEarningDateFilter = '', currentSalonEarningRangeFilter = String(new Date().getMonth()), currentExpenseMonthFilter = '', currentDashboardApptTechFilter = 'All';
 
    // ... other variables
-let aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [], allInventoryUsage = [], allGiftCards = [], allPromotions = [], allServicesList = [], technicianColorMap = {}, sentReminderIds = [], currentRotation = 0;
+    let aggregatedClients = [], allEarnings = [], allSalonEarnings = [], allExpenses = [], allInventory = [], allNailIdeas = [], allInventoryUsage = [], allGiftCards = [], allPromotions = [], allServicesList = [], technicianColorMap = {}, sentReminderIds = [], allMemberships = [], currentRotation = 0;
 // ... more variables
     let techniciansAndStaff = [], technicians = [];
     let allExpenseCategories = [], allPaymentAccounts = [], allSuppliers = [];
@@ -2457,52 +2775,67 @@ const renderAllStaffEarnings = () => {
         }
     });
 
-    const openViewDetailModal = (client, title = "Client Details") => {
-        if (!client) return;
-        document.getElementById('view-detail-title').textContent = title;
-        const content = document.getElementById('view-detail-content');
-        const actions = document.getElementById('view-detail-actions');
-        let appointmentDetailsHTML = '<div class="space-y-2"><h4 class="text-lg font-semibold text-gray-800 border-b pb-1">Appointment Details</h4>';
-        let appointmentTime = 'N/A';
-        if (client.appointmentTimestamp) { appointmentTime = new Date(client.appointmentTimestamp.seconds * 1000).toLocaleString(); } 
-        else if (client.checkInTimestamp) { appointmentTime = new Date(client.checkInTimestamp.seconds * 1000).toLocaleString(); }
-        appointmentDetailsHTML += `<div><strong class="font-semibold text-gray-700">Date:</strong> ${appointmentTime}</div>`;
-        appointmentDetailsHTML += `<div><strong class="font-semibold text-gray-700">Services:</strong> ${Array.isArray(client.services) ? client.services.join(', ') : client.services || 'N/A'}</div>`;
-        appointmentDetailsHTML += `<div><strong class="font-semibold text-gray-700">Technician:</strong> ${client.technician || 'N/A'}</div>`;
-        appointmentDetailsHTML += `<div><strong class="font-semibold text-gray-700">Booking Type:</strong> ${client.bookingType || 'N/A'}</div>`;
-        if (client.colorCode) { appointmentDetailsHTML += `<div><strong class="font-semibold text-gray-700">Color Code:</strong> ${client.colorCode}</div>`; }
-        if (client.notes) { appointmentDetailsHTML += `<div><strong class="font-semibold text-gray-700">Notes:</strong> ${client.notes}</div>`; }
-        appointmentDetailsHTML += '</div>';
-        const lastFinished = allFinishedClients.filter(c => c.name === client.name && c.id !== client.id).sort((a,b) => b.checkOutTimestamp.toMillis() - a.checkOutTimestamp.toMillis())[0];
-        let lastVisitHTML = '';
-        if (lastFinished) { lastVisitHTML = `<div class="space-y-2"><h4 class="text-lg font-semibold text-gray-800 border-b pb-1">Previous Visit</h4><div><strong class="font-semibold text-gray-700">Date:</strong> ${new Date(lastFinished.checkOutTimestamp.seconds * 1000).toLocaleString()}</div><div><strong class="font-semibold text-gray-700">Services:</strong> ${lastFinished.services || 'N/A'}</div><div><strong class="font-semibold text-gray-700">Color Code:</strong> ${lastFinished.colorCode || 'N/A'}</div><div><strong class="font-semibold text-gray-700">Technician:</strong> ${lastFinished.technician || 'N/A'}</div>${lastFinished.notes ? `<div><strong class="font-semibold text-gray-700">Notes:</strong> ${lastFinished.notes}</div>` : ''}</div>`; }
-        const nextAppointment = allAppointments.filter(appt => appt.name === client.name && appt.appointmentTimestamp.toMillis() > Date.now()).sort((a, b) => a.appointmentTimestamp.toMillis() - b.appointmentTimestamp.toMillis())[0];
-        let nextAppointmentHTML = `<div class="space-y-2"><h4 class="text-lg font-semibold text-gray-800 border-b pb-1">Next Appointment</h4><div class="font-bold text-pink-600">${nextAppointment ? new Date(nextAppointment.appointmentTimestamp.seconds * 1000).toLocaleString() : 'Not scheduled'}</div></div>`;
-        content.innerHTML = `<div class="space-y-2"><h4 class="text-lg font-semibold text-gray-800 border-b pb-1">Client Details</h4><div><strong class="font-semibold text-gray-700">Name:</strong> ${client.name || 'N/A'}</div><div><strong class="font-semibold text-gray-700">Phone:</strong> ${client.phone || 'N/A'}</div><div><strong class="font-semibold text-gray-700">Group Size:</strong> ${client.people || '1'}</div></div>${appointmentDetailsHTML}${lastVisitHTML}${nextAppointmentHTML}`;
-        actions.innerHTML = '<button type="button" id="view-detail-close-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-6 rounded-lg">Close</button>';
-        if(client.appointmentTimestamp && client.status !== 'waiting' && client.status !== 'processing') { actions.insertAdjacentHTML('afterbegin', `<button type="button" data-id="${client.id}" class="bg-blue-500 text-white font-semibold py-2 px-6 rounded-lg booking-action-btn" data-action="checkin">Check In</button><button type="button" data-id="${client.id}" class="bg-red-500 text-white font-semibold py-2 px-6 rounded-lg booking-action-btn" data-action="cancel">Cancel</button>`); }
-        document.getElementById('view-detail-close-btn').addEventListener('click', closeViewDetailModal);
-        viewDetailModal.classList.remove('hidden'); viewDetailModal.classList.add('flex');
-    };
+ // Located inside initMainApp()
+const openViewDetailModal = (client, title = "Client Details") => {
+    if (!client) return;
+    document.getElementById('view-detail-title').textContent = title;
+    const content = document.getElementById('view-detail-content');
+    const actions = document.getElementById('view-detail-actions');
+    let appointmentDetailsHTML = '<div class="space-y-2"><h4 class="text-lg font-semibold text-gray-800 border-b pb-1">Appointment Details</h4>';
+    let appointmentTime = 'N/A';
+    if (client.appointmentTimestamp) { appointmentTime = new Date(client.appointmentTimestamp.seconds * 1000).toLocaleString(); } 
+    else if (client.checkInTimestamp) { appointmentTime = new Date(client.checkInTimestamp.seconds * 1000).toLocaleString(); }
+    appointmentDetailsHTML += `<div><strong class="font-semibold text-gray-700">Date:</strong> ${appointmentTime}</div>`;
+    appointmentDetailsHTML += `<div><strong class="font-semibold text-gray-700">Services:</strong> ${Array.isArray(client.services) ? client.services.join(', ') : client.services || 'N/A'}</div>`;
+    appointmentDetailsHTML += `<div><strong class="font-semibold text-gray-700">Technician:</strong> ${client.technician || 'N/A'}</div>`;
+    appointmentDetailsHTML += `<div><strong class="font-semibold text-gray-700">Booking Type:</strong> ${client.bookingType || 'N/A'}</div>`;
+    if (client.colorCode) { appointmentDetailsHTML += `<div><strong class="font-semibold text-gray-700">Color Code:</strong> ${client.colorCode}</div>`; }
+    if (client.notes) { appointmentDetailsHTML += `<div><strong class="font-semibold text-gray-700">Notes:</strong> ${client.notes}</div>`; }
+    appointmentDetailsHTML += '</div>';
+    const lastFinished = allFinishedClients.filter(c => c.name === client.name && c.id !== client.id).sort((a,b) => b.checkOutTimestamp.toMillis() - a.checkOutTimestamp.toMillis())[0];
+    let lastVisitHTML = '';
+    if (lastFinished) { lastVisitHTML = `<div class="space-y-2"><h4 class="text-lg font-semibold text-gray-800 border-b pb-1">Previous Visit</h4><div><strong class="font-semibold text-gray-700">Date:</strong> ${new Date(lastFinished.checkOutTimestamp.seconds * 1000).toLocaleString()}</div><div><strong class="font-semibold text-gray-700">Services:</strong> ${lastFinished.services || 'N/A'}</div><div><strong class="font-semibold text-gray-700">Color Code:</strong> ${lastFinished.colorCode || 'N/A'}</div><div><strong class="font-semibold text-gray-700">Technician:</strong> ${lastFinished.technician || 'N/A'}</div>${lastFinished.notes ? `<div><strong class="font-semibold text-gray-700">Notes:</strong> ${lastFinished.notes}</div>` : ''}</div>`; }
+    const nextAppointment = allAppointments.filter(appt => appt.name === client.name && appt.appointmentTimestamp.toMillis() > Date.now()).sort((a, b) => a.appointmentTimestamp.toMillis() - b.appointmentTimestamp.toMillis())[0];
+    let nextAppointmentHTML = `<div class="space-y-2"><h4 class="text-lg font-semibold text-gray-800 border-b pb-1">Next Appointment</h4><div class="font-bold text-pink-600">${nextAppointment ? new Date(nextAppointment.appointmentTimestamp.seconds * 1000).toLocaleString() : 'Not scheduled'}</div></div>`;
+    content.innerHTML = `<div class="space-y-2"><h4 class="text-lg font-semibold text-gray-800 border-b pb-1">Client Details</h4><div><strong class="font-semibold text-gray-700">Name:</strong> ${client.name || 'N/A'}</div><div><strong class="font-semibold text-gray-700">Phone:</strong> ${client.phone || 'N/A'}</div><div><strong class="font-semibold text-gray-700">Group Size:</strong> ${client.people || '1'}</div></div>${appointmentDetailsHTML}${lastVisitHTML}${nextAppointmentHTML}`;
+    
+    // *** UPDATED ACTIONS HTML ***
+    actions.innerHTML = '<button type="button" id="view-detail-close-btn" class="bg-gray-200 text-gray-800 font-semibold py-2 px-6 rounded-lg">Close</button>';
+    if(client.appointmentTimestamp && client.status !== 'waiting' && client.status !== 'processing') { 
+        actions.insertAdjacentHTML('afterbegin', 
+            `<button type="button" data-id="${client.id}" class="bg-yellow-500 text-white font-semibold py-2 px-4 rounded-lg booking-action-btn" data-action="edit">Edit</button>
+             <button type="button" data-id="${client.id}" class="bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg booking-action-btn" data-action="checkin">Check In</button>
+             <button type="button" data-id="${client.id}" class="bg-red-500 text-white font-semibold py-2 px-4 rounded-lg booking-action-btn" data-action="cancel">Cancel</button>`
+        ); 
+    }
 
+    document.getElementById('view-detail-close-btn').addEventListener('click', closeViewDetailModal);
+    viewDetailModal.classList.remove('hidden'); viewDetailModal.classList.add('flex');
+};
     const closeViewDetailModal = () => { viewDetailModal.classList.add('hidden'); viewDetailModal.classList.remove('flex'); };
     document.getElementById('view-detail-close-btn').addEventListener('click', closeViewDetailModal);
     document.querySelector('.view-detail-modal-overlay').addEventListener('click', closeViewDetailModal);
 
-    document.getElementById('view-detail-actions').addEventListener('click', async (e) => {
-         if (e.target.classList.contains('booking-action-btn')) {
-            const action = e.target.dataset.action;
-            const bookingId = e.target.dataset.id;
-            const appointment = allAppointments.find(a => a.id === bookingId);
-            if (!appointment) return;
-            if (action === 'cancel') { showConfirmModal("Are you sure you want to cancel this booking?", async () => { await deleteDoc(doc(db, "appointments", bookingId)); }); } 
-            else if (action === 'checkin') {
-                 await addDoc(collection(db, "active_queue"), { name: appointment.name, phone: appointment.phone, people: appointment.people || 1, bookingType: 'Booked - Calendar', services: Array.isArray(appointment.services) ? appointment.services : [appointment.services], technician: appointment.technician, notes: appointment.notes || '', checkInTimestamp: serverTimestamp(), status: 'waiting' });
-                await deleteDoc(doc(db, "appointments", bookingId));
-            }
-            closeViewDetailModal();
+// Located inside initMainApp()
+document.getElementById('view-detail-actions').addEventListener('click', async (e) => {
+    if (e.target.classList.contains('booking-action-btn')) {
+        const action = e.target.dataset.action;
+        const bookingId = e.target.dataset.id;
+        const appointment = allAppointments.find(a => a.id === bookingId);
+        if (!appointment) return;
+
+        if (action === 'cancel') {
+            showConfirmModal("Are you sure you want to cancel this booking?", async () => { await deleteDoc(doc(db, "appointments", bookingId)); });
+        } else if (action === 'checkin') {
+            await addDoc(collection(db, "active_queue"), { name: appointment.name, phone: appointment.phone, people: appointment.people || 1, bookingType: 'Booked - Calendar', services: Array.isArray(appointment.services) ? appointment.services : [appointment.services], technician: appointment.technician, notes: appointment.notes || '', checkInTimestamp: serverTimestamp(), status: 'waiting' });
+            await deleteDoc(doc(db, "appointments", bookingId));
+        } else if (action === 'edit') { // *** ADD THIS EDIT LOGIC ***
+            openAddAppointmentModal(null, null, appointment);
         }
-    });
+        
+        closeViewDetailModal();
+    }
+});
 
 // Located inside initMainApp()
 const openClientProfileModal = async (client) => {
@@ -3695,29 +4028,39 @@ onSnapshot(collection(db, "users"), (snapshot) => {
         catch (error) { console.error("Error saving salon hours:", error); alert("Could not save salon hours."); }
     });
 
+// Located inside initMainApp()
+const loadFeatureToggles = async () => {
+    const settingsDoc = await getDoc(doc(db, "settings", "features"));
+    if (settingsDoc.exists()) {
+        const settings = settingsDoc.data();
+        document.getElementById('toggle-client-login').checked = settings.showClientLogin !== false;
+        document.getElementById('toggle-promotions').checked = settings.showPromotions !== false;
+        document.getElementById('toggle-gift-card').checked = settings.showGiftCards !== false;
+        document.getElementById('toggle-nails-idea').checked = settings.showNailArt !== false;
+        // Safely check for the memberships property
+        document.getElementById('toggle-memberships').checked = settings.showMemberships !== false;
+    } else {
+        // Default all to true if no settings exist yet
+        document.getElementById('toggle-client-login').checked = true;
+        document.getElementById('toggle-promotions').checked = true;
+        document.getElementById('toggle-gift-card').checked = true;
+        document.getElementById('toggle-nails-idea').checked = true;
+        document.getElementById('toggle-memberships').checked = true; // Add this line
+    }
+};
 
-    const loadFeatureToggles = async () => {
-        const settingsDoc = await getDoc(doc(db, "settings", "features"));
-        if (settingsDoc.exists()) {
-            const settings = settingsDoc.data();
-            document.getElementById('toggle-client-login').checked = settings.showClientLogin !== false;
-            document.getElementById('toggle-promotions').checked = settings.showPromotions !== false;
-            document.getElementById('toggle-gift-card').checked = settings.showGiftCards !== false;
-            document.getElementById('toggle-nails-idea').checked = settings.showNailArt !== false;
-        } else {
-            document.getElementById('toggle-client-login').checked = true;
-            document.getElementById('toggle-promotions').checked = true;
-            document.getElementById('toggle-gift-card').checked = true;
-            document.getElementById('toggle-nails-idea').checked = true;
-        }
-    };
-    
-    featureTogglesForm.addEventListener('change', async (e) => {
-        if (e.target.type === 'checkbox') {
-            const settings = { showClientLogin: document.getElementById('toggle-client-login').checked, showPromotions: document.getElementById('toggle-promotions').checked, showGiftCards: document.getElementById('toggle-gift-card').checked, showNailArt: document.getElementById('toggle-nails-idea').checked };
-            await setDoc(doc(db, "settings", "features"), settings, { merge: true });
-        }
-    });
+featureTogglesForm.addEventListener('change', async (e) => {
+    if (e.target.type === 'checkbox') {
+        const settings = {
+            showClientLogin: document.getElementById('toggle-client-login').checked,
+            showPromotions: document.getElementById('toggle-promotions').checked,
+            showGiftCards: document.getElementById('toggle-gift-card').checked,
+            showNailArt: document.getElementById('toggle-nails-idea').checked,
+            showMemberships: document.getElementById('toggle-memberships').checked // Add this line
+        };
+        await setDoc(doc(db, "settings", "features"), settings, { merge: true });
+    }
+});
 
     const loadSettings = async () => { 
         const bookingSnap = await getDoc(doc(db, "settings", "booking")); 
@@ -4658,8 +5001,7 @@ const prefillColorData = async () => {
             { name: "46 Fire", hex: "#e25822", group: "Oranges" },
             { name: "47 Papaya", hex: "#ff97b3", group: "Oranges" },
             { name: "48 Tiger Eye", hex: "#b0793d", group: "Oranges" }
-        ],
-        "Chrome": []
+        ]
     };
 
     for (const brandName in brands) {
@@ -5422,6 +5764,134 @@ document.getElementById('close-client-profile-modal-btn').addEventListener('clic
 clientProfileModal.querySelector('.modal-overlay').addEventListener('click', () => clientProfileModal.classList.add('hidden'));
 
 
+// ADD ALL THIS CODE AT THE END OF THE initMainApp FUNCTION
+
+
+    let allClientMemberships = [];
+    onSnapshot(query(collection(db, "clients"), where("membership", "!=", null)), (snapshot) => {
+        allClientMemberships = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const searchTerm = document.getElementById('search-memberships').value.toLowerCase();
+        const filtered = allClientMemberships.filter(m => 
+            m.name.toLowerCase().includes(searchTerm) || 
+            m.membership.tierName.toLowerCase().includes(searchTerm)
+        );
+        renderClientMembershipsTable(filtered);
+    });
+
+    document.getElementById('search-memberships').addEventListener('input', () => {
+        const searchTerm = document.getElementById('search-memberships').value.toLowerCase();
+        const filtered = allClientMemberships.filter(m => 
+            m.name.toLowerCase().includes(searchTerm) || 
+            m.membership.tierName.toLowerCase().includes(searchTerm)
+        );
+        renderClientMembershipsTable(filtered);
+    });
+
+    document.querySelector('#client-memberships-table tbody').addEventListener('click', async (e) => {
+        const activateBtn = e.target.closest('.activate-membership-btn');
+        if (activateBtn) {
+            const clientId = activateBtn.dataset.id;
+            showConfirmModal("Activate this membership?", async () => {
+                await updateDoc(doc(db, "clients", clientId), { "membership.status": "Active" });
+                alert("Membership activated!");
+            }, "Activate");
+        }
+
+        const deleteBtn = e.target.closest('.delete-membership-record-btn');
+        if (deleteBtn) {
+            const clientId = deleteBtn.dataset.id;
+             showConfirmModal("Remove this membership from the client?", async () => {
+                await updateDoc(doc(db, "clients", clientId), { membership: null });
+                alert("Membership removed.");
+            });
+        }
+    });
+
+// --- MEMBERSHIP MANAGEMENT (ADMIN) ---
+const membershipModal = document.getElementById('membership-tier-modal');
+const membershipForm = document.getElementById('membership-tier-form');
+
+const renderMembershipsAdmin = (tiers) => {
+    const tbody = document.querySelector('#memberships-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    tiers.forEach(tier => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td class="px-6 py-4 font-bold">${tier.name}</td>
+            <td class="px-6 py-4">$${tier.price}/month</td>
+            <td class="px-6 py-4">${tier.discount}%</td>
+            <td class="px-6 py-4 whitespace-pre-line">${tier.benefits}</td>
+            <td class="px-6 py-4 text-center">
+                <button data-id="${tier.id}" class="edit-membership-btn text-blue-500 mr-2"><i class="fas fa-edit"></i></button>
+                <button data-id="${tier.id}" class="delete-membership-btn text-red-500"><i class="fas fa-trash"></i></button>
+            </td>
+        `;
+    });
+};
+
+const openMembershipTierModal = (tier = null) => {
+    membershipForm.reset();
+    if (tier) {
+        document.getElementById('membership-tier-modal-title').textContent = 'Edit Tier';
+        document.getElementById('edit-membership-tier-id').value = tier.id;
+        document.getElementById('tier-name').value = tier.name;
+        document.getElementById('tier-price').value = tier.price;
+        document.getElementById('tier-discount').value = tier.discount;
+        document.getElementById('tier-benefits').value = tier.benefits;
+    } else {
+        document.getElementById('membership-tier-modal-title').textContent = 'Add New Tier';
+        document.getElementById('edit-membership-tier-id').value = '';
+    }
+    membershipModal.classList.remove('hidden');
+};
+
+const initMembershipManagement = () => {
+    onSnapshot(query(collection(db, "memberships"), orderBy("price")), (snapshot) => {
+        allMembershipTiers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        renderMembershipsAdmin(allMembershipTiers);
+    });
+
+    document.getElementById('add-new-membership-tier-btn').addEventListener('click', () => openMembershipTierModal());
+    document.getElementById('cancel-membership-tier-btn').addEventListener('click', () => membershipModal.classList.add('hidden'));
+
+    membershipForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const tierId = document.getElementById('edit-membership-tier-id').value;
+        const data = {
+            name: document.getElementById('tier-name').value,
+            price: parseFloat(document.getElementById('tier-price').value),
+            discount: parseInt(document.getElementById('tier-discount').value, 10),
+            benefits: document.getElementById('tier-benefits').value,
+        };
+        try {
+            if (tierId) {
+                await updateDoc(doc(db, "memberships", tierId), data);
+            } else {
+                await addDoc(collection(db, "memberships"), data);
+            }
+            membershipModal.classList.add('hidden');
+        } catch (error) {
+            alert("Could not save tier.");
+            console.error(error);
+        }
+    });
+    
+    document.querySelector('#memberships-table tbody').addEventListener('click', (e) => {
+        const editBtn = e.target.closest('.edit-membership-btn');
+        if(editBtn) openMembershipTierModal(allMembershipTiers.find(t => t.id === editBtn.dataset.id));
+
+        const deleteBtn = e.target.closest('.delete-membership-btn');
+        if(deleteBtn) {
+            showConfirmModal("Delete this tier?", async () => {
+                await deleteDoc(doc(db, "memberships", deleteBtn.dataset.id));
+            });
+        }
+    });
+
+
+    
+};
 
     
     loadAndRenderServices();
