@@ -354,6 +354,7 @@ const openCardForPrint = (card) => {
     printWindow.document.close();
     printWindow.focus();
 };
+
 // REPLACE your old openMembershipCardForPrint function with this new one:
 const openMembershipCardForPrint = (client, tier) => {
     const startDate = client.membership.startDate ? client.membership.startDate.toDate().toLocaleDateString() : new Date().toLocaleDateString();
@@ -373,7 +374,6 @@ const openMembershipCardForPrint = (client, tier) => {
             @media print { body { padding: 0; } .card-container { gap: 0; } }
         </style></head><body>
         <div class="card-container">
-            <!-- Front of Card -->
             <div class="card rounded-lg p-4 flex flex-col justify-between bg-gradient-to-br ${cardStyle} text-white">
                 <div class="flex justify-between items-start">
                     <div class="font-bold text-lg"><p>${tier.name}</p><p class="text-xs font-normal opacity-80">MEMBERSHIP</p></div>
@@ -387,13 +387,12 @@ const openMembershipCardForPrint = (client, tier) => {
                     </div>
                 </div>
             </div>
-            <!-- Back of Card -->
-             <div class="card rounded-lg p-4 flex flex-col justify-between bg-white text-gray-800" style="text-shadow: none;">
+            <div class="card rounded-lg p-4 flex flex-col justify-between bg-white text-gray-800" style="text-shadow: none;">
                 <p class="text-xs text-center text-gray-600 px-4 leading-relaxed mt-4">
-                    Welcome, VIP! This card must be presented to receive benefits. Membership is non-transferable and benefits apply only to the registered member. Nails Express reserves the right to modify membership terms. Lost cards may be replaced for a small fee.
+                    Welcome, VIP! This card must be presented to receive benefits. Membership is non-transferable and benefits apply only to the registered member.
                 </p>
-                <div class="mb-4">
-                    <div class="w-full border-t border-dashed border-gray-400 my-2"></div>
+                <div class="px-4 pb-2">
+                    <div class="w-full border-t border-dashed border-gray-400 pt-4"></div>
                     <p class="text-center text-xs text-gray-500">Member Signature</p>
                 </div>
                 <div class="text-center text-xs pb-2">
@@ -682,12 +681,17 @@ const initializeMembershipPurchaseForm = (selectedTierId, clientData = null) => 
 
             previewCard.className = `w-[350px] h-[200px] shadow-lg rounded-lg p-4 flex flex-col justify-between bg-gradient-to-br ${cardStyle} text-white transition-all duration-300`;
             previewCard.innerHTML = `
-                <div class="flex justify-between items-start">
-                    <div class="font-bold text-lg"><p>${tier.name}</p><p class="text-xs font-normal opacity-80">MEMBERSHIP</p></div>
-                    <p class="font-parisienne text-3xl">Nails Express</p>
-                </div>
-                <div class="text-left"><p class="text-xs opacity-80">MEMBER</p><p class="text-2xl font-semibold tracking-wider">${buyerName}</p></div>
-                <div class="text-right text-xs opacity-80">Member Since: ${new Date().toLocaleDateString()}</div>
+                 <div class="flex justify-between items-start">
+        <div class="font-bold text-lg"><p>${tier.name}</p><p class="text-xs font-normal opacity-80">MEMBERSHIP</p></div>
+        <p class="font-parisienne text-3xl">Nails Express</p>
+    </div>
+    <div class="flex justify-between items-end">
+        <div class="text-left"><p class="text-xs opacity-80">MEMBER</p><p class="text-2xl font-semibold tracking-wider">${buyerName}</p></div>
+        <div class="text-right text-xs opacity-80">
+            <p>Member Since: ${new Date().toLocaleDateString()}</p>
+            <p>Member ID: SAMPLE${Date.now().toString().slice(-4)}</p>
+        </div>
+    </div>
             `;
         }
     };
@@ -900,22 +904,20 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // **** PASTE THESE TWO COMPLETE FUNCTIONS in place of your old initClientDashboard ****
-
 // REPLACE your old renderClientMembership function with this new one:
-const renderClientMembership = (clientData) => {
+const renderClientMembership = (clientData, clientId) => {
     const container = document.getElementById('client-membership-display');
     if (!container) return;
 
     if (clientData.membership && allMembershipTiers.length > 0) {
         const tier = allMembershipTiers.find(t => t.id === clientData.membership.tierId);
         if (tier) {
-            let startDate = new Date().toLocaleDateString(); // Default to today for new signups
+            let startDate = new Date().toLocaleDateString();
             if (clientData.membership.startDate && typeof clientData.membership.startDate.toDate === 'function') {
                 startDate = clientData.membership.startDate.toDate().toLocaleDateString();
             }
 
-            // ADDED: Logic to generate the numeric Member ID
-            const memberId = clientData.id ? clientData.id.split('').map(char => char.charCodeAt(0)).join('').substring(0, 6) : 'N/A';
+            const memberId = clientId ? clientId.split('').map(char => char.charCodeAt(0)).join('').substring(0, 6) : 'N/A';
 
             const benefitsList = tier.benefits.split('\n').map(b => `<li class="flex items-start"><span class="text-green-500 mr-2">✔</span><span>${b}</span></li>`).join('');
             const status = clientData.membership.status || 'Active';
@@ -926,9 +928,10 @@ const renderClientMembership = (clientData) => {
             if (tier.name.toLowerCase().includes('gold')) cardStyle = 'from-yellow-400 via-yellow-500 to-yellow-600';
             if (tier.name.toLowerCase().includes('platinum')) cardStyle = 'from-indigo-500 via-purple-600 to-pink-600';
 
+            // UPDATED: Changed grid-cols-3 to grid-cols-2 and removed col-span-2
             container.innerHTML = `
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                    <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-lg">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
                         <div class="flex justify-between items-start mb-4">
                             <div>
                                 <h3 class="text-2xl font-bold text-pink-700 flex items-end gap-3">
@@ -946,7 +949,7 @@ const renderClientMembership = (clientData) => {
                         ${status === 'Pending' ? '<p class="mt-4 text-center text-sm bg-yellow-100 text-yellow-800 p-3 rounded-lg">Your membership is pending approval. Please contact the salon to complete payment and activate your benefits.</p>' : ''}
                     </div>
                     <div class="space-y-3">
-                        <div class="w-full h-[200px] shadow-lg rounded-lg p-4 flex flex-col justify-between bg-gradient-to-br ${cardStyle} text-white" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.4);">
+                        <div class="w-full h-[228px] shadow-lg rounded-lg p-4 flex flex-col justify-between bg-gradient-to-br ${cardStyle} text-white" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.4);">
                             <div class="flex justify-between items-start">
                                 <div class="font-bold text-lg"><p>${tier.name}</p><p class="text-xs font-normal opacity-80">MEMBERSHIP</p></div>
                                 <p class="font-parisienne text-3xl">Nails Express</p>
@@ -965,8 +968,8 @@ const renderClientMembership = (clientData) => {
                         <div class="flex justify-between items-center pt-2 px-2">
                             <span class="text-sm text-gray-500">Your digital card</span>
                             <div class="flex gap-4">
-                                <button data-client-id="${clientData.id}" class="download-membership-btn text-gray-500 hover:text-blue-600 text-xl" title="Download/Print"><i class="fas fa-download"></i></button>
-                                <button data-client-id="${clientData.id}" class="share-membership-btn text-gray-500 hover:text-pink-600 text-xl" title="Share"><i class="fas fa-share-alt"></i></button>
+                                <button data-client-id="${clientId}" class="download-membership-btn text-gray-500 hover:text-blue-600 text-xl" title="Download/Print"><i class="fas fa-download"></i></button>
+                                <button data-client-id="${clientId}" class="share-membership-btn text-gray-500 hover:text-pink-600 text-xl" title="Share"><i class="fas fa-share-alt"></i></button>
                             </div>
                         </div>
                     </div>
@@ -987,6 +990,7 @@ const renderClientMembership = (clientData) => {
 };
 
 // **** Function 2: The Main Dashboard Function ****
+// REPLACE your old initClientDashboard function with this new one:
 async function initClientDashboard(clientId, clientData) {
     const featuresDoc = await getDoc(doc(db, "settings", "features"));
     const features = featuresDoc.exists() ? featuresDoc.data() : { showGiftCards: true, showMemberships: true };
@@ -1028,8 +1032,6 @@ async function initClientDashboard(clientId, clientData) {
         purchaseModal.classList.remove('hidden');
     };
 
-
-
     const renderClientGiftCards = (cards) => {
         const container = document.getElementById('client-gift-cards-container');
         if (!container) return;
@@ -1049,18 +1051,41 @@ async function initClientDashboard(clientId, clientData) {
         });
     };
 
-    renderClientMembership(clientData);
+    renderClientMembership(clientData, clientId); // Pass clientId here
 
-    const setupClientTabs = () => {
-        const tabs = document.getElementById('client-dashboard-tabs');
-        tabs.addEventListener('click', (e) => {
-            const button = e.target.closest('button');
+    const setupClientNav = () => {
+        const navContainer = document.getElementById('client-top-nav');
+        const contentSections = document.querySelectorAll('.client-tab-content');
+        
+        const navItems = [
+            { id: 'appointments', text: 'Appointments' },
+            { id: 'history', text: 'History' },
+            { id: 'favorites', text: 'My Favorites' },
+            { id: 'gift-cards', text: 'My Gift Cards' },
+            { id: 'membership', text: 'My Membership' }
+        ];
+
+        navContainer.innerHTML = navItems.map(item => 
+            `<button class="top-nav-btn" data-target="${item.id}-content">${item.text}</button>`
+        ).join('');
+        
+        const navButtons = navContainer.querySelectorAll('.top-nav-btn');
+
+        navContainer.addEventListener('click', (e) => {
+            const button = e.target.closest('.top-nav-btn');
             if (!button) return;
-            document.querySelectorAll('#client-dashboard-tabs .tab-btn').forEach(btn => btn.classList.remove('active'));
+
+            navButtons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
-            document.querySelectorAll('.client-tab-content').forEach(content => content.classList.add('hidden'));
-            document.getElementById(button.id.replace('-tab', '-content')).classList.remove('hidden');
+
+            contentSections.forEach(content => content.classList.add('hidden'));
+            const targetId = button.dataset.target;
+            document.getElementById(targetId).classList.remove('hidden');
         });
+
+        if (navButtons.length > 0) {
+            navButtons[0].click();
+        }
     };
 
     const renderClientAppointments = (appointments) => {
@@ -1080,7 +1105,7 @@ async function initClientDashboard(clientId, clientData) {
     };
 
     const renderClientHistory = (history) => {
-        const container = document.getElementById('client-appointment-history');
+         const container = document.getElementById('client-appointment-history');
         container.innerHTML = '';
         if (history.length === 0) {
             container.innerHTML = '<p class="text-gray-500">You have no past appointments.</p>';
@@ -1101,7 +1126,7 @@ async function initClientDashboard(clientId, clientData) {
             return acc;
         }, {});
         const colorCounts = history.reduce((acc, visit) => {
-            if (visit.colorCode) acc[visit.colorCode] = (acc[visit.colorCode] || 0) + 1;
+            if(visit.colorCode) acc[visit.colorCode] = (acc[visit.colorCode] || 0) + 1;
             return acc;
         }, {});
         const favTech = Object.keys(techCounts).length > 0 ? Object.keys(techCounts).reduce((a, b) => techCounts[a] > techCounts[b] ? a : b) : 'N/A';
@@ -1111,11 +1136,11 @@ async function initClientDashboard(clientId, clientData) {
     };
 
     onSnapshot(query(collection(db, "appointments"), where("name", "==", clientData.name)), (snapshot) => {
-        const appointments = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        const appointments = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
         renderClientAppointments(appointments);
     });
-    onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
-        const history = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+     onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
+        const history = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
         allFinishedClients = history;
         renderClientHistory(history);
         calculateAndRenderFavorites(history);
@@ -1165,8 +1190,9 @@ async function initClientDashboard(clientId, clientData) {
 
         if (downloadBtn) {
             const tier = allMembershipTiers.find(t => t.id === clientData.membership.tierId);
+            // THE FIX IS HERE: We pass an object with the ID included
             if (clientData && tier) {
-                openMembershipCardForPrint(clientData, tier);
+                openMembershipCardForPrint({ ...clientData, id: clientId }, tier);
             }
         }
         if (shareBtn) {
@@ -1191,7 +1217,7 @@ async function initClientDashboard(clientId, clientData) {
         openPurchaseModalForClient(clientData);
     });
 
-    setupClientTabs();
+    setupClientNav();
 }
 
 // REPLACE your old 'landing-membership-form' submit listener with this one
@@ -5690,43 +5716,47 @@ document.getElementById('color-swatches-container').addEventListener('click', (e
     const editGiftCardForm = document.getElementById('edit-gift-card-form');
 
 
-    const updateDesignerPreview = () => {
-        const showTo = document.getElementById('designer-show-to').checked;
-        const showFrom = document.getElementById('designer-show-from').checked;
-        const setExpiry = document.getElementById('designer-set-expiry').checked;
+// REPLACE the entire updateDesignerPreview function with this one:
+const updateDesignerPreview = () => {
+    const showTo = document.getElementById('designer-show-to').checked;
+    const showFrom = document.getElementById('designer-show-from').checked;
+    const setExpiry = document.getElementById('designer-set-expiry').checked;
+    const noExpiry = document.getElementById('designer-no-expiry').checked;
 
-        document.getElementById('preview-to').parentElement.style.display = showTo ? '' : 'none';
-        document.getElementById('preview-from').parentElement.style.display = showFrom ? '' : 'none';
-        document.getElementById('designer-to-wrapper').style.display = showTo ? '' : 'none';
-        document.getElementById('designer-from-wrapper').style.display = showFrom ? '' : 'none';
+    document.getElementById('preview-to').parentElement.style.display = showTo ? '' : 'none';
+    document.getElementById('preview-from').parentElement.style.display = showFrom ? '' : 'none';
+    document.getElementById('designer-to-wrapper').style.display = showTo ? '' : 'none';
+    document.getElementById('designer-from-wrapper').style.display = showFrom ? '' : 'none';
 
-        document.getElementById('preview-to').textContent = document.getElementById('designer-to').value || 'Recipient';
-        document.getElementById('preview-from').textContent = document.getElementById('designer-from').value || 'Sender';
+    document.getElementById('preview-to').textContent = document.getElementById('designer-to').value || 'Recipient';
+    document.getElementById('preview-from').textContent = document.getElementById('designer-from').value || 'Sender';
 
-        const amount = parseFloat(document.getElementById('designer-amount').value) || 0;
-        document.getElementById('preview-amount').textContent = `$${amount.toFixed(2)}`;
+    const amount = parseFloat(document.getElementById('designer-amount').value) || 0;
+    document.getElementById('preview-amount').textContent = `$${amount.toFixed(2)}`;
 
-        const expiryPreview = document.getElementById('preview-expiry');
-        if (setExpiry) {
-            const value = parseInt(document.getElementById('designer-expiry-value').value, 10);
-            const unit = document.getElementById('designer-expiry-unit').value;
-            if (value > 0) {
-                const expiryDate = new Date();
-                if (unit === 'months') {
-                    expiryDate.setMonth(expiryDate.getMonth() + value);
-                } else {
-                    expiryDate.setFullYear(expiryDate.getFullYear() + value);
-                }
-                expiryPreview.textContent = `Expires: ${expiryDate.toLocaleDateString()}`;
-                expiryPreview.style.display = 'block';
+    const expiryPreview = document.getElementById('preview-expiry');
+    if (noExpiry) {
+        expiryPreview.textContent = 'Expires: ____/____/____';
+        expiryPreview.style.display = 'block';
+    } else if (setExpiry) {
+        const value = parseInt(document.getElementById('designer-expiry-value').value, 10);
+        const unit = document.getElementById('designer-expiry-unit').value;
+        if (value > 0) {
+            const expiryDate = new Date();
+            if (unit === 'months') {
+                expiryDate.setMonth(expiryDate.getMonth() + value);
             } else {
-                expiryPreview.style.display = 'none';
+                expiryDate.setFullYear(expiryDate.getFullYear() + value);
             }
+            expiryPreview.textContent = `Expires: ${expiryDate.toLocaleDateString()}`;
+            expiryPreview.style.display = 'block';
         } else {
-            expiryPreview.style.display = 'none';
+             expiryPreview.style.display = 'none';
         }
-    };
-
+    } else {
+        expiryPreview.style.display = 'none';
+    }
+};
     const populateBackgrounds = (category) => {
         designerBackgroundOptions.innerHTML = giftCardBackgrounds[category].map(url =>
             `<button type="button" data-bg="${url}" class="w-full h-16 bg-cover bg-center rounded-md border-2 border-transparent hover:border-pink-400" style="background-image: url('${url}')"></button>`
@@ -5738,24 +5768,43 @@ document.getElementById('color-swatches-container').addEventListener('click', (e
         }
     };
 
-    const initializeGiftCardDesigner = () => {
-        designerForm.reset();
-        document.getElementById('designer-quantity').value = 1;
-        document.getElementById('preview-code').textContent = `GC-${Date.now()}${[...Array(4)].map(() => Math.floor(Math.random() * 10)).join('')}`;
+const initializeGiftCardDesigner = () => {
+    designerForm.reset();
+    document.getElementById('designer-quantity').value = 1;
+    document.getElementById('preview-code').textContent = `GC-${Date.now()}${[...Array(4)].map(() => Math.floor(Math.random() * 10)).join('')}`;
 
-        designerBackgroundTabs.innerHTML = Object.keys(giftCardBackgrounds).map(cat =>
-            `<button type="button" data-category="${cat}" class="px-3 py-1 text-sm font-medium rounded-t-lg">${cat}</button>`
-        ).join('');
+    designerBackgroundTabs.innerHTML = Object.keys(giftCardBackgrounds).map(cat =>
+        `<button type="button" data-category="${cat}" class="px-3 py-1 text-sm font-medium rounded-t-lg">${cat}</button>`
+    ).join('');
 
-        const firstTab = designerBackgroundTabs.querySelector('button');
-        if (firstTab) {
-            firstTab.classList.add('bg-gray-200', 'border-gray-300', 'border-b-0');
-            populateBackgrounds(firstTab.dataset.category);
+    const firstTab = designerBackgroundTabs.querySelector('button');
+    if (firstTab) {
+        firstTab.classList.add('bg-gray-200', 'border-gray-300', 'border-b-0');
+        populateBackgrounds(firstTab.dataset.category);
+    }
+
+    const setExpiryCheck = document.getElementById('designer-set-expiry');
+    const noExpiryCheck = document.getElementById('designer-no-expiry');
+    const expiryInputs = document.getElementById('designer-expiry-inputs');
+
+    setExpiryCheck.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            noExpiryCheck.checked = false;
         }
-
+        expiryInputs.classList.toggle('hidden', !e.target.checked);
         updateDesignerPreview();
-    };
+    });
 
+    noExpiryCheck.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            setExpiryCheck.checked = false;
+            expiryInputs.classList.add('hidden');
+        }
+        updateDesignerPreview();
+    });
+
+    updateDesignerPreview();
+};
     designerBackgroundTabs.addEventListener('click', e => {
         const tab = e.target.closest('button');
         if (tab) {
@@ -5774,89 +5823,117 @@ document.getElementById('color-swatches-container').addEventListener('click', (e
         }
     });
 
-    const handleSaveAndPrint = async () => {
-        const quantity = parseInt(document.getElementById('designer-quantity').value, 10);
-        if (isNaN(quantity) || quantity < 1) {
-            alert("Please enter a valid quantity.");
-            return;
+// REPLACE your old handleSaveAndPrint function with this new one:
+const handleSaveAndPrint = async () => {
+    const quantity = parseInt(document.getElementById('designer-quantity').value, 10);
+    if (isNaN(quantity) || quantity < 1) {
+        alert("Please enter a valid quantity.");
+        return;
+    }
+
+    const amount = parseFloat(document.getElementById('designer-amount').value);
+    if (isNaN(amount) || amount <= 0) {
+        alert("Please enter a valid amount.");
+        return;
+    }
+
+    const batch = writeBatch(db);
+    const cardsToPrint = [];
+    const setExpiry = document.getElementById('designer-set-expiry').checked;
+    const noExpiry = document.getElementById('designer-no-expiry').checked;
+
+    for (let i = 0; i < quantity; i++) {
+        const cardData = {
+            amount: amount,
+            balance: amount,
+            history: [],
+            recipientName: document.getElementById('designer-show-to').checked ? document.getElementById('designer-to').value : '',
+            senderName: document.getElementById('designer-show-from').checked ? document.getElementById('designer-from').value : '',
+            code: `GC-${Date.now()}-${i}`,
+            status: 'Active',
+            type: 'Physical',
+            createdAt: serverTimestamp(),
+            backgroundUrl: printableCard.style.backgroundImage.slice(5, -2).replace(/"/g, "")
+        };
+
+        if (setExpiry) {
+            const value = parseInt(document.getElementById('designer-expiry-value').value, 10);
+            const unit = document.getElementById('designer-expiry-unit').value;
+            const expiryDate = new Date();
+            if (unit === 'months') expiryDate.setMonth(expiryDate.getMonth() + value);
+            else expiryDate.setFullYear(expiryDate.getFullYear() + value);
+            cardData.expiresAt = Timestamp.fromDate(expiryDate);
         }
 
-        const amount = parseFloat(document.getElementById('designer-amount').value);
-        if (isNaN(amount) || amount <= 0) {
-            alert("Please enter a valid amount.");
-            return;
-        }
+        const newCardRef = doc(collection(db, "gift_cards"));
+        batch.set(newCardRef, cardData);
+        cardsToPrint.push(cardData);
+    }
 
-        const batch = writeBatch(db);
-        const cardsToPrint = [];
+    try {
+        await batch.commit();
 
-        for (let i = 0; i < quantity; i++) {
-            const cardData = {
-                amount: amount,
-                balance: amount,
-                history: [],
-                recipientName: document.getElementById('designer-show-to').checked ? document.getElementById('designer-to').value : '',
-                senderName: document.getElementById('designer-show-from').checked ? document.getElementById('designer-from').value : '',
-                code: `GC-${Date.now()}-${i}`,
-                status: 'Active',
-                type: 'Physical',
-                createdAt: serverTimestamp()
-            };
+        let printHTML = `
+            <html><head><title>Print Gift Cards</title><script src="https://cdn.tailwindcss.com"><\/script><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&family=Parisienne&display=swap" rel="stylesheet">
+            <style>
+                body{font-family:'Poppins',sans-serif;margin:0;background-color:#f0f0f0;}
+                .font-parisienne{font-family:'Parisienne',cursive;}
+                .print-page { display: flex; flex-wrap: wrap; justify-content: start; align-content: start; gap: 10mm; padding: 10mm; page-break-after: always; }
+                .card-container{display:grid;grid-template-columns:repeat(2, 1fr);gap:0; width: fit-content;}
+                .card{width:400px;height:228px;text-shadow:1px 1px 3px rgba(0,0,0,0.6);box-shadow: 0 4px 8px rgba(0,0,0,0.2);-webkit-print-color-adjust: exact !important; color-adjust: exact !important;}
+                @media print {
+                    body { padding: 0; background-color: #fff; }
+                    .card { box-shadow: none; border: 1px solid #eee; }
+                }
+            </style></head><body><div class="print-page">
+        `;
 
-            if (document.getElementById('designer-set-expiry').checked) {
-                const value = parseInt(document.getElementById('designer-expiry-value').value, 10);
-                const unit = document.getElementById('designer-expiry-unit').value;
-                const expiryDate = new Date();
-                if (unit === 'months') expiryDate.setMonth(expiryDate.getMonth() + value);
-                else expiryDate.setFullYear(expiryDate.getFullYear() + value);
-                cardData.expiresAt = Timestamp.fromDate(expiryDate);
+        cardsToPrint.forEach(card => {
+            let expiryText = '';
+            let expiryDisplay = 'none';
+
+            if (noExpiry) {
+                expiryText = 'Expires: ____/____/____';
+                expiryDisplay = 'block';
+            } else if (card.expiresAt) {
+                expiryText = `Expires: ${card.expiresAt.toDate().toLocaleDateString()}`;
+                expiryDisplay = 'block';
             }
 
-            const newCardRef = doc(collection(db, "gift_cards"));
-            batch.set(newCardRef, cardData);
-            cardsToPrint.push(cardData);
-        }
-
-        try {
-            await batch.commit();
-
-            const originalPreviewHTML = printableCardArea.innerHTML;
-
-            printableCardArea.innerHTML = cardsToPrint.map(card => {
-                const expiryText = card.expiresAt ? `Expires: ${card.expiresAt.toDate().toLocaleDateString()}` : '';
-                const bgImage = printableCard.style.backgroundImage;
-                return `
-                    <div class="printable-gift-card w-[400px] h-[228px] shadow-lg rounded-lg p-4 flex flex-col justify-between bg-cover bg-center text-white" style="background-image: ${bgImage};">
-                        <div class="flex justify-between items-start" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
-                            <img src="${document.getElementById('preview-logo').src}" class="w-12 h-12 rounded-full border-2 border-white"/>
-                            <div class="text-right">
-                                <p class="font-parisienne text-3xl">Gift Card</p>
-                                <p class="text-xs font-semibold tracking-wider">Nails Express</p>
-                            </div>
+            printHTML += `
+                <div class="card-container">
+                    <div class="card rounded-lg p-4 flex flex-col justify-between bg-cover bg-center text-white" style="background-image: url('${card.backgroundUrl}');">
+                        <div class="flex justify-between items-start"><img src="https://placehold.co/100x100/d63384/FFFFFF?text=NE" class="w-12 h-12 rounded-full border-2 border-white" /><div class="text-right"><p class="font-parisienne text-3xl">Gift Card</p><p class="text-xs font-semibold tracking-wider">Nails Express</p></div></div>
+                        <div class="text-center"><p class="text-5xl font-bold">$${card.amount.toFixed(2)}</p></div>
+                        <div class="text-xs"><div class="flex justify-between font-semibold"><span style="display:${card.recipientName ? 'inline' : 'none'}">FOR: <span class="font-normal">${card.recipientName}</span></span><span style="display:${card.senderName ? 'inline' : 'none'}">FROM: <span class="font-normal">${card.senderName}</span></span></div><p class="mt-2 text-center font-mono tracking-widest text-sm">${card.code}</p><p class="mt-1 text-center text-[10px] opacity-80" style="display:${expiryDisplay}">${expiryText}</p></div>
+                    </div>
+                    <div class="card rounded-lg p-4 flex flex-col justify-between bg-white text-gray-800" style="text-shadow: none;">
+                        <div class="w-full h-10 bg-black mt-2"></div>
+                        <p class="text-xs text-center text-gray-600 px-4 leading-relaxed">
+                            This card is redeemable for services at Nails Express. Treat this card like cash; it is not replaceable if lost or stolen. This card is non-refundable and cannot be exchanged for cash.
+                        </p>
+                        <div class="text-center text-xs pb-2">
+                            <p class="font-bold">Nails Express</p>
+                            <p>1560 Hustonville Rd #345, Danville, KY 40422</p>
+                            <p>(859) 236-2873</p>
                         </div>
-                        <div class="text-center" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.7);"><p class="text-5xl font-bold">$${card.amount.toFixed(2)}</p></div>
-                        <div class="text-xs" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
-                            <div class="flex justify-between font-semibold">
-                                <span style="display: ${card.recipientName ? 'inline' : 'none'}">FOR: <span class="font-normal">${card.recipientName}</span></span>
-                                <span style="display: ${card.senderName ? 'inline' : 'none'}">FROM: <span class="font-normal">${card.senderName}</span></span>
-                            </div>
-                            <p class="mt-2 text-center font-mono tracking-widest text-sm">${card.code}</p>
-                            <p class="mt-1 text-center text-[10px] opacity-80" style="display: ${expiryText ? 'block' : 'none'}">${expiryText}</p>
-                        </div>
-                    </div>`;
-            }).join('');
+                    </div>
+                </div>
+            `;
+        });
 
-            window.print();
+        printHTML += '</div></body></html>';
+        
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(printHTML);
+        printWindow.document.close();
+        printWindow.focus();
 
-            setTimeout(() => {
-                printableCardArea.innerHTML = originalPreviewHTML;
-            }, 1000);
-
-        } catch (error) {
-            console.error("Error saving physical gift cards:", error);
-            alert("Could not save the gift cards. Please try again.");
-        }
-    };
+    } catch (error) {
+        console.error("Error saving physical gift cards:", error);
+        alert("Could not save the gift cards. Please try again.");
+    }
+};
 
     document.getElementById('designer-show-to').addEventListener('change', updateDesignerPreview);
     document.getElementById('designer-show-from').addEventListener('change', updateDesignerPreview);
