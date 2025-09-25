@@ -18,6 +18,7 @@ const auth = getAuth(app);
 const storage = getStorage(app);
 
 // --- Global State ---
+let allTasks = [];
 let backupSettings = { frequency: 'weekly', lastBackup: null };
 const loadingScreen = document.getElementById('loading-screen');
 const landingPageContent = document.getElementById('landing-page-content');
@@ -2700,6 +2701,150 @@ onSnapshot(doc(db, "settings", "backup"), (docSnap) => {
 });
 
 
+// PASTE THIS ENTIRE NEW BLOCK OF CODE
+
+// --- TASK MANAGER LOGIC ---
+const addTaskForm = document.getElementById('add-task-form');
+const taskListContainer = document.getElementById('task-list-container');
+
+const renderTasks = () => {
+    if (!taskListContainer) return;
+
+    taskListContainer.innerHTML = '';
+    if (allTasks.length === 0) {
+        taskListContainer.innerHTML = '<p class="text-center text-gray-500 py-4">No tasks yet. Add one to get started!</p>';
+        return;
+    }
+
+    const sortedTasks = [...allTasks].sort((a, b) => {
+        const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
+    });
+
+    sortedTasks.forEach(task => {
+        const priorityColors = {
+            high: 'border-red-500 bg-red-50',
+            medium: 'border-yellow-500 bg-yellow-50',
+            low: 'border-gray-300 bg-gray-50'
+        };
+        const taskEl = document.createElement('div');
+        taskEl.className = `task-item flex items-center justify-between p-3 rounded-lg border-l-4 ${priorityColors[task.priority]}`;
+        taskEl.innerHTML = `
+    <span class="task-description flex-grow ${task.completed ? 'completed' : ''}">${task.description}</span>
+    <div class="task-actions flex items-center gap-3 ml-4">
+        <button data-id="${task.id}" class="edit-task-btn text-blue-500 hover:text-blue-700" title="Edit Task">
+            <i class="fas fa-edit"></i>
+        </button>
+        <button data-id="${task.id}" class="complete-task-btn text-green-500 hover:text-green-700" title="Complete Task">
+            <i class="fas ${task.completed ? 'fa-check-square' : 'fa-square'}"></i>
+        </button>
+        <button data-id="${task.id}" class="delete-task-btn text-red-500 hover:text-red-700" title="Delete Task">
+            <i class="fas fa-trash"></i>
+        </button>
+    </div>
+`;
+        taskListContainer.appendChild(taskEl);
+    });
+};
+
+if (addTaskForm) {
+    addTaskForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const descriptionInput = document.getElementById('task-description');
+        const priority = document.getElementById('task-priority').value;
+        const description = descriptionInput.value.trim();
+
+        if (description) {
+            try {
+                await addDoc(collection(db, "tasks"), {
+                    description: description,
+                    priority: priority,
+                    completed: false,
+                    createdAt: serverTimestamp()
+                });
+                descriptionInput.value = '';
+            } catch (error) {
+                console.error("Error adding task:", error);
+                alert("Could not add the task.");
+            }
+        }
+    });
+}
+
+if (taskListContainer) {
+    taskListContainer.addEventListener('click', async (e) => {
+        const completeBtn = e.target.closest('.complete-task-btn');
+        const deleteBtn = e.target.closest('.delete-task-btn');
+        const editBtn = e.target.closest('.edit-task-btn'); // <-- Add this line
+
+        if (editBtn) { // <-- Add this new block
+            const taskId = editBtn.dataset.id;
+            const task = allTasks.find(t => t.id === taskId);
+            if (task) {
+                openEditTaskModal(task);
+            }
+        } else if (completeBtn) {
+            const taskId = completeBtn.dataset.id;
+            const task = allTasks.find(t => t.id === taskId);
+            if (task) {
+                await updateDoc(doc(db, "tasks", taskId), { completed: !task.completed });
+            }
+        } else if (deleteBtn) {
+            const taskId = deleteBtn.dataset.id;
+            showConfirmModal("Are you sure you want to delete this task?", async () => {
+                await deleteDoc(doc(db, "tasks", taskId));
+            });
+        }
+    });
+}
+
+// PASTE THIS ENTIRE NEW BLOCK OF CODE
+const editTaskModal = document.getElementById('edit-task-modal');
+const editTaskForm = document.getElementById('edit-task-form');
+const closeEditTaskBtn = document.getElementById('close-edit-task-modal-btn');
+
+const openEditTaskModal = (task) => {
+    editTaskForm.reset();
+    document.getElementById('edit-task-id').value = task.id;
+    document.getElementById('edit-task-description').value = task.description;
+    document.getElementById('edit-task-priority').value = task.priority;
+    editTaskModal.classList.remove('hidden');
+};
+
+const closeEditTaskModal = () => {
+    editTaskModal.classList.add('hidden');
+};
+
+closeEditTaskBtn.addEventListener('click', closeEditTaskModal);
+editTaskModal.querySelector('.modal-overlay').addEventListener('click', closeEditTaskModal);
+
+editTaskForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const taskId = document.getElementById('edit-task-id').value;
+    const newDescription = document.getElementById('edit-task-description').value;
+    const newPriority = document.getElementById('edit-task-priority').value;
+
+    if (taskId && newDescription) {
+        try {
+            await updateDoc(doc(db, "tasks", taskId), {
+                description: newDescription,
+                priority: newPriority
+            });
+            closeEditTaskModal();
+        } catch (error) {
+            console.error("Error updating task:", error);
+            alert("Could not update task.");
+        }
+    }
+});
+
+onSnapshot(query(collection(db, "tasks"), orderBy("createdAt", "desc")), (snapshot) => {
+    allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    renderTasks();
+});
+
+
+// END OF initMainApp }
 }
 // PASTE THESE NEW FUNCTIONS inside initMainApp, after the royalty settings form listener
 
@@ -2845,6 +2990,9 @@ initializeRoyaltyCardDesigner();
     // ... more variables
     let techniciansAndStaff = [], technicians = [];
     let allExpenseCategories = [], allPaymentAccounts = [], allSuppliers = [];
+    // Add these two new variables
+    let currentExpenseCategoryFilter = 'all';
+    let currentExpenseSupplierFilter = 'all';
     // ADD THIS ENTIRE NEW BLOCK for the lightbox
     let confirmCallback = null;
     const showConfirmModal = (message, onConfirm, confirmText = 'Delete') => {
@@ -5198,15 +5346,33 @@ function renderCalendar(year, month, technicianFilter = 'All') {
     const expenseTableBody = document.querySelector('#expense-table tbody');
     const totalExpenseEl = document.getElementById('total-expense');
 
-    const populateExpenseDropdowns = () => {
-        const categorySelect = document.getElementById('expense-category');
-        const supplierSelect = document.getElementById('expense-supplier');
-        const paymentSelect = document.getElementById('expense-payment-account');
-        const populate = (select, data) => { const first = select.options[0]; select.innerHTML = ''; select.appendChild(first); data.forEach(item => select.appendChild(new Option(item.name, item.name))); };
-        populate(categorySelect, allExpenseCategories);
-        populate(supplierSelect, allSuppliers);
-        populate(paymentSelect, allPaymentAccounts);
+// REPLACE your old populateExpenseDropdowns function with this one:
+const populateExpenseDropdowns = () => {
+    const categorySelect = document.getElementById('expense-category');
+    const supplierSelect = document.getElementById('expense-supplier');
+    const paymentSelect = document.getElementById('expense-payment-account');
+
+    // New filter dropdowns
+    const categoryFilterSelect = document.getElementById('expense-category-filter');
+    const supplierFilterSelect = document.getElementById('expense-supplier-filter');
+
+    const populate = (select, data, defaultOptionText) => {
+        if (!select) return;
+        const first = select.options[0] || document.createElement('option');
+        first.value = defaultOptionText === "All" ? "all" : "";
+        first.textContent = defaultOptionText === "All" ? `All ${select.id.includes('category') ? 'Categories' : 'Suppliers'}` : `Select ${defaultOptionText}`;
+        select.innerHTML = '';
+        select.appendChild(first);
+        data.forEach(item => select.appendChild(new Option(item.name, item.name)));
     };
+
+    populate(categorySelect, allExpenseCategories, 'Category');
+    populate(supplierSelect, allSuppliers, 'Supplier');
+    populate(paymentSelect, allPaymentAccounts, 'Account');
+
+    populate(categoryFilterSelect, allExpenseCategories, 'All');
+    populate(supplierFilterSelect, allSuppliers, 'All');
+};
 
     const populateExpenseMonthFilter = () => {
         const months = [...new Set(allExpenses.map(exp => { const d = new Date(exp.date.seconds * 1000); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; }))].sort().reverse();
@@ -5215,23 +5381,45 @@ function renderCalendar(year, month, technicianFilter = 'All') {
         expenseMonthFilter.value = currentExpenseMonthFilter || 'all';
     };
 
-    const renderExpenses = () => {
-        let filtered = allExpenses;
-        if (currentExpenseMonthFilter && currentExpenseMonthFilter !== 'all') {
-            const [year, month] = currentExpenseMonthFilter.split('-').map(Number);
-            filtered = allExpenses.filter(exp => { const d = new Date(exp.date.seconds * 1000); return d.getFullYear() === year && d.getMonth() + 1 === month; });
-        }
-        expenseTableBody.innerHTML = filtered.length === 0 ? `<tr><td colspan="8" class="py-6 text-center text-gray-400">No expenses found.</td></tr>` : '';
-        filtered.forEach(exp => {
-            const row = expenseTableBody.insertRow();
-            row.className = 'bg-white border-b';
-            row.innerHTML = `<td class="px-6 py-4">${new Date(exp.date.seconds * 1000).toLocaleDateString()}</td><td class="px-6 py-4">${exp.name}</td><td class="px-6 py-4">${exp.category || ''}</td><td class="px-6 py-4">${exp.supplier || ''}</td><td class="px-6 py-4">${exp.paymentAccount || ''}</td><td class="px-6 py-4">${exp.attachmentURL ? `<a href="${exp.attachmentURL}" target="_blank" class="text-blue-500 hover:underline">View</a>` : 'N/A'}</td><td class="px-6 py-4 text-right">$${exp.amount.toFixed(2)}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${exp.id}" class="edit-expense-btn text-blue-500"><i class="fas fa-edit"></i></button><button data-id="${exp.id}" class="delete-expense-btn text-red-500"><i class="fas fa-trash"></i></button></td>`;
-        });
-        totalExpenseEl.textContent = `$${filtered.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}`;
-    };
+// REPLACE your old renderExpenses function with this one:
+const renderExpenses = () => {
+    let filtered = allExpenses;
+
+    // Filter by Month
+    if (currentExpenseMonthFilter && currentExpenseMonthFilter !== 'all') {
+        const [year, month] = currentExpenseMonthFilter.split('-').map(Number);
+        filtered = filtered.filter(exp => { const d = new Date(exp.date.seconds * 1000); return d.getFullYear() === year && d.getMonth() + 1 === month; });
+    }
+
+    // Filter by Category
+    if (currentExpenseCategoryFilter && currentExpenseCategoryFilter !== 'all') {
+        filtered = filtered.filter(exp => exp.category === currentExpenseCategoryFilter);
+    }
+
+    // Filter by Supplier
+    if (currentExpenseSupplierFilter && currentExpenseSupplierFilter !== 'all') {
+        filtered = filtered.filter(exp => exp.supplier === currentExpenseSupplierFilter);
+    }
+
+    expenseTableBody.innerHTML = filtered.length === 0 ? `<tr><td colspan="8" class="py-6 text-center text-gray-400">No expenses found for the selected filters.</td></tr>` : '';
+    filtered.forEach(exp => {
+        const row = expenseTableBody.insertRow();
+        row.className = 'bg-white border-b';
+        row.innerHTML = `<td class="px-6 py-4">${new Date(exp.date.seconds * 1000).toLocaleDateString()}</td><td class="px-6 py-4">${exp.name}</td><td class="px-6 py-4">${exp.category || ''}</td><td class="px-6 py-4">${exp.supplier || ''}</td><td class="px-6 py-4">${exp.paymentAccount || ''}</td><td class="px-6 py-4">${exp.attachmentURL ? `<a href="${exp.attachmentURL}" target="_blank" class="text-blue-500 hover:underline">View</a>` : 'N/A'}</td><td class="px-6 py-4 text-right">$${exp.amount.toFixed(2)}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${exp.id}" class="edit-expense-btn text-blue-500"><i class="fas fa-edit"></i></button><button data-id="${exp.id}" class="delete-expense-btn text-red-500"><i class="fas fa-trash"></i></button></td>`;
+    });
+    totalExpenseEl.textContent = `$${filtered.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2)}`;
+};
 
     expenseMonthFilter.addEventListener('change', (e) => { currentExpenseMonthFilter = e.target.value; renderExpenses(); });
-
+// Add these two new event listeners
+document.getElementById('expense-category-filter').addEventListener('change', (e) => {
+    currentExpenseCategoryFilter = e.target.value;
+    renderExpenses();
+});
+document.getElementById('expense-supplier-filter').addEventListener('change', (e) => {
+    currentExpenseSupplierFilter = e.target.value;
+    renderExpenses();
+});
     addExpenseForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const expenseId = document.getElementById('edit-expense-id').value;
@@ -6415,7 +6603,61 @@ clientForm.addEventListener('submit', async (e) => {
     const printableCard = document.getElementById('printable-gift-card');
     const saveAndPrintBtn = document.getElementById('save-and-print-btn');
     const editGiftCardForm = document.getElementById('edit-gift-card-form');
+// PASTE THIS ENTIRE NEW EVENT LISTENER BLOCK
 
+// REPLACE your old editGiftCardForm event listener with this new one:
+editGiftCardForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const cardId = document.getElementById('edit-gift-card-id').value;
+    const card = allGiftCards.find(c => c.id === cardId);
+    if (!card) {
+        alert("Could not find the gift card to update.");
+        return;
+    }
+
+    const transactionType = document.getElementById('edit-gc-transaction-type').value;
+    const amount = parseFloat(document.getElementById('edit-gc-transaction-amount').value);
+    const notes = document.getElementById('edit-gc-transaction-notes').value.trim();
+
+    if (isNaN(amount) || amount <= 0) {
+        alert("Please enter a valid, positive amount for the transaction.");
+        return;
+    }
+
+    let newBalance = card.balance;
+    if (transactionType === 'redeem') {
+        if (amount > card.balance) {
+            alert("Cannot redeem an amount greater than the current balance.");
+            return;
+        }
+        newBalance -= amount;
+    } else { // 'add'
+        newBalance += amount;
+    }
+
+    const newTransaction = {
+        type: transactionType,
+        amount: amount,
+        notes: notes,
+        timestamp: Timestamp.now() // <-- THIS IS THE FIX (changed from serverTimestamp())
+    };
+
+    let newStatus = newBalance <= 0 ? 'Depleted' : 'Active';
+
+    try {
+        const cardDocRef = doc(db, "gift_cards", cardId);
+        await updateDoc(cardDocRef, {
+            balance: newBalance,
+            status: newStatus,
+            history: arrayUnion(newTransaction)
+        });
+        alert("Transaction applied successfully!");
+        editGiftCardModal.classList.add('hidden');
+    } catch (error) {
+        console.error("Error applying transaction:", error);
+        alert("Could not apply the transaction. Please try again.");
+    }
+});
 
 // REPLACE the entire updateDesignerPreview function with this one:
 const updateDesignerPreview = () => {
