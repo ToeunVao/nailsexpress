@@ -18,6 +18,7 @@ const auth = getAuth(app);
 const storage = getStorage(app);
 
 // --- Global State ---
+let backupSettings = { frequency: 'weekly', lastBackup: null };
 const loadingScreen = document.getElementById('loading-screen');
 const landingPageContent = document.getElementById('landing-page-content');
 const appContent = document.getElementById('app-content');
@@ -2378,6 +2379,327 @@ if (royaltySettingsForm) {
             alert("Could not save settings.");
         }
     });
+
+    // PASTE THIS ENTIRE NEW BLOCK OF CODE
+
+// --- ROYALTY CARD ADMIN REPORT LOGIC ---
+const royaltyCardsTableBody = document.querySelector('#royalty-cards-table tbody');
+const searchRoyaltyCardsInput = document.getElementById('search-royalty-cards');
+// PASTE THIS NEW CODE BLOCK
+const addRoyaltyCardModal = document.getElementById('add-royalty-card-modal');
+const addRoyaltyCardBtn = document.getElementById('add-royalty-card-btn');
+const closeAddRoyaltyCardBtn = document.getElementById('close-add-royalty-card-modal-btn');
+const addRoyaltyCardForm = document.getElementById('add-royalty-card-form');
+const addRcClientList = document.getElementById('add-rc-client-list');
+
+const openAddRoyaltyCardModal = () => {
+    addRcClientList.innerHTML = '';
+    const clientsWithoutRoyalty = allClients.filter(c => !c.royaltyCard);
+    clientsWithoutRoyalty.forEach(client => {
+        addRcClientList.innerHTML += `<option value="${client.name}"></option>`;
+    });
+    addRoyaltyCardModal.classList.remove('hidden');
+};
+
+const closeAddRoyaltyCardModal = () => {
+    addRoyaltyCardForm.reset();
+    addRoyaltyCardModal.classList.add('hidden');
+};
+
+addRoyaltyCardBtn.addEventListener('click', openAddRoyaltyCardModal);
+closeAddRoyaltyCardBtn.addEventListener('click', closeAddRoyaltyCardModal);
+addRoyaltyCardModal.querySelector('.modal-overlay').addEventListener('click', closeAddRoyaltyCardModal);
+
+addRoyaltyCardForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const clientName = document.getElementById('add-rc-client-name').value;
+    const selectedClient = allClients.find(c => c.name === clientName);
+
+    if (!selectedClient) {
+        alert("Please select a valid client from the list.");
+        return;
+    }
+
+    if (selectedClient.royaltyCard) {
+        alert(`${selectedClient.name} already has a royalty card.`);
+        return;
+    }
+
+    try {
+        const clientDocRef = doc(db, "clients", selectedClient.id);
+        await updateDoc(clientDocRef, {
+            royaltyCard: {
+                visits: 0,
+                lastVisit: null
+            }
+        });
+        alert(`Royalty card created for ${selectedClient.name}!`);
+        closeAddRoyaltyCardModal();
+    } catch (error) {
+        console.error("Error adding royalty card:", error);
+        alert("Could not create royalty card for this client.");
+    }
+});
+
+const renderRoyaltyCardsAdminTable = () => {
+    if (!royaltyCardsTableBody) return;
+    
+    const searchTerm = searchRoyaltyCardsInput.value.toLowerCase();
+    const filteredCards = allRoyaltyCards.filter(client => 
+        client.name.toLowerCase().includes(searchTerm) || 
+        (client.phone && client.phone.toLowerCase().includes(searchTerm))
+    );
+
+    royaltyCardsTableBody.innerHTML = '';
+    if (filteredCards.length === 0) {
+        royaltyCardsTableBody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-gray-400">No royalty card clients found.</td></tr>`;
+        return;
+    }
+
+    filteredCards.forEach(client => {
+        const visits = client.royaltyCard.visits || 0;
+        const visitsNeeded = royaltySettings.visitsNeeded;
+        const isRewardReady = visits >= visitsNeeded;
+        
+        const statusText = isRewardReady ? 'Reward Ready' : `${visits} / ${visitsNeeded}`;
+        const statusColor = isRewardReady ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800';
+
+        const row = royaltyCardsTableBody.insertRow();
+        row.innerHTML = `
+            <td class="px-6 py-4 font-medium">${client.name}</td>
+            <td class="px-6 py-4">${client.phone || 'N/A'}</td>
+            <td class="px-6 py-4 text-center font-bold">${visits}</td>
+            <td class="px-6 py-4 text-center"><span class="px-2 py-1 text-xs font-semibold rounded-full ${statusColor}">${statusText}</span></td>
+            <td class="px-6 py-4 text-center space-x-2">
+                <button data-id="${client.id}" class="stamp-royalty-card-btn text-green-500 hover:text-green-700" title="Add Visit Stamp"><i class="fas fa-stamp"></i></button>
+                <button data-id="${client.id}" class="reset-royalty-card-btn text-yellow-500 hover:text-yellow-700" title="Reset Visits (After Reward)"><i class="fas fa-undo"></i></button>
+                <button data-id="${client.id}" class="delete-royalty-card-btn text-red-500 hover:text-red-700" title="Remove Royalty Card"><i class="fas fa-trash"></i></button>
+            </td>
+        `;
+    });
+};
+
+// Listen for all clients that have a royalty card
+onSnapshot(query(collection(db, "clients"), where("royaltyCard", "!=", null)), (snapshot) => {
+    allRoyaltyCards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    renderRoyaltyCardsAdminTable();
+});
+
+searchRoyaltyCardsInput.addEventListener('input', renderRoyaltyCardsAdminTable);
+
+royaltyCardsTableBody.addEventListener('click', async (e) => {
+    const stampBtn = e.target.closest('.stamp-royalty-card-btn');
+    const resetBtn = e.target.closest('.reset-royalty-card-btn');
+    const deleteBtn = e.target.closest('.delete-royalty-card-btn');
+    const clientRef = (stampBtn || resetBtn || deleteBtn)?.dataset.id;
+    if (!clientRef) return;
+
+    const clientDocRef = doc(db, "clients", clientRef);
+
+    if (stampBtn) {
+        const client = allRoyaltyCards.find(c => c.id === clientRef);
+        const currentVisits = client.royaltyCard.visits || 0;
+        await updateDoc(clientDocRef, { 
+            "royaltyCard.visits": currentVisits + 1,
+            "royaltyCard.lastVisit": serverTimestamp()
+        });
+    } else if (resetBtn) {
+        showConfirmModal("Are you sure you want to reset this card's visits to 0? This is usually done after a client redeems their reward.", async () => {
+            await updateDoc(clientDocRef, { "royaltyCard.visits": 0 });
+        }, "Reset Card");
+    } else if (deleteBtn) {
+        showConfirmModal("Are you sure you want to remove the royalty card from this client? Their visit history will be lost.", async () => {
+            await updateDoc(clientDocRef, { royaltyCard: null });
+        }, "Remove Card");
+    }
+});
+
+// PASTE THIS ENTIRE NEW BLOCK OF CODE
+
+// --- BACKUP & RESTORE LOGIC ---
+const backupDataBtn = document.getElementById('backup-data-btn');
+const restoreDataInput = document.getElementById('restore-data-input');
+const autoBackupSelect = document.getElementById('auto-backup-frequency');
+const lastBackupStatusEl = document.getElementById('last-backup-status');
+
+const collectionsToBackup = [
+    'users', 'clients', 'appointments', 'finished_clients', 'earnings', 'salon_earnings',
+    'expenses', 'inventory', 'promotions', 'services', 'nail_ideas', 'gift_cards',
+    'memberships', 'suppliers', 'color_brands', 'expense_categories', 'payment_accounts'
+];
+
+// Helper to convert Firestore Timestamps to strings
+const processDataForBackup = (data) => {
+    if (data instanceof Timestamp) {
+        return { __fsTimestamp: true, value: data.toDate().toISOString() };
+    }
+    if (Array.isArray(data)) {
+        return data.map(processDataForBackup);
+    }
+    if (data !== null && typeof data === 'object') {
+        const newData = {};
+        for (const key in data) {
+            newData[key] = processDataForBackup(data[key]);
+        }
+        return newData;
+    }
+    return data;
+};
+
+// Helper to convert strings back to Firestore Timestamps
+const processDataForRestore = (data) => {
+    if (data && data.__fsTimestamp) {
+        return Timestamp.fromDate(new Date(data.value));
+    }
+    if (Array.isArray(data)) {
+        return data.map(processDataForRestore);
+    }
+    if (data !== null && typeof data === 'object') {
+        const newData = {};
+        for (const key in data) {
+            newData[key] = processDataForRestore(data[key]);
+        }
+        return newData;
+    }
+    return data;
+};
+
+const backupAllData = async () => {
+    alert("Starting backup process. This may take a moment. Your download will begin automatically.");
+    backupDataBtn.disabled = true;
+    backupDataBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Backing up...';
+
+    const backupObject = {};
+    try {
+        for (const collectionName of collectionsToBackup) {
+            const querySnapshot = await getDocs(collection(db, collectionName));
+            backupObject[collectionName] = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...processDataForBackup(doc.data())
+            }));
+        }
+
+        const jsonString = JSON.stringify(backupObject, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `nailexpress_backup_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        // Update last backup timestamp
+        const now = Timestamp.now();
+        await setDoc(doc(db, "settings", "backup"), { ...backupSettings, lastBackup: now }, { merge: true });
+
+    } catch (error) {
+        console.error("Backup failed:", error);
+        alert("Backup failed. Please check the console for details.");
+    } finally {
+        backupDataBtn.disabled = false;
+        backupDataBtn.innerHTML = '<i class="fas fa-download mr-2"></i> Backup All Data';
+    }
+};
+
+const handleRestore = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const confirmation = prompt('This is a highly destructive action that will overwrite ALL existing data. To confirm, please type "RESTORE" in the box below.');
+    if (confirmation !== "RESTORE") {
+        alert("Restore cancelled.");
+        restoreDataInput.value = ''; // Clear the input
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            alert("Restore process starting. The app will be unresponsive until it is complete. You will be alerted upon completion.");
+
+            for (const collectionName in data) {
+                if (data.hasOwnProperty(collectionName)) {
+                    const collectionData = data[collectionName];
+                    const batch = writeBatch(db);
+                    for (const docData of collectionData) {
+                        const { id, ...restOfData } = docData;
+                        const processedData = processDataForRestore(restOfData);
+                        const docRef = doc(db, collectionName, id);
+                        batch.set(docRef, processedData);
+                    }
+                    await batch.commit();
+                }
+            }
+            alert("Data restore completed successfully! The page will now reload.");
+            window.location.reload();
+        } catch (error) {
+            console.error("Restore failed:", error);
+            alert("Restore failed. The backup file may be corrupt. Please check the console for details.");
+        } finally {
+            restoreDataInput.value = '';
+        }
+    };
+    reader.readAsText(file);
+};
+
+const checkAutoBackup = () => {
+    if (backupSettings.frequency === 'off' || !backupSettings.lastBackup) {
+        return;
+    }
+    const lastBackupDate = backupSettings.lastBackup.toDate();
+    const now = new Date();
+    let daysSinceLastBackup = (now - lastBackupDate) / (1000 * 60 * 60 * 24);
+    
+    let shouldBackup = false;
+    if (backupSettings.frequency === 'daily' && daysSinceLastBackup >= 1) {
+        shouldBackup = true;
+    } else if (backupSettings.frequency === 'weekly' && daysSinceLastBackup >= 7) {
+        shouldBackup = true;
+    } else if (backupSettings.frequency === 'monthly' && daysSinceLastBackup >= 30) {
+        shouldBackup = true;
+    }
+
+    if (shouldBackup) {
+        if (confirm("It's time for your scheduled backup. Do you want to download the backup file now?")) {
+            backupAllData();
+        }
+    }
+};
+
+backupDataBtn.addEventListener('click', backupAllData);
+restoreDataInput.addEventListener('change', handleRestore);
+
+autoBackupSelect.addEventListener('change', async (e) => {
+    const newFrequency = e.target.value;
+    try {
+        await setDoc(doc(db, "settings", "backup"), { frequency: newFrequency }, { merge: true });
+        backupSettings.frequency = newFrequency;
+    } catch (error) {
+        console.error("Failed to save backup frequency:", error);
+    }
+});
+
+onSnapshot(doc(db, "settings", "backup"), (docSnap) => {
+    if (docSnap.exists()) {
+        const data = docSnap.data();
+        backupSettings = data;
+        autoBackupSelect.value = data.frequency || 'weekly';
+        if (data.lastBackup) {
+            lastBackupStatusEl.textContent = `Last backup: ${data.lastBackup.toDate().toLocaleString()}`;
+        } else {
+            lastBackupStatusEl.textContent = 'No backup recorded.';
+        }
+        // Run check on first load for admin
+        if (currentUserRole === 'admin') {
+           checkAutoBackup();
+        }
+    }
+});
+
+
 }
 // PASTE THESE NEW FUNCTIONS inside initMainApp, after the royalty settings form listener
 
@@ -2552,50 +2874,50 @@ initializeRoyaltyCardDesigner();
         return chartInstance;
     };
 
-    // REPLACE the old getDateRange function with this one
-    const getDateRange = (filter, specificDate = null) => {
-        const now = new Date();
-        let startDate, endDate = new Date(now);
+// REPLACE your old getDateRange function with this corrected one:
+const getDateRange = (filter, specificDate = null) => {
+    const now = new Date();
+    let startDate, endDate = new Date(now);
 
-        if (filter === 'daily' || filter === 'today') {
-            const dateToUse = specificDate ? new Date(specificDate + 'T00:00:00') : now;
-            startDate = new Date(dateToUse.getFullYear(), dateToUse.getMonth(), dateToUse.getDate());
-            endDate = new Date(dateToUse.getFullYear(), dateToUse.getMonth(), dateToUse.getDate(), 23, 59, 59, 999);
-            return { startDate, endDate };
-        }
-
-        switch (filter) {
-            case 'this_week':
-                const firstDayOfWeek = now.getDate() - now.getDay();
-                startDate = new Date(now.setDate(firstDayOfWeek));
-                startDate.setHours(0, 0, 0, 0);
-                endDate = new Date(startDate);
-                endDate.setDate(startDate.getDate() + 6);
-                endDate.setHours(23, 59, 59, 999);
-                break;
-            case 'this_month':
-                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-                break;
-            case 'this_year':
-                startDate = new Date(now.getFullYear(), 0, 1);
-                endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
-                break;
-            case 'last-year':
-                const lastYear = now.getFullYear() - 1;
-                startDate = new Date(lastYear, 0, 1);
-                endDate = new Date(lastYear, 11, 31, 23, 59, 59, 999);
-                break;
-            default: // Monthly filter
-                if (!isNaN(parseInt(filter))) {
-                    const month = parseInt(filter, 10);
-                    startDate = new Date(now.getFullYear(), month, 1);
-                    endDate = new Date(now.getFullYear(), month + 1, 0, 23, 59, 59, 999);
-                }
-                break;
-        }
+    if (filter === 'daily' || filter === 'today') {
+        const dateToUse = specificDate ? new Date(specificDate + 'T00:00:00') : now;
+        startDate = new Date(dateToUse.getFullYear(), dateToUse.getMonth(), dateToUse.getDate());
+        endDate = new Date(dateToUse.getFullYear(), dateToUse.getMonth(), dateToUse.getDate(), 23, 59, 59, 999);
         return { startDate, endDate };
-    };
+    }
+
+    switch (filter) {
+        case 'this_week':
+            const firstDayOfWeek = now.getDate() - now.getDay();
+            startDate = new Date(now.setDate(firstDayOfWeek));
+            startDate.setHours(0, 0, 0, 0);
+            endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 6);
+            endDate.setHours(23, 59, 59, 999);
+            break;
+        case 'this_month':
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+            endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+            break;
+        case 'this_year':
+            startDate = new Date(now.getFullYear(), 0, 1);
+            endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+            break; // <-- This was missing
+         case 'last-year':
+            const lastYear = now.getFullYear() - 1;
+            startDate = new Date(lastYear, 0, 1);
+            endDate = new Date(lastYear, 11, 31, 23, 59, 59, 999);
+            break; // <-- This was also missing
+        default: // Monthly filter
+            if (!isNaN(parseInt(filter))) {
+                const month = parseInt(filter, 10);
+                startDate = new Date(now.getFullYear(), month, 1);
+                endDate = new Date(now.getFullYear(), month + 1, 0, 23, 59, 59, 999);
+            }
+            break;
+    }
+    return { startDate, endDate };
+};
     // --- NEW DASHBOARD LOGIC ---
     const updateDashboard = () => {
         if (currentUserRole === 'admin') {
@@ -3539,54 +3861,64 @@ initializeRoyaltyCardDesigner();
         }
     });
 
-    // Located inside initMainApp()
-    const openClientProfileModal = async (client) => {
-        // Find all relevant data for the selected client
-        const clientData = aggregatedClients.find(c => c.id === client.id);
-        if (!clientData) {
-            console.error("Could not find aggregated data for client:", client);
-            alert("Could not load client profile.");
-            return;
+// REPLACE your old openClientProfileModal function with this new one:
+const openClientProfileModal = async (client) => {
+    const clientData = aggregatedClients.find(c => c.id === client.id);
+    if (!clientData) {
+        console.error("Could not find aggregated data for client:", client);
+        alert("Could not load client profile.");
+        return;
+    }
+    const clientHistory = allFinishedClients.filter(c => c.name === clientData.name);
+    const clientAppointments = allAppointments.filter(c => c.name === clientData.name && c.appointmentTimestamp.toDate() > new Date());
+
+    // --- NEW: Comprehensive Total Spent Calculation ---
+    // 1. Calculate spending from services
+    let serviceSpent = clientHistory.reduce((sum, visit) => {
+        const servicesString = Array.isArray(visit.services) ? visit.services.join(', ') : visit.services;
+        const prices = (servicesString.match(/\$\d+/g) || []).map(p => Number(p.slice(1)));
+        return sum + prices.reduce((a, b) => a + b, 0);
+    }, 0);
+
+    // 2. Calculate spending from gift cards purchased
+    const giftCardsPurchased = allGiftCards.filter(gc => gc.createdBy === client.id);
+    let giftCardSpent = giftCardsPurchased.reduce((sum, gc) => sum + gc.amount, 0);
+
+    // 3. Calculate spending from membership
+    let membershipSpent = 0;
+    if (clientData.membership && clientData.membership.tierId) {
+        const tier = allMembershipTiers.find(t => t.id === clientData.membership.tierId);
+        if (tier) {
+            membershipSpent = tier.price;
         }
-        const clientHistory = allFinishedClients.filter(c => c.name === clientData.name);
-        const clientAppointments = allAppointments.filter(c => c.name === clientData.name && c.appointmentTimestamp.toDate() > new Date());
+    }
+    
+    const totalSpent = serviceSpent + giftCardSpent + membershipSpent;
+    // --- END of new calculation ---
 
-        // Populate the modal with basic info
-        document.getElementById('profile-client-name').textContent = clientData.name;
-        document.getElementById('profile-client-phone').textContent = clientData.phone || 'No phone number';
+    document.getElementById('profile-client-name').textContent = clientData.name;
+    document.getElementById('profile-client-phone').textContent = clientData.phone || 'No phone number';
+    document.getElementById('profile-total-visits').textContent = clientHistory.length;
+    document.getElementById('profile-total-spent').textContent = `$${totalSpent.toFixed(2)}`;
+    document.getElementById('profile-fav-tech').textContent = clientData.favoriteTech;
+    document.getElementById('profile-fav-color').textContent = clientData.favoriteColor;
 
-        // Populate stats cards
-        document.getElementById('profile-total-visits').textContent = clientHistory.length;
-        const totalSpent = clientHistory.reduce((sum, visit) => {
-            const servicesString = Array.isArray(visit.services) ? visit.services.join(', ') : visit.services;
-            const prices = (servicesString.match(/\$\d+/g) || []).map(p => Number(p.slice(1)));
-            return sum + prices.reduce((a, b) => a + b, 0);
-        }, 0);
-        document.getElementById('profile-total-spent').textContent = `$${totalSpent.toFixed(2)}`;
-        document.getElementById('profile-fav-tech').textContent = clientData.favoriteTech;
-        document.getElementById('profile-fav-color').textContent = clientData.favoriteColor;
-
-        // Populate the visit history table
-        const historyBody = document.getElementById('profile-history-table-body');
-        historyBody.innerHTML = clientHistory.length > 0 ? clientHistory.map(v =>
-            `<tr>
+    const historyBody = document.getElementById('profile-history-table-body');
+    historyBody.innerHTML = clientHistory.length > 0 ? clientHistory.map(v =>
+        `<tr>
             <td class="px-4 py-2">${v.checkOutTimestamp.toDate().toLocaleDateString()}</td>
             <td class="px-4 py-2">${Array.isArray(v.services) ? v.services.join(', ') : v.services}</td>
             <td class="px-4 py-2">${v.technician}</td>
         </tr>`
-        ).join('') : '<tr><td colspan="3" class="text-center p-4 text-gray-500">No visit history found.</td></tr>';
+    ).join('') : '<tr><td colspan="3" class="text-center p-4 text-gray-500">No visit history found.</td></tr>';
 
-        // Populate upcoming appointments
-        const apptsContainer = document.getElementById('profile-upcoming-appts');
-        apptsContainer.innerHTML = clientAppointments.length > 0
-            ? clientAppointments.map(a => `<div class="bg-blue-50 p-2 rounded-md"><p class="font-semibold">${a.appointmentTimestamp.toDate().toLocaleString()}</p><p class="text-sm">${a.services.join(', ')}</p></div>`).join('')
-            : '<p class="text-sm text-gray-500">No upcoming appointments.</p>';
+    const apptsContainer = document.getElementById('profile-upcoming-appts');
+    apptsContainer.innerHTML = clientAppointments.length > 0
+        ? clientAppointments.map(a => `<div class="bg-blue-50 p-2 rounded-md"><p class="font-semibold">${a.appointmentTimestamp.toDate().toLocaleString()}</p><p class="text-sm">${a.services.join(', ')}</p></div>`).join('')
+        : '<p class="text-sm text-gray-500">No upcoming appointments.</p>';
 
-        // The photo gallery logic has been removed from this function.
-
-        // Show the modal
-        clientProfileModal.classList.remove('hidden');
-    };
+    clientProfileModal.classList.remove('hidden');
+};
     document.getElementById('finished-content').addEventListener('click', async (e) => {
         const deleteBtn = e.target.closest('.delete-btn-finished');
         const feedbackBtn = e.target.closest('.view-feedback-btn');
@@ -3841,59 +4173,65 @@ initializeRoyaltyCardDesigner();
     setupSubTabs('admin-sub-tabs', 'sub-tab-content');
 
 
-    function renderCalendar(year, month, technicianFilter = 'All') {
-        monthYearDisplay.textContent = `${new Date(year, month).toLocaleString('default', { month: 'long' })} ${year}`;
-        calendarGrid.innerHTML = '';
-        const firstDay = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        for (let i = 0; i < firstDay; i++) { calendarGrid.insertAdjacentHTML('beforeend', '<div></div>'); }
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dayCell = document.createElement('div');
-            dayCell.className = 'calendar-day border p-2';
-            dayCell.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            dayCell.innerHTML = `<div class="font-bold">${day}</div><div id="day-${day}" class="appointments"></div>`;
-            calendarGrid.appendChild(dayCell);
+// REPLACE your old renderCalendar function with this new one:
+function renderCalendar(year, month, technicianFilter = 'All') {
+    monthYearDisplay.textContent = `${new Date(year, month).toLocaleString('default', { month: 'long' })} ${year}`;
+    calendarGrid.innerHTML = '';
+    const today = new Date(); // Get today's date for comparison
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let i = 0; i < firstDay; i++) { calendarGrid.insertAdjacentHTML('beforeend', '<div></div>'); }
+    
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayCell = document.createElement('div');
+        dayCell.className = 'calendar-day border p-2';
+
+        // ADDED: Check if the current cell is today's date
+        if (day === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+            dayCell.classList.add('is-today');
         }
-        let filteredAppointments = allAppointments;
-        if (technicianFilter !== 'All' && technicianFilter !== 'Any Technician') {
-            filteredAppointments = allAppointments.filter(appt => appt.technician === technicianFilter);
-        } else if (technicianFilter === 'Any Technician') {
-            filteredAppointments = allAppointments.filter(appt => appt.technician === 'Any Technician');
-        }
 
-        // Sort appointments by time to display them chronologically
-        filteredAppointments.sort((a, b) => a.appointmentTimestamp.seconds - b.appointmentTimestamp.seconds);
-
-        filteredAppointments.forEach(appt => {
-            const apptDate = new Date(appt.appointmentTimestamp.seconds * 1000);
-            if (apptDate.getFullYear() === year && apptDate.getMonth() === month) {
-                const dayCell = document.getElementById(`day-${apptDate.getDate()}`);
-                if (dayCell) {
-                    const timeString = apptDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                    const serviceString = Array.isArray(appt.services) ? appt.services[0] : appt.services;
-
-                    // --- Get the color for the assigned technician ---
-                    const technicianName = appt.technician;
-                    let colorTheme = { card: 'bg-gray-100', text: 'text-gray-800' }; // Default for "Any Technician"
-                    if (technicianName && technicianColorMap[technicianName]) {
-                        colorTheme = technicianColorMap[technicianName];
-                    }
-                    // --- End of color logic ---
-
-                    const entryHTML = `
-                        <div class="appointment-entry ${colorTheme.card} p-1" data-id="${appt.id}" data-type="appointment">
-                            <p class="font-semibold text-xs ${colorTheme.text} truncate">${timeString} - ${appt.name}</p>
-                            <p class="text-xs text-gray-600 truncate">${serviceString || 'Service not specified'}</p>
-                        </div>`;
-
-                    dayCell.insertAdjacentHTML('beforeend', entryHTML);
-                }
-            }
-        });
-        if (calendarCountSpan) {
-            calendarCountSpan.textContent = calendarGrid.querySelectorAll('.appointment-entry').length;
-        }
+        dayCell.dataset.date = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        dayCell.innerHTML = `<div class="font-bold">${day}</div><div id="day-${day}" class="appointments"></div>`;
+        calendarGrid.appendChild(dayCell);
     }
+
+    let filteredAppointments = allAppointments;
+    if (technicianFilter !== 'All' && technicianFilter !== 'Any Technician') {
+        filteredAppointments = allAppointments.filter(appt => appt.technician === technicianFilter);
+    } else if (technicianFilter === 'Any Technician') {
+        filteredAppointments = allAppointments.filter(appt => appt.technician === 'Any Technician');
+    }
+
+    filteredAppointments.sort((a, b) => a.appointmentTimestamp.seconds - b.appointmentTimestamp.seconds);
+
+    filteredAppointments.forEach(appt => {
+        const apptDate = new Date(appt.appointmentTimestamp.seconds * 1000);
+        if (apptDate.getFullYear() === year && apptDate.getMonth() === month) {
+            const dayCell = document.getElementById(`day-${apptDate.getDate()}`);
+            if (dayCell) {
+                const timeString = apptDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+                const serviceString = Array.isArray(appt.services) ? appt.services[0] : appt.services;
+                const technicianName = appt.technician;
+                let colorTheme = { card: 'bg-gray-100', text: 'text-gray-800' };
+                if (technicianName && technicianColorMap[technicianName]) {
+                    colorTheme = technicianColorMap[technicianName];
+                }
+                const entryHTML = `
+                    <div class="appointment-entry ${colorTheme.card} p-1" data-id="${appt.id}" data-type="appointment">
+                        <p class="font-semibold text-xs ${colorTheme.text} truncate">${timeString} - ${appt.name}</p>
+                        <p class="text-xs text-gray-600 truncate">${serviceString || 'Service not specified'}</p>
+                    </div>`;
+                dayCell.insertAdjacentHTML('beforeend', entryHTML);
+            }
+        }
+    });
+
+    if(calendarCountSpan) {
+        calendarCountSpan.textContent = calendarGrid.querySelectorAll('.appointment-entry').length;
+    }
+}
     document.getElementById('prev-month-btn').addEventListener('click', () => { currentMonth--; if (currentMonth < 0) { currentMonth = 11; currentYear--; } renderCalendar(currentYear, currentMonth, currentTechFilterCalendar); });
     document.getElementById('next-month-btn').addEventListener('click', () => { currentMonth++; if (currentMonth > 11) { currentMonth = 0; currentYear++; } renderCalendar(currentYear, currentMonth, currentTechFilterCalendar); });
     calendarGrid.addEventListener('click', (e) => {
@@ -5996,39 +6334,56 @@ document.getElementById('color-swatches-container').addEventListener('click', (e
         document.getElementById('cancel-edit-promotion-btn').classList.add('hidden');
     });
 
-    const openClientModal = (client = null) => {
-        clientForm.reset();
-        const modalTitle = document.getElementById('client-form-title');
-        if (client) {
-            modalTitle.textContent = 'Edit Client Information';
-            document.getElementById('edit-client-id').value = client.id;
-            document.getElementById('client-form-name').value = client.name;
-            document.getElementById('client-form-phone').value = client.phone || '';
-            document.getElementById('client-form-dob').value = client.dob || '';
-        } else {
-            modalTitle.textContent = 'Create New Client';
-            document.getElementById('edit-client-id').value = '';
-        }
-        clientFormModal.classList.remove('hidden');
-        clientFormModal.classList.add('flex');
-    };
+// REPLACE your old openClientModal function with this new one:
+const openClientModal = (client = null) => {
+    clientForm.reset();
+    const modalTitle = document.getElementById('client-form-title');
+    if (client) {
+        modalTitle.textContent = 'Edit Client Information';
+        document.getElementById('edit-client-id').value = client.id;
+        document.getElementById('client-form-name').value = client.name;
+        document.getElementById('client-form-phone').value = client.phone || '';
+        document.getElementById('client-form-email').value = client.email || ''; // <-- ADD THIS LINE
+        document.getElementById('client-form-dob').value = client.dob || '';
+    } else {
+        modalTitle.textContent = 'Create New Client';
+        document.getElementById('edit-client-id').value = '';
+    }
+    clientFormModal.classList.remove('hidden');
+    clientFormModal.classList.add('flex');
+};
 
     const closeClientModal = () => { clientFormModal.classList.add('hidden'); clientFormModal.classList.remove('flex'); };
     document.getElementById('create-new-client-btn').addEventListener('click', () => openClientModal());
     document.getElementById('client-form-cancel-btn').addEventListener('click', closeClientModal);
     document.querySelector('.client-form-modal-overlay').addEventListener('click', closeClientModal);
 
-    clientForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const clientId = document.getElementById('edit-client-id').value;
-        const clientData = { name: document.getElementById('client-form-name').value, phone: document.getElementById('client-form-phone').value, dob: document.getElementById('client-form-dob').value, };
-        if (!clientData.name) { alert('Client name is required.'); return; }
-        try {
-            if (clientId) { await updateDoc(doc(db, "clients", clientId), clientData); }
-            else { await addDoc(collection(db, "clients"), clientData); }
-            closeClientModal();
-        } catch (error) { console.error("Error saving client:", error); alert("Could not save client data."); }
-    });
+// REPLACE your old clientForm event listener with this new one:
+clientForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const clientId = document.getElementById('edit-client-id').value;
+    const clientData = {
+        name: document.getElementById('client-form-name').value,
+        phone: document.getElementById('client-form-phone').value,
+        email: document.getElementById('client-form-email').value || '', // <-- ADD THIS LINE
+        dob: document.getElementById('client-form-dob').value,
+    };
+    if (!clientData.name) {
+        alert('Client name is required.');
+        return;
+    }
+    try {
+        if (clientId) {
+            await updateDoc(doc(db, "clients", clientId), clientData);
+        } else {
+            await addDoc(collection(db, "clients"), clientData);
+        }
+        closeClientModal();
+    } catch (error) {
+        console.error("Error saving client:", error);
+        alert("Could not save client data.");
+    }
+});
 
     const importClientsBtn = document.getElementById('import-clients-btn');
     const importClientsInput = document.getElementById('import-clients-input');
