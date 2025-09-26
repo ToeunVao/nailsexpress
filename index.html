@@ -2010,6 +2010,15 @@
                                                 </div>
                                             </label>
                                         </div>
+                                        <!-- PASTE THIS NEW TOGGLE SWITCH BLOCK -->
+<div class="flex items-center justify-between">
+    <span class="text-sm font-medium text-gray-900">Show Royalty Card Section</span>
+    <label for="toggle-royalty-card" class="relative inline-flex items-center cursor-pointer">
+        <input type="checkbox" id="toggle-royalty-card" class="sr-only peer">
+        <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-pink-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600">
+        </div>
+    </label>
+</div>
                                         <div class="flex items-center justify-between">
                                             <span class="text-sm font-medium text-gray-900">Show Memberships
                                                 Section</span>
@@ -2371,11 +2380,13 @@
                         <option value="Phone">Phone</option>
                         <option value="Online">Online</option>
                     </select></div>
-                <div><label for="appointment-services"
-                        class="block text-sm font-medium text-gray-600">Services</label><input type="text"
-                        id="appointment-services" list="main-services-list"
-                        class="form-input w-full p-2 mt-1 border border-gray-300 rounded-lg"
-                        placeholder="Select or type a service..."><datalist id="main-services-list"></datalist></div>
+                <div class="md:col-span-2">
+    <label class="block text-sm font-medium text-gray-600">Services</label>
+    <div id="appointment-services-container" class="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
+        <!-- Service category buttons will be added here by JavaScript -->
+    </div>
+    <div id="appointment-hidden-checkboxes" class="hidden"></div>
+</div>
                 <div><label for="appointment-technician-select"
                         class="block text-sm font-medium text-gray-600">Technician Request</label><select
                         id="appointment-technician-select"
