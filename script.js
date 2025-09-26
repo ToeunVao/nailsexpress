@@ -557,8 +557,7 @@ document.addEventListener('click', (e) => { if (e.target.closest('.view-policy-b
 document.getElementById('policy-close-btn').addEventListener('click', closePolicyModal);
 document.querySelector('#policy-modal .policy-modal-overlay').addEventListener('click', closePolicyModal);
 
-// This function is in the global scope
-// REPLACE your old openAddAppointmentModal function with this new one:
+// REPLACE your old openAddAppointmentModal function with this one:
 const openAddAppointmentModal = (date, clientData = null, appointmentData = null) => {
     addAppointmentForm.reset();
     const titleEl = document.getElementById('add-appointment-modal-title');
@@ -566,49 +565,60 @@ const openAddAppointmentModal = (date, clientData = null, appointmentData = null
     const appointmentIdInput = document.getElementById('edit-appointment-id');
     const nameInput = document.getElementById('appointment-client-name');
     const phoneInput = document.getElementById('appointment-phone');
+    const peopleSelect = document.getElementById('appointment-people');
+    const technicianSelect = document.getElementById('appointment-technician-select');
 
-    // Clear previous service selections
-    document.getElementById('appointment-services-container').innerHTML = '';
-    document.getElementById('appointment-hidden-checkboxes').innerHTML = '';
+    // --- Populate Dropdowns (including the new service datalist) ---
+    peopleSelect.innerHTML = '';
+    for (let i = 1; i <= 20; i++) {
+        peopleSelect.appendChild(new Option(i, i));
+    }
 
-    // --- Render Service Categories ---
-    const servicesContainer = document.getElementById('appointment-services-container');
-    const hiddenCheckboxes = document.getElementById('appointment-hidden-checkboxes');
-    Object.keys(servicesData).forEach(category => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'category-button p-3 border rounded-lg text-left bg-white hover:border-pink-300';
-        btn.dataset.category = category;
-        btn.innerHTML = `<h4 class="font-bold text-pink-700 text-sm">${category}</h4><span class="selection-count hidden mt-1 bg-pink-600 text-white text-xs font-bold px-2 py-1 rounded-full"></span>`;
-        servicesContainer.appendChild(btn);
+    getDoc(doc(db, "public_data", "technicians")).then(docSnap => {
+        if (docSnap.exists()) {
+            const techNames = docSnap.data().names || [];
+            technicianSelect.innerHTML = '<option>Any Technician</option>';
+            techNames.forEach(name => {
+                technicianSelect.appendChild(new Option(name, name));
+            });
+        }
     });
-    Object.values(servicesData).flat().forEach(service => {
-        const val = `${service.p || ''}${service.name}${service.price ? ' ' + service.price : ''}`;
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.name = 'appointment-service';
-        cb.value = val;
-        cb.dataset.category = Object.keys(servicesData).find(key => servicesData[key].some(s => s.name === service.name));
-        hiddenCheckboxes.appendChild(cb);
-    });
-    // --- End Service Rendering ---
+
+    const mainServicesList = document.getElementById('main-services-list');
+    mainServicesList.innerHTML = Object.keys(servicesData).flatMap(category =>
+        servicesData[category].map(service => `<option value="${service.p || ''}${service.name}${service.price ? ' ' + service.price : ''}"></option>`)
+    ).join('');
+    // --- End Dropdown Population ---
 
     nameInput.disabled = false;
     phoneInput.disabled = false;
 
     if (appointmentData) {
-        // Edit Mode logic remains the same
+        // Edit Mode
         titleEl.textContent = 'Edit Appointment';
         submitBtn.textContent = 'Update Appointment';
         appointmentIdInput.value = appointmentData.id;
-        // ... (rest of edit logic)
-        // Note: Manual service selection will be handled by user
+        const apptDate = appointmentData.appointmentTimestamp.toDate();
+        const year = apptDate.getFullYear();
+        const month = String(apptDate.getMonth() + 1).padStart(2, '0');
+        const day = String(apptDate.getDate()).padStart(2, '0');
+        const hours = String(apptDate.getHours()).padStart(2, '0');
+        const minutes = String(apptDate.getMinutes()).padStart(2, '0');
+        document.getElementById('appointment-datetime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
+        nameInput.value = appointmentData.name || '';
+        phoneInput.value = appointmentData.phone || '';
+        peopleSelect.value = appointmentData.people || 1;
+        document.getElementById('appointment-booking-type').value = appointmentData.bookingType || 'Booked - Calendar';
+        technicianSelect.value = appointmentData.technician || 'Any Technician';
+        document.getElementById('appointment-notes').value = appointmentData.notes || '';
+        // Handle single or multiple services for editing
+        document.getElementById('appointment-services').value = Array.isArray(appointmentData.services) ? appointmentData.services.join(', ') : (appointmentData.services || '');
+
     } else {
         // Add New Mode
         titleEl.textContent = 'Add New Appointment';
         submitBtn.textContent = 'Save Appointment';
         appointmentIdInput.value = '';
-
         const now = new Date();
         const defaultDateTime = `${date}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
         document.getElementById('appointment-datetime').value = defaultDateTime;
@@ -616,7 +626,7 @@ const openAddAppointmentModal = (date, clientData = null, appointmentData = null
         if (clientData) {
             nameInput.value = clientData.name || '';
             phoneInput.value = clientData.phone || '';
-            nameInput.disabled = true; // Lock the fields for the logged-in client
+            nameInput.disabled = true;
             phoneInput.disabled = true;
         }
     }
@@ -659,7 +669,7 @@ addAppointmentForm.addEventListener('submit', async (e) => {
         people: document.getElementById('appointment-people').value,
         bookingType: document.getElementById('appointment-booking-type').value,
         // And REPLACE it with this:
-        services: Array.from(document.querySelectorAll('#appointment-hidden-checkboxes input:checked')).map(cb => cb.value),
+        services: [document.getElementById('appointment-services').value],
         technician: document.getElementById('appointment-technician-select').value,
         notes: document.getElementById('appointment-notes').value,
         appointmentTimestamp: Timestamp.fromDate(bookingDate)
@@ -1174,32 +1184,27 @@ const renderClientMembership = (clientData, clientId) => {
     }
 };
 
-// **** Function 2: The Main Dashboard Function ****
 // REPLACE your old initClientDashboard function with this new one:
 async function initClientDashboard(clientId, clientData) {
-    // PASTE THIS inside the initClientDashboard function
-document.getElementById('appointment-services-container').addEventListener('click', (e) => {
-    const btn = e.target.closest('.category-button');
-    if (btn) {
-        const category = btn.dataset.category;
-        const sourceContainer = document.getElementById('appointment-hidden-checkboxes');
-        modalTitle.textContent = category;
-        modalContent.innerHTML = '';
-        servicesData[category].forEach(service => {
-            const val = `${service.p || ''}${service.name}${service.price ? ' ' + service.price : ''}`;
-            const sourceCb = sourceContainer.querySelector(`input[value="${val}"]`);
-            const label = document.createElement('label');
-            label.className = 'flex items-center p-3 hover:bg-pink-50 cursor-pointer rounded-lg';
-            label.innerHTML = `<input type="checkbox" class="form-checkbox modal-checkbox" data-source-container="appointment-hidden-checkboxes" value="${val}" ${sourceCb && sourceCb.checked ? 'checked' : ''}><span class="ml-3 text-gray-700 flex-grow">${service.name}</span>${service.price ? `<span class="font-semibold">${service.price}</span>` : ''}`;
-            modalContent.appendChild(label);
+       const featuresDoc = await getDoc(doc(db, "settings", "features"));
+    const features = featuresDoc.exists() ? docSnap.data() : { 
+        showGiftCards: true, 
+        showMemberships: true, 
+        showRoyaltyCard: true 
+    };
+
+    // PRE-LOAD SERVICES FOR THE BOOKING MODAL
+    await getDocs(collection(db, "services")).then(servicesSnapshot => {
+        servicesData = {};
+        servicesSnapshot.forEach(doc => {
+            servicesData[doc.id] = doc.data().items;
         });
-        serviceModal.classList.add('flex');
-        serviceModal.classList.remove('hidden');
-    }
-});
+    });
 
     const featuresDoc = await getDoc(doc(db, "settings", "features"));
     const features = featuresDoc.exists() ? featuresDoc.data() : { showGiftCards: true, showMemberships: true };
+
+    // ... (the rest of the function remains exactly the same) ...
 
     const giftCardTab = document.getElementById('gift-cards-tab')?.parentElement;
     const giftCardContent = document.getElementById('gift-cards-content');
@@ -1257,20 +1262,32 @@ document.getElementById('appointment-services-container').addEventListener('clic
         });
     };
 
-    renderClientMembership(clientData, clientId); // Pass clientId here
+    renderClientMembership(clientData, clientId);
 
-    const setupClientNav = () => {
+// THIS IS THE MAIN FIX: The navigation is now built based on the feature toggles
+    const setupClientNav = (featureSettings) => {
         const navContainer = document.getElementById('client-top-nav');
         const contentSections = document.querySelectorAll('.client-tab-content');
         
-        const navItems = [
+        // Start with the base navigation items
+        let navItems = [
             { id: 'appointments', text: 'Appointments' },
-            { id: 'history', text: 'History' },
-            { id: 'favorites', text: 'My Favorites' },
-            { id: 'gift-cards', text: 'My Gift Cards' },
-            { id: 'membership', text: 'My Membership' },
-            { id: 'royalty-card', text: 'Royalty Card' } // <-- ADD THIS ITEM
+            { id: 'favorites', text: 'My Favorites' }
         ];
+
+        // Conditionally add items based on admin settings
+        if (featureSettings.showGiftCards) {
+            navItems.push({ id: 'gift-cards', text: 'My Gift Cards' });
+        }
+        if (featureSettings.showMemberships) {
+            navItems.push({ id: 'membership', text: 'My Membership' });
+        }
+        if (featureSettings.showRoyaltyCard) {
+            navItems.push({ id: 'royalty-card', text: 'Royalty Card' });
+        }
+        
+        // Hide all content sections first
+        contentSections.forEach(content => content.classList.add('hidden'));
 
         navContainer.innerHTML = navItems.map(item => 
             `<button class="top-nav-btn" data-target="${item.id}-content">${item.text}</button>`
@@ -1287,13 +1304,17 @@ document.getElementById('appointment-services-container').addEventListener('clic
 
             contentSections.forEach(content => content.classList.add('hidden'));
             const targetId = button.dataset.target;
-            document.getElementById(targetId).classList.remove('hidden');
+            const targetContent = document.getElementById(targetId);
+            if (targetContent) {
+                targetContent.classList.remove('hidden');
+            }
         });
 
         if (navButtons.length > 0) {
             navButtons[0].click();
         }
     };
+
 
     const renderClientAppointments = (appointments) => {
         const container = document.getElementById('client-upcoming-appointments');
@@ -1311,24 +1332,44 @@ document.getElementById('appointment-services-container').addEventListener('clic
         });
     };
 
-    const renderClientHistory = (history) => {
-         const container = document.getElementById('client-appointment-history');
-        container.innerHTML = '';
-        if (history.length === 0) {
-            container.innerHTML = '<p class="text-gray-500">You have no past appointments.</p>';
-            return;
-        }
-        history.forEach(visit => {
-            const el = document.createElement('div');
-            el.className = 'bg-white p-4 rounded-lg shadow';
-            el.innerHTML = `<p class="font-bold">${new Date(visit.checkOutTimestamp.seconds * 1000).toLocaleDateString()}</p><p>${visit.services}</p><p class="text-sm text-gray-600">With: ${visit.technician}</p>${visit.colorCode ? `<p class="text-sm text-gray-600">Color: ${visit.colorCode}</p>` : ''}`;
-            container.appendChild(el);
-        });
-    };
+// REPLACE the old renderClientHistory function with this one:
+const renderClientHistory = (history) => {
+    const container = document.getElementById('client-appointment-history');
+    if (!container) return; // <-- Safety check added here
 
-    // PASTE THIS NEW FUNCTION inside initClientDashboard
+    container.innerHTML = '';
+    if (history.length === 0) {
+        container.innerHTML = '<p class="text-gray-500">You have no past appointments.</p>';
+        return;
+    }
+    history.forEach(visit => {
+        const el = document.createElement('div');
+        el.className = 'bg-white p-4 rounded-lg shadow';
+        // The 'visit.services' is now guaranteed to be a string
+        el.innerHTML = `<p class="font-bold">${new Date(visit.checkOutTimestamp.seconds * 1000).toLocaleDateString()}</p><p>${visit.services}</p><p class="text-sm text-gray-600">With: ${visit.technician}</p>${visit.colorCode ? `<p class="text-sm text-gray-600">Color: ${visit.colorCode}</p>` : ''}`;
+        container.appendChild(el);
+    });
+};
+    const calculateAndRenderFavorites = (history) => {
+        if (history.length === 0) return;
+        const techCounts = history.reduce((acc, visit) => {
+            if (visit.technician) acc[visit.technician] = (acc[visit.technician] || 0) + 1;
+            return acc;
+        }, {});
+        const colorCounts = history.reduce((acc, visit) => {
+            if(visit.colorCode) acc[visit.colorCode] = (acc[visit.colorCode] || 0) + 1;
+            return acc;
+        }, {});
+        const favTech = Object.keys(techCounts).length > 0 ? Object.keys(techCounts).reduce((a, b) => techCounts[a] > techCounts[b] ? a : b) : 'N/A';
+        const favColor = Object.keys(colorCounts).length > 0 ? Object.keys(colorCounts).reduce((a, b) => colorCounts[a] > colorCounts[b] ? a : b) : 'N/A';
+        document.getElementById('favorite-technician').textContent = favTech;
+        document.getElementById('favorite-color').textContent = favColor;
+    };
+// PASTE THE NEW FUNCTION RIGHT BELOW IT:
 const renderClientRoyaltyCard = (clientData) => {
     const container = document.getElementById('royalty-card-content');
+    if (!container) return;
+
     if (!clientData.royaltyCard) {
         container.innerHTML = `
             <div class="text-center p-8 bg-gray-50 rounded-lg">
@@ -1337,15 +1378,15 @@ const renderClientRoyaltyCard = (clientData) => {
             </div>`;
         return;
     }
-
+    
     const visits = clientData.royaltyCard.visits || 0;
     const visitsNeeded = royaltySettings.visitsNeeded;
     const rewardText = royaltySettings.rewardDescription;
-
+    
     let stampsHTML = '';
     for (let i = 1; i <= visitsNeeded; i++) {
         const isStamped = i <= visits;
-        stampsHTML += `<div class="stamp ${isStamped ? 'stamped' : ''}">${isStamped ? '<i class="fas fa-cut"></i>' : i}</div>`;
+        stampsHTML += `<div class="stamp ${isStamped ? 'stamped' : ''}">${isStamped ? '<i class="fas fa-star"></i>' : i}</div>`;
     }
 
     const isRewardReady = visits >= visitsNeeded;
@@ -1369,33 +1410,22 @@ const renderClientRoyaltyCard = (clientData) => {
         </div>
     `;
 };
-
-    const calculateAndRenderFavorites = (history) => {
-        if (history.length === 0) return;
-        const techCounts = history.reduce((acc, visit) => {
-            if (visit.technician) acc[visit.technician] = (acc[visit.technician] || 0) + 1;
-            return acc;
-        }, {});
-        const colorCounts = history.reduce((acc, visit) => {
-            if(visit.colorCode) acc[visit.colorCode] = (acc[visit.colorCode] || 0) + 1;
-            return acc;
-        }, {});
-        const favTech = Object.keys(techCounts).length > 0 ? Object.keys(techCounts).reduce((a, b) => techCounts[a] > techCounts[b] ? a : b) : 'N/A';
-        const favColor = Object.keys(colorCounts).length > 0 ? Object.keys(colorCounts).reduce((a, b) => colorCounts[a] > colorCounts[b] ? a : b) : 'N/A';
-        document.getElementById('favorite-technician').textContent = favTech;
-        document.getElementById('favorite-color').textContent = favColor;
-    };
-
     onSnapshot(query(collection(db, "appointments"), where("name", "==", clientData.name)), (snapshot) => {
         const appointments = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
         renderClientAppointments(appointments);
     });
-     onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
-        const history = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
-        allFinishedClients = history;
-        renderClientHistory(history);
-        calculateAndRenderFavorites(history);
-    });
+// REPLACE the old onSnapshot for finished_clients with this one:
+onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
+    // THE FIX IS HERE: We now join the services array into a clean string
+    const history = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        services: (doc.data().services || []).join(', ') // Ensures services is a string
+    }));
+    allFinishedClients = history;
+    renderClientHistory(history);
+    calculateAndRenderFavorites(history);
+});
 
     let allClientGiftCards = [];
     onSnapshot(query(collection(db, "gift_cards"), where("createdBy", "==", clientId), orderBy("createdAt", "desc")), (snapshot) => {
@@ -1441,7 +1471,6 @@ const renderClientRoyaltyCard = (clientData) => {
 
         if (downloadBtn) {
             const tier = allMembershipTiers.find(t => t.id === clientData.membership.tierId);
-            // THE FIX IS HERE: We pass an object with the ID included
             if (clientData && tier) {
                 openMembershipCardForPrint({ ...clientData, id: clientId }, tier);
             }
@@ -1468,14 +1497,14 @@ const renderClientRoyaltyCard = (clientData) => {
         openPurchaseModalForClient(clientData);
     });
 
-    setupClientNav();
-// ADD THIS AT THE END of initClientDashboard
-getDoc(doc(db, "settings", "royaltyProgram")).then(docSnap => {
-    if (docSnap.exists() && docSnap.data().visitsNeeded) {
-        royaltySettings = docSnap.data();
-    }
-    renderClientRoyaltyCard(clientData);
-});
+    getDoc(doc(db, "settings", "royaltyProgram")).then(docSnap => {
+        if (docSnap.exists() && docSnap.data().visitsNeeded) {
+            royaltySettings = docSnap.data();
+        }
+        renderClientRoyaltyCard(clientData);
+    });
+
+    setupClientNav(features); // Pass the settings to the nav builder
 }
 
 // REPLACE your old 'landing-membership-form' submit listener with this one
@@ -2008,40 +2037,39 @@ royaltyForm.addEventListener('submit', async (e) => {
         }
     });
 
-    // Located inside initLandingPage()
-    const updateFeatureVisibility = (settings) => {
-        const showClientRegistration = settings.showClientLogin !== false;
-        const showPromos = settings.showPromotions !== false;
-        const showGiftCards = settings.showGiftCards !== false;
-        const showNailArt = settings.showNailArt !== false;
-        // **** ADD THIS LINE ****
-        const showMemberships = settings.showMemberships !== false;
-        const showRoyaltyCard = settings.showRoyaltyCard !== false;
-        const signupTab = document.getElementById('signup-tab-btn').parentElement;
-        if (signupTab) {
-            signupTab.style.display = showClientRegistration ? 'block' : 'none';
-        }
+// REPLACE this function inside initLandingPage
+const updateFeatureVisibility = (settings) => {
+    const showClientRegistration = settings.showClientLogin !== false;
+    const showPromos = settings.showPromotions !== false;
+    const showGiftCards = settings.showGiftCards !== false;
+    const showNailArt = settings.showNailArt !== false;
+    const showMemberships = settings.showMemberships !== false;
+    const showRoyaltyCard = settings.showRoyaltyCard !== false; // This line was missing
 
-        document.getElementById('promotions-landing').style.display = showPromos ? '' : 'none';
-        document.querySelector('.nav-item-promotions').style.display = showPromos ? '' : 'none';
+    const signupTab = document.getElementById('signup-tab-btn').parentElement;
+    if (signupTab) {
+        signupTab.style.display = showClientRegistration ? 'block' : 'none';
+    }
 
-        document.getElementById('gift-card-landing').style.display = showGiftCards ? '' : 'none';
-        document.querySelector('.nav-item-gift-card').style.display = showGiftCards ? '' : 'none';
+    document.getElementById('promotions-landing').style.display = showPromos ? '' : 'none';
+    document.querySelector('.nav-item-promotions').style.display = showPromos ? '' : 'none';
 
-        document.getElementById('nails-idea-landing').style.display = showNailArt ? '' : 'none';
-        document.querySelector('.nav-item-nails-idea').style.display = showNailArt ? '' : 'none';
+    document.getElementById('gift-card-landing').style.display = showGiftCards ? '' : 'none';
+    document.querySelector('.nav-item-gift-card').style.display = showGiftCards ? '' : 'none';
 
-        // **** AND ADD THESE 3 LINES ****
-        const membershipSection = document.getElementById('memberships-landing');
-        const membershipNavLink = document.querySelector('a[href="#memberships-landing"]');
-        if (membershipSection) membershipSection.style.display = showMemberships ? '' : 'none';
-        if (membershipNavLink) membershipNavLink.style.display = showMemberships ? '' : 'none';
-        // PASTE THIS NEW BLOCK AT THE END of the function
-        const royaltySection = document.getElementById('royalty-card-landing');
-        const royaltyNavLink = document.querySelector('a[href="#royalty-card-landing"]');
-        if (royaltySection) royaltySection.style.display = showRoyaltyCard ? '' : 'none';
-        if (royaltyNavLink) royaltyNavLink.style.display = showRoyaltyCard ? '' : 'none';
+    document.getElementById('nails-idea-landing').style.display = showNailArt ? '' : 'none';
+    document.querySelector('.nav-item-nails-idea').style.display = showNailArt ? '' : 'none';
 
+    const membershipSection = document.getElementById('memberships-landing');
+    const membershipNavLink = document.querySelector('a[href="#memberships-landing"]');
+    if (membershipSection) membershipSection.style.display = showMemberships ? '' : 'none';
+    if (membershipNavLink) membershipNavLink.style.display = showMemberships ? '' : 'none';
+
+    // This block was missing
+    const royaltySection = document.getElementById('royalty-card-landing');
+    const royaltyNavLink = document.querySelector('a[href="#royalty-card-landing"]');
+    if (royaltySection) royaltySection.style.display = showRoyaltyCard ? '' : 'none';
+    if (royaltyNavLink) royaltyNavLink.style.display = showRoyaltyCard ? '' : 'none';
 };
     // Located at the end of initLandingPage()
     onSnapshot(doc(db, "settings", "features"), (docSnap) => {
@@ -5234,43 +5262,41 @@ const renderUsers = (users) => {
         catch (error) { console.error("Error saving salon hours:", error); alert("Could not save salon hours."); }
     });
 
-    // Located inside initMainApp()
-    const loadFeatureToggles = async () => {
-        const settingsDoc = await getDoc(doc(db, "settings", "features"));
-        if (settingsDoc.exists()) {
-            const settings = settingsDoc.data();
-            document.getElementById('toggle-client-login').checked = settings.showClientLogin !== false;
-            document.getElementById('toggle-promotions').checked = settings.showPromotions !== false;
-            document.getElementById('toggle-gift-card').checked = settings.showGiftCards !== false;
-            document.getElementById('toggle-nails-idea').checked = settings.showNailArt !== false;
-            // Safely check for the memberships property
-            document.getElementById('toggle-memberships').checked = settings.showMemberships !== false;
-            document.getElementById('toggle-royalty-card').checked = settings.showRoyaltyCard !== false; 
-        } else {
-            // Default all to true if no settings exist yet
-            document.getElementById('toggle-client-login').checked = true;
-            document.getElementById('toggle-promotions').checked = true;
-            document.getElementById('toggle-gift-card').checked = true;
-            document.getElementById('toggle-nails-idea').checked = true;
-            document.getElementById('toggle-memberships').checked = true; 
-            document.getElementById('toggle-royalty-card').checked = true; 
-        }
-    };
-
-    featureTogglesForm.addEventListener('change', async (e) => {
-        if (e.target.type === 'checkbox') {
-            const settings = {
-                showClientLogin: document.getElementById('toggle-client-login').checked,
-                showPromotions: document.getElementById('toggle-promotions').checked,
-                showGiftCards: document.getElementById('toggle-gift-card').checked,
-                showNailArt: document.getElementById('toggle-nails-idea').checked,
-                showMemberships: document.getElementById('toggle-memberships').checked,
-                showRoyaltyCard: document.getElementById('toggle-royalty-card').checked // <-- ADD THIS LINE
-
-            };
-            await setDoc(doc(db, "settings", "features"), settings, { merge: true });
-        }
-    });
+// REPLACE this function inside initMainApp
+const loadFeatureToggles = async () => {
+    const settingsDoc = await getDoc(doc(db, "settings", "features"));
+    if (settingsDoc.exists()) {
+        const settings = settingsDoc.data();
+        document.getElementById('toggle-client-login').checked = settings.showClientLogin !== false;
+        document.getElementById('toggle-promotions').checked = settings.showPromotions !== false;
+        document.getElementById('toggle-gift-card').checked = settings.showGiftCards !== false;
+        document.getElementById('toggle-nails-idea').checked = settings.showNailArt !== false;
+        document.getElementById('toggle-memberships').checked = settings.showMemberships !== false;
+        document.getElementById('toggle-royalty-card').checked = settings.showRoyaltyCard !== false; // This line was missing
+    } else {
+        // Default all to true if no settings exist yet
+        document.getElementById('toggle-client-login').checked = true;
+        document.getElementById('toggle-promotions').checked = true;
+        document.getElementById('toggle-gift-card').checked = true;
+        document.getElementById('toggle-nails-idea').checked = true;
+        document.getElementById('toggle-memberships').checked = true;
+        document.getElementById('toggle-royalty-card').checked = true; // This line was missing
+    }
+};
+// REPLACE this event listener inside initMainApp
+featureTogglesForm.addEventListener('change', async (e) => {
+    if (e.target.type === 'checkbox') {
+        const settings = {
+            showClientLogin: document.getElementById('toggle-client-login').checked,
+            showPromotions: document.getElementById('toggle-promotions').checked,
+            showGiftCards: document.getElementById('toggle-gift-card').checked,
+            showNailArt: document.getElementById('toggle-nails-idea').checked,
+            showMemberships: document.getElementById('toggle-memberships').checked,
+            showRoyaltyCard: document.getElementById('toggle-royalty-card').checked // This line was missing
+        };
+        await setDoc(doc(db, "settings", "features"), settings, { merge: true });
+    }
+});
 
     const loadSettings = async () => {
         const bookingSnap = await getDoc(doc(db, "settings", "booking"));
