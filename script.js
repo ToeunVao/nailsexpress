@@ -29,17 +29,20 @@ const policyModal = document.getElementById('policy-modal');
 const addAppointmentModal = document.getElementById('add-appointment-modal');
 const addAppointmentForm = document.getElementById('add-appointment-form');
 const promotionsContainerLanding = document.getElementById('promotions-container-landing');
+const serviceModal = document.getElementById('service-modal');
+const modalTitle = document.getElementById('modal-title');
+const modalContent = document.getElementById('modal-content');
 let mainAppInitialized = false;
 let landingPageInitialized = false;
 let clientDashboardInitialized = false;
 let anonymousUserId = null;
 let bookingSettings = { minBookingHours: 2 };
 let loginSecuritySettings = { maxAttempts: 5, lockoutMinutes: 15 };
-let salonHours = {}; // To store salon operating hours
+let salonHours = {};
 let salonRevenueChart, myEarningsChart, staffEarningsChart;
 let notifications = [];
 let currentUserRole = null;
-let currentUserName = null; // To store the logged-in user's name
+let currentUserName = null;
 let currentUserId = null;
 let initialAppointmentsLoaded = false;
 let initialInventoryLoaded = false;
@@ -49,12 +52,11 @@ let allMembershipTiers = [];
 let allPromotions = [];
 let allNailIdeas = [];
 let currentGalleryData = [];
-let currentRotation = 0; // <-- PASTE it here
+let currentRotation = 0;
 let royaltySettings = { visitsNeeded: 10, rewardDescription: 'One Free Classic Manicure' };
 let allRoyaltyCards = [];
+let globalListenersAttached = false;
 
-
-// ADD THIS ENTIRE NEW BLOCK for the lightbox
 const nailIdeaLightbox = document.getElementById('nail-idea-lightbox');
 const lightboxCloseBtn = document.getElementById('lightbox-close-btn');
 const lightboxPrevBtn = document.getElementById('lightbox-prev-btn');
@@ -64,32 +66,138 @@ const lightboxTitle = document.getElementById('lightbox-title');
 const lightboxShape = document.getElementById('lightbox-shape');
 const lightboxColor = document.getElementById('lightbox-color');
 const lightboxCategories = document.getElementById('lightbox-categories');
-const lightboxDescription = document.getElementById('lightbox-description'); // ADD THIS LINE
+const lightboxDescription = document.getElementById('lightbox-description');
 let currentLightboxIndex = 0;
 
-
 const giftCardBackgrounds = {
-    'General': [
-        'https://img.freepik.com/premium-photo/women-s-legs-with-bright-pedicure-pink-background-chamomile-flower-decoration-spa-pedicure-skincare-concept_256259-166.jpg',
-        'https://png.pngtree.com/thumb_back/fh260/background/20250205/pngtree-soft-pastel-floral-design-light-blue-background-image_16896113.jpg',
-        'https://files.123freevectors.com/wp-content/original/119522-abstract-pastel-pink-background-image.jpg'
-    ],
-    'Holidays': [
-        'https://media.istockphoto.com/id/1281966270/vector/christmas-background-with-snowflakes.jpg?s=612x612&w=0&k=20&c=3t2mJbipFc4aln2M8qDbd3kJvUwtjl1md1F3Rj0xVI4=',
-        'https://media.istockphoto.com/id/1180986336/vector/red-bokeh-snowflakes-background.jpg?s=612x612&w=0&k=20&c=NR_Hf8C2owuvtCxtjk789Ckynqdm6l2oDWLHwI7uqlE=',
-        'https://png.pngtree.com/background/20210710/original/pngtree-red-christmas-snow-winter-cartoon-show-board-background-picture-image_979028.jpg'
-    ],
-    'Valentines': [
-        'https://slidescorner.com/wp-content/uploads/2023/02/01-Cute-Pink-Hearts-Valentines-Day-Background-Aesthetic-FREE-by-SlidesCorner.com_.jpg',
-        'https://images.rawpixel.com/image_800/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIzLTExL2xhdXJhc3RlZmFubzI2Nl9waW5rX3ZhbGVudGluZXNfZGF5X2JhY2tncm91bmRfd2l0aF9oZWFydHNfYm9rZV9kZTAzMWNjMy05MmJmLTQ2NzAtYjliZC0wN2Y2ZDkzYTM1ZDBfMS5qcGc.jpg',
-        'https://cms-artifacts.artlist.io/content/motion_array/1390934/Valentines_Day_Romantic_Background_high_resolution_preview_1390934.jpg?Expires=2037527646045&Key-Pair-Id=K2ZDLYDZI2R1DF&Signature=fCbOC95RTvVc0Ld-pyxhFN5gzuS-VqGG1UYsxvu48kx8A6rdAPf~gjuv0sVBrV~0p0~2u99BYafKT5oRUsRbluBt9c8eH4k~YXVcT2KdNrQUjVD-wKS2qTcgdp8aVDYCCILMkFT4hrWRWzKlsjjgoBe7mAIaHV3cc2iqMErb-qGWlk8jX0J8vLfCvXH~daNNPMqO7tssbeYiHVrD7y89fbJ0YRVfR6wwb1AoBLseF8-7IsAZe8Hh2bn-kUEp8KocRZ4X7DBTFD~9Ho-E0HeRym4oZ37u3BdLAqY-y0a1HdIf3dOXXkF6X~UQpMlPtxTvWj4857QSez20b1mhnBhpsQ__'
-    ],
-    'Birthday': [
-        'https://marketplace.canva.com/EAGhbM7XcuY/1/0/1600w/canva-white-and-blue-birthday-background-card-yqLk4e5MQjY.jpg',
-        'https://images.rawpixel.com/image_800/czNmcy1wcml2YXRlL3Jhd3BpeGVsX2ltYWdlcy93ZWJzaXRlX2NvbnRlbnQvbHIvam9iNTE2LW51bm9vbi0xMC5qcGc.jpg',
-        'https://www.creativefabrica.com/wp-content/uploads/2021/08/30/Happy-birthday-background-design-Graphics-16518598-1-1-580x430.jpg'
-    ]
+    'General': [ 'https://img.freepik.com/premium-photo/women-s-legs-with-bright-pedicure-pink-background-chamomile-flower-decoration-spa-pedicure-skincare-concept_256259-166.jpg', 'https://png.pngtree.com/thumb_back/fh260/background/20250205/pngtree-soft-pastel-floral-design-light-blue-background-image_16896113.jpg', 'https://files.123freevectors.com/wp-content/original/119522-abstract-pastel-pink-background-image.jpg' ],
+    'Holidays': [ 'https://media.istockphoto.com/id/1281966270/vector/christmas-background-with-snowflakes.jpg?s=612x612&w=0&k=20&c=3t2mJbipFc4aln2M8qDbd3kJvUwtjl1md1F3Rj0xVI4=', 'https://media.istockphoto.com/id/1180986336/vector/red-bokeh-snowflakes-background.jpg?s=612x612&w=0&k=20&c=NR_Hf8C2owuvtCxtjk789Ckynqdm6l2oDWLHwI7uqlE=', 'https://png.pngtree.com/background/20210710/original/pngtree-red-christmas-snow-winter-cartoon-show-board-background-picture-image_979028.jpg' ],
+    'Valentines': [ 'https://slidescorner.com/wp-content/uploads/2023/02/01-Cute-Pink-Hearts-Valentines-Day-Background-Aesthetic-FREE-by-SlidesCorner.com_.jpg', 'https://images.rawpixel.com/image_800/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIzLTExL2xhdXJhc3RlZmFubzI2Nl9waW5rX3ZhbGVudGluZXNfZGF5X2JhY2tncm91bmRfd2l0aF9oZWFydHNfYm9rZV9kZTAzMWNjMy05MmJmLTQ2NzAtYjliZC0wN2Y2ZDkzYTM1ZDBfMS5qcGc.jpg', 'https://cms-artifacts.artlist.io/content/motion_array/1390934/Valentines_Day_Romantic_Background_high_resolution_preview_1390934.jpg?Expires=2037527646045&Key-Pair-Id=K2ZDLYDZI2R1DF&Signature=fCbOC95RTvVc0Ld-pyxhFN5gzuS-VqGG1UYsxvu48kx8A6rdAPf~gjuv0sVBrV~0p0~2u99BYafKT5oRUsRbluBt9c8eH4k~YXVcT2KdNrQUjVD-wKS2qTcgdp8aVDYCCILMkFT4hrWRWzKlsjjgoBe7mAIaHV3cc2iqMErb-qGWlk8jX0J8vLfCvXH~daNNPMqO7tssbeYiHVrD7y89fbJ0YRVfR6wwb1AoBLseF8-7IsAZe8Hh2bn-kUEp8KocRZ4X7DBTFD~9Ho-E0HeRym4oZ37u3BdLAqY-y0a1HdIf3dOXXkF6X~UQpMlPtxTvWj4857QSez20b1mhnBhpsQ__' ],
+    'Birthday': [ 'https://marketplace.canva.com/EAGhbM7XcuY/1/0/1600w/canva-white-and-blue-birthday-background-card-yqLk4e5MQjY.jpg', 'https://images.rawpixel.com/image_800/czNmcy1wcml2YXRlL3Jhd3BpeGVsX2ltYWdlcy93ZWJzaXRlX2NvbnRlbnQvbHIvam9iNTE2LW51bm9vbi0xMC5qcGc.jpg', 'https://www.creativefabrica.com/wp-content/uploads/2021/08/30/Happy-birthday-background-design-Graphics-16518598-1-1-580x430.jpg' ]
 };
+
+// ---
+// --- NEW SAFE DATA LOADING FUNCTION ---
+// ---
+function initializeGlobalListeners() {
+    if (globalListenersAttached) return;
+
+    onSnapshot(query(collection(db, "memberships"), orderBy("price")), (snapshot) => {
+        allMembershipTiers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (landingPageContent.style.display === 'block') {
+            renderMembershipTiers(allMembershipTiers, 'landing-memberships-container', false);
+        }
+    });
+
+    globalListenersAttached = true;
+}
+
+// ---
+// --- PRIMARY AUTHENTICATION ROUTER ---
+// ---
+onAuthStateChanged(auth, async (user) => {
+    try {
+        if (user) {
+            initializeGlobalListeners(); // It's now safe to attach listeners
+            currentUserId = user.uid;
+
+            const hoursDoc = await getDoc(doc(db, "settings", "salonHours"));
+            if (hoursDoc.exists()) {
+                salonHours = hoursDoc.data();
+            }
+
+            if (user.isAnonymous) {
+                loadingScreen.style.display = 'none';
+                appContent.style.display = 'none';
+                clientDashboardContent.style.display = 'none';
+                landingPageContent.style.display = 'block';
+                if (!landingPageInitialized) {
+                    initLandingPage();
+                    landingPageInitialized = true;
+                }
+            } else {
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    currentUserRole = userData.role;
+                    currentUserName = userData.name;
+                    loadingScreen.style.display = 'none';
+                    landingPageContent.style.display = 'none';
+                    clientDashboardContent.style.display = 'none';
+                    appContent.style.display = 'block';
+                    if (!mainAppInitialized) {
+                        initMainApp(currentUserRole, currentUserName);
+                        mainAppInitialized = true;
+                    }
+                } else {
+                    const clientDoc = await getDoc(doc(db, "clients", user.uid));
+                    if (clientDoc.exists()) {
+                        loadingScreen.style.display = 'none';
+                        landingPageContent.style.display = 'none';
+                        appContent.style.display = 'none';
+                        clientDashboardContent.style.display = 'block';
+                        initClientDashboard(user.uid, clientDoc.data());
+                    } else {
+                        const pendingPurchaseJSON = sessionStorage.getItem('pendingGiftCardPurchase');
+                        const pendingMembershipId = sessionStorage.getItem('pendingMembershipPurchase');
+                        const pendingRoyaltyJSON = sessionStorage.getItem('pendingRoyaltyCard');
+                        let newClientData;
+
+                        if (pendingPurchaseJSON) {
+                            const details = JSON.parse(pendingPurchaseJSON);
+                            newClientData = { name: details.buyerName, email: details.buyerEmail, phone: details.buyerPhone, role: 'client', createdAt: serverTimestamp() };
+                            await setDoc(doc(db, "clients", user.uid), newClientData);
+                            // ... gift card creation logic ...
+                            await sendGiftCardConfirmationEmail(details);
+                            sessionStorage.removeItem('pendingGiftCardPurchase');
+                            alert("Success! Your account has been created and your gift card request has been sent.");
+                        } else if (pendingMembershipId) {
+                            const details = JSON.parse(sessionStorage.getItem('signupDetails'));
+                            const tier = allMembershipTiers.find(t => t.id === pendingMembershipId);
+                            newClientData = { name: details.name, email: details.email, phone: details.phone, role: 'client', createdAt: serverTimestamp(), membership: { tierId: pendingMembershipId, tierName: tier?.name || 'Unknown', startDate: serverTimestamp(), status: 'Pending' } };
+                            await setDoc(doc(db, "clients", user.uid), newClientData);
+                            await sendMembershipConfirmationEmail({ ...details, tierName: tier?.name || 'Unknown' });
+                            sessionStorage.removeItem('pendingMembershipPurchase');
+                            sessionStorage.removeItem('signupDetails');
+                            alert("Welcome! Your account and membership request have been sent.");
+                        } else if (pendingRoyaltyJSON) {
+                            const details = JSON.parse(pendingRoyaltyJSON);
+                            newClientData = { name: details.name, email: details.email, phone: details.phone, role: 'client', createdAt: serverTimestamp(), royaltyCard: { visits: 0, lastVisit: null } };
+                            await setDoc(doc(db, "clients", user.uid), newClientData);
+                            sessionStorage.removeItem('pendingRoyaltyCard');
+                            alert("Welcome! Your Royalty Card is active. We'll see you soon!");
+                        } else {
+                            const details = JSON.parse(sessionStorage.getItem('signupDetails'));
+                            if (details) {
+                                newClientData = { name: details.name, email: details.email, phone: details.phone, role: 'client', createdAt: serverTimestamp() };
+                                await setDoc(doc(db, "clients", user.uid), newClientData);
+                                sessionStorage.removeItem('signupDetails');
+                            } else {
+                                console.error("New user with no client doc and no pending action.");
+                                await signOut(auth);
+                                return;
+                            }
+                        }
+                        
+                        loadingScreen.style.display = 'none';
+                        landingPageContent.style.display = 'none';
+                        appContent.style.display = 'none';
+                        clientDashboardContent.style.display = 'block';
+                        initClientDashboard(user.uid, newClientData);
+                    }
+                }
+            }
+        } else {
+            signInAnonymously(auth).catch((error) => {
+                console.error("Initial anonymous sign-in failed:", error);
+            });
+        }
+    } catch (error) {
+        console.error("Authentication Error:", error);
+        loadingScreen.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold text-red-700">Connection Error</h2><p>Could not connect to services. Please check your internet connection and refresh the page.</p><p class="text-xs text-gray-400 mt-4">Error: ${error.message}</p></div>`;
+    }
+});
+
 
 const renderPromotionsLanding = (promotions) => {
     promotionsContainerLanding.innerHTML = '';
@@ -929,174 +1037,7 @@ const renderClientMembershipsTable = (members) => {
     });
 };
 
-// --- GLOBAL DATA FETCHING ---
-onSnapshot(query(collection(db, "memberships"), orderBy("price")), (snapshot) => {
-    allMembershipTiers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    if (landingPageContent.style.display === 'block') {
-        renderMembershipTiers(allMembershipTiers, 'landing-memberships-container', false);
-    }
-});
 
-// --- Primary Authentication Router ---
-onAuthStateChanged(auth, async (user) => {
-    try {
-        const hoursDoc = await getDoc(doc(db, "settings", "salonHours"));
-        if (hoursDoc.exists()) {
-            salonHours = hoursDoc.data();
-        }
-
-        if (user) {
-            currentUserId = user.uid;
-            if (user.isAnonymous) {
-                // Anonymous user logic
-                anonymousUserId = user.uid;
-                loadingScreen.style.display = 'none';
-                appContent.style.display = 'none';
-                clientDashboardContent.style.display = 'none';
-                landingPageContent.style.display = 'block';
-                if (!landingPageInitialized) {
-                    initLandingPage();
-                    landingPageInitialized = true;
-                }
-            } else {
-                // Authenticated user logic
-                const userDocRef = doc(db, "users", user.uid);
-                const userDoc = await getDoc(userDocRef);
-
-                if (userDoc.exists()) {
-                    // Staff/Admin User
-                    const userData = userDoc.data();
-                    currentUserRole = userData.role;
-                    currentUserName = userData.name;
-                    loadingScreen.style.display = 'none';
-                    landingPageContent.style.display = 'none';
-                    clientDashboardContent.style.display = 'none';
-                    appContent.style.display = 'block';
-                    if (!mainAppInitialized) {
-                        initMainApp(currentUserRole, currentUserName);
-                        mainAppInitialized = true;
-                    }
-                } else {
-                    const clientDocRef = doc(db, "clients", user.uid);
-                    const clientDoc = await getDoc(clientDocRef);
-                    if (clientDoc.exists()) {
-                        // Existing Client User
-                        currentUserRole = clientDoc.data().role;
-                        loadingScreen.style.display = 'none';
-                        landingPageContent.style.display = 'none';
-                        appContent.style.display = 'none';
-                        clientDashboardContent.style.display = 'block';
-                        initClientDashboard(user.uid, clientDoc.data());
-                    } else {
-                        // NEW Client User (just signed up)
-                        const pendingPurchaseJSON = sessionStorage.getItem('pendingGiftCardPurchase');
-                        const pendingMembershipId = sessionStorage.getItem('pendingMembershipPurchase');
-                        const pendingRoyaltyJSON = sessionStorage.getItem('pendingRoyaltyCard'); // <-- ADD THIS LINE
-    
-                        let newClientData;
-
-                        if (pendingPurchaseJSON) {
-                            const details = JSON.parse(pendingPurchaseJSON);
-                            newClientData = { name: details.buyerName, email: details.buyerEmail, phone: details.buyerPhone, role: 'client', createdAt: serverTimestamp() };
-                            await setDoc(doc(db, "clients", user.uid), newClientData);
-
-                            // **** COPY AND PASTE THIS ENTIRE BLOCK TO FIX THE BUG ****
-                            const batch = writeBatch(db);
-                            const expiryDate = new Date();
-                            expiryDate.setMonth(expiryDate.getMonth() + 6);
-                            const buyerInfo = {
-                                name: details.buyerName,
-                                email: details.buyerEmail,
-                                phone: details.buyerPhone,
-                            };
-
-                            for (let i = 0; i < details.quantity; i++) {
-                                const cardData = {
-                                    amount: details.amount,
-                                    balance: details.amount,
-                                    history: [],
-                                    recipientName: details.recipientName,
-                                    senderName: details.senderName,
-                                    backgroundUrl: details.backgroundUrl,
-                                    code: `GC-${Date.now()}-${i}`,
-                                    status: 'Pending',
-                                    type: 'E-Gift',
-                                    createdBy: user.uid, // Use the new user's ID
-                                    buyerInfo: buyerInfo,
-                                    createdAt: serverTimestamp(),
-                                    expiresAt: Timestamp.fromDate(expiryDate)
-                                };
-                                const newCardRef = doc(collection(db, "gift_cards"));
-                                batch.set(newCardRef, cardData);
-                            }
-                            await batch.commit();
-                            // **** END OF FIX ****
-
-                            sessionStorage.removeItem('pendingGiftCardPurchase');
-                            alert("Success! Your account has been created and your gift card request has been sent.");
-                        } else if (pendingMembershipId) {
-                            const details = JSON.parse(sessionStorage.getItem('signupDetails'));
-                            newClientData = {
-                                name: details.name, email: details.email, phone: details.phone, role: 'client', createdAt: serverTimestamp(),
-                                membership: {
-                                    tierId: pendingMembershipId,
-                                    tierName: allMembershipTiers.find(t => t.id === pendingMembershipId)?.name || 'Unknown',
-                                    startDate: serverTimestamp(),
-                                    status: 'Pending' // **SET TO PENDING**
-                                }
-                            };
-                            await setDoc(doc(db, "clients", user.uid), newClientData);
-                            sessionStorage.removeItem('pendingMembershipPurchase');
-                            sessionStorage.removeItem('signupDetails');
-                            alert("Welcome! Your account and membership request have been sent.");
-                        } else if (pendingRoyaltyJSON) { // <-- ADD THIS ENTIRE ELSE IF BLOCK
-        const details = JSON.parse(pendingRoyaltyJSON);
-        newClientData = { 
-            name: details.name, 
-            email: details.email, 
-            phone: details.phone, 
-            role: 'client', 
-            createdAt: serverTimestamp(),
-            royaltyCard: {
-                visits: 0,
-                lastVisit: null
-            }
-        };
-        await setDoc(doc(db, "clients", user.uid), newClientData);
-        sessionStorage.removeItem('pendingRoyaltyCard');
-        alert("Welcome! Your Royalty Card is active. We'll see you soon!");
-    } else {
-                            const details = JSON.parse(sessionStorage.getItem('signupDetails'));
-                            if (details) {
-                                newClientData = { name: details.name, email: details.email, phone: details.phone, role: 'client', createdAt: serverTimestamp() };
-                                await setDoc(doc(db, "clients", user.uid), newClientData);
-                                sessionStorage.removeItem('signupDetails');
-                            } else {
-                                console.error("New user with no client doc and no signup details.");
-                                await signOut(auth);
-                                return;
-                            }
-                        }
-
-                        loadingScreen.style.display = 'none';
-                        landingPageContent.style.display = 'none';
-                        appContent.style.display = 'none';
-                        clientDashboardContent.style.display = 'block';
-                        initClientDashboard(user.uid, newClientData);
-                    }
-                }
-            }
-        } else {
-            currentUserId = null;
-            currentUserRole = null;
-            currentUserName = null;
-            await signInAnonymously(auth);
-        }
-    } catch (error) {
-        console.error("Authentication Error:", error);
-        loadingScreen.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold text-red-700">Connection Error</h2><p>Could not connect to services. Please check your internet connection and refresh the page.</p><p class="text-xs text-gray-400 mt-4">Error: ${error.message}</p></div>`;
-    }
-});
 
 // **** PASTE THESE TWO COMPLETE FUNCTIONS in place of your old initClientDashboard ****
 // REPLACE your old renderClientMembership function with this new one:
@@ -1184,16 +1125,8 @@ const renderClientMembership = (clientData, clientId) => {
     }
 };
 
-// REPLACE your old initClientDashboard function with this new one:
+// REPLACE your old initClientDashboard function with this corrected one:
 async function initClientDashboard(clientId, clientData) {
-       const featuresDoc = await getDoc(doc(db, "settings", "features"));
-    const features = featuresDoc.exists() ? docSnap.data() : { 
-        showGiftCards: true, 
-        showMemberships: true, 
-        showRoyaltyCard: true 
-    };
-
-    // PRE-LOAD SERVICES FOR THE BOOKING MODAL
     await getDocs(collection(db, "services")).then(servicesSnapshot => {
         servicesData = {};
         servicesSnapshot.forEach(doc => {
@@ -1201,26 +1134,13 @@ async function initClientDashboard(clientId, clientData) {
         });
     });
 
-
-    // ... (the rest of the function remains exactly the same) ...
-
-    const giftCardTab = document.getElementById('gift-cards-tab')?.parentElement;
-    const giftCardContent = document.getElementById('gift-cards-content');
-    if (features.showGiftCards === false) {
-        if (giftCardTab) giftCardTab.classList.add('hidden');
-        if (giftCardContent) giftCardContent.classList.add('hidden');
-    } else {
-        if (giftCardTab) giftCardTab.classList.remove('hidden');
-    }
-
-    const membershipTab = document.getElementById('membership-tab')?.parentElement;
-    const membershipContent = document.getElementById('membership-content');
-    if (features.showMemberships === false) {
-        if (membershipTab) membershipTab.classList.add('hidden');
-        if (membershipContent) membershipContent.classList.add('hidden');
-    } else {
-        if (membershipTab) membershipTab.classList.remove('hidden');
-    }
+    const featuresDoc = await getDoc(doc(db, "settings", "features"));
+    // THIS IS THE FIX: Changed 'docSnap' to 'featuresDoc'
+    const features = featuresDoc.exists() ? featuresDoc.data() : { 
+        showGiftCards: true, 
+        showMemberships: true, 
+        showRoyaltyCard: true 
+    };
 
     document.getElementById('client-welcome-name').textContent = `Welcome back, ${clientData.name}!`;
     document.getElementById('client-sign-out-btn').addEventListener('click', () => signOut(auth));
@@ -1261,19 +1181,61 @@ async function initClientDashboard(clientId, clientData) {
     };
 
     renderClientMembership(clientData, clientId);
+    
+    const renderClientRoyaltyCard = (clientData) => {
+        const container = document.getElementById('royalty-card-content');
+        if (!container) return;
 
-// THIS IS THE MAIN FIX: The navigation is now built based on the feature toggles
+        if (!clientData.royaltyCard) {
+            container.innerHTML = `
+                <div class="text-center p-8 bg-gray-50 rounded-lg">
+                    <h3 class="text-xl font-semibold text-gray-700">You haven't joined the Royalty Program yet.</h3>
+                    <p class="text-gray-500 mt-2 mb-4">Join for free to earn rewards with every visit!</p>
+                </div>`;
+            return;
+        }
+        
+        const visits = clientData.royaltyCard.visits || 0;
+        const visitsNeeded = royaltySettings.visitsNeeded;
+        const rewardText = royaltySettings.rewardDescription;
+        
+        let stampsHTML = '';
+        for (let i = 1; i <= visitsNeeded; i++) {
+            const isStamped = i <= visits;
+            stampsHTML += `<div class="stamp ${isStamped ? 'stamped' : ''}">${isStamped ? '<i class="fas fa-star"></i>' : i}</div>`;
+        }
+
+        const isRewardReady = visits >= visitsNeeded;
+        const progressText = isRewardReady ? `Congrats! Your reward is ready: ${rewardText}!` : `${visitsNeeded - visits} more visits until your reward!`;
+
+        container.innerHTML = `
+            <div class="royalty-card-container">
+                <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Your Royalty Card</h3>
+                <div class="royalty-card">
+                    <div class="royalty-card-header">
+                        <p class="font-parisienne text-3xl">Nails Express</p>
+                        <p class="text-xs font-semibold tracking-wider">ROYALTY PROGRAM</p>
+                    </div>
+                    <div class="stamp-grid">
+                        ${stampsHTML}
+                    </div>
+                    <div class="royalty-card-footer">
+                        <p>${progressText}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    };
+
     const setupClientNav = (featureSettings) => {
         const navContainer = document.getElementById('client-top-nav');
         const contentSections = document.querySelectorAll('.client-tab-content');
         
-        // Start with the base navigation items
         let navItems = [
             { id: 'appointments', text: 'Appointments' },
             { id: 'favorites', text: 'My Favorites' }
         ];
 
-        // Conditionally add items based on admin settings
         if (featureSettings.showGiftCards) {
             navItems.push({ id: 'gift-cards', text: 'My Gift Cards' });
         }
@@ -1284,7 +1246,6 @@ async function initClientDashboard(clientId, clientData) {
             navItems.push({ id: 'royalty-card', text: 'Royalty Card' });
         }
         
-        // Hide all content sections first
         contentSections.forEach(content => content.classList.add('hidden'));
 
         navContainer.innerHTML = navItems.map(item => 
@@ -1313,7 +1274,6 @@ async function initClientDashboard(clientId, clientData) {
         }
     };
 
-
     const renderClientAppointments = (appointments) => {
         const container = document.getElementById('client-upcoming-appointments');
         container.innerHTML = '';
@@ -1330,24 +1290,23 @@ async function initClientDashboard(clientId, clientData) {
         });
     };
 
-// REPLACE the old renderClientHistory function with this one:
-const renderClientHistory = (history) => {
-    const container = document.getElementById('client-appointment-history');
-    if (!container) return; // <-- Safety check added here
+    const renderClientHistory = (history) => {
+        const container = document.getElementById('client-appointment-history');
+        if (!container) return;
 
-    container.innerHTML = '';
-    if (history.length === 0) {
-        container.innerHTML = '<p class="text-gray-500">You have no past appointments.</p>';
-        return;
-    }
-    history.forEach(visit => {
-        const el = document.createElement('div');
-        el.className = 'bg-white p-4 rounded-lg shadow';
-        // The 'visit.services' is now guaranteed to be a string
-        el.innerHTML = `<p class="font-bold">${new Date(visit.checkOutTimestamp.seconds * 1000).toLocaleDateString()}</p><p>${visit.services}</p><p class="text-sm text-gray-600">With: ${visit.technician}</p>${visit.colorCode ? `<p class="text-sm text-gray-600">Color: ${visit.colorCode}</p>` : ''}`;
-        container.appendChild(el);
-    });
-};
+        container.innerHTML = '';
+        if (history.length === 0) {
+            container.innerHTML = '<p class="text-gray-500">You have no past appointments.</p>';
+            return;
+        }
+        history.forEach(visit => {
+            const el = document.createElement('div');
+            el.className = 'bg-white p-4 rounded-lg shadow';
+            el.innerHTML = `<p class="font-bold">${new Date(visit.checkOutTimestamp.seconds * 1000).toLocaleDateString()}</p><p>${visit.services}</p><p class="text-sm text-gray-600">With: ${visit.technician}</p>${visit.colorCode ? `<p class="text-sm text-gray-600">Color: ${visit.colorCode}</p>` : ''}`;
+            container.appendChild(el);
+        });
+    };
+
     const calculateAndRenderFavorites = (history) => {
         if (history.length === 0) return;
         const techCounts = history.reduce((acc, visit) => {
@@ -1363,67 +1322,39 @@ const renderClientHistory = (history) => {
         document.getElementById('favorite-technician').textContent = favTech;
         document.getElementById('favorite-color').textContent = favColor;
     };
-// PASTE THE NEW FUNCTION RIGHT BELOW IT:
-const renderClientRoyaltyCard = (clientData) => {
-    const container = document.getElementById('royalty-card-content');
-    if (!container) return;
-
-    if (!clientData.royaltyCard) {
-        container.innerHTML = `
-            <div class="text-center p-8 bg-gray-50 rounded-lg">
-                <h3 class="text-xl font-semibold text-gray-700">You haven't joined the Royalty Program yet.</h3>
-                <p class="text-gray-500 mt-2 mb-4">Join for free to earn rewards with every visit!</p>
-            </div>`;
-        return;
-    }
     
-    const visits = clientData.royaltyCard.visits || 0;
-    const visitsNeeded = royaltySettings.visitsNeeded;
-    const rewardText = royaltySettings.rewardDescription;
-    
-    let stampsHTML = '';
-    for (let i = 1; i <= visitsNeeded; i++) {
-        const isStamped = i <= visits;
-        stampsHTML += `<div class="stamp ${isStamped ? 'stamped' : ''}">${isStamped ? '<i class="fas fa-star"></i>' : i}</div>`;
-    }
-
-    const isRewardReady = visits >= visitsNeeded;
-    const progressText = isRewardReady ? `Congrats! Your reward is ready: ${rewardText}!` : `${visitsNeeded - visits} more visits until your reward!`;
-
-    container.innerHTML = `
-        <div class="royalty-card-container">
-            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Your Royalty Card</h3>
-            <div class="royalty-card">
-                <div class="royalty-card-header">
-                    <p class="font-parisienne text-3xl">Nails Express</p>
-                    <p class="text-xs font-semibold tracking-wider">ROYALTY PROGRAM</p>
-                </div>
-                <div class="stamp-grid">
-                    ${stampsHTML}
-                </div>
-                <div class="royalty-card-footer">
-                    <p>${progressText}</p>
-                </div>
-            </div>
-        </div>
-    `;
-};
     onSnapshot(query(collection(db, "appointments"), where("name", "==", clientData.name)), (snapshot) => {
         const appointments = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
         renderClientAppointments(appointments);
     });
-// REPLACE the old onSnapshot for finished_clients with this one:
-onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name), orderBy("checkOutTimestamp", "desc")), (snapshot) => {
-    // THE FIX IS HERE: We now join the services array into a clean string
-    const history = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        services: (doc.data().services || []).join(', ') // Ensures services is a string
-    }));
+
+// REPLACE the old onSnapshot for finished_clients with this new one:
+onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name)), (snapshot) => {
+    // Sort the results in JavaScript, which is more reliable
+    const history = snapshot.docs.map(doc => {
+        const data = doc.data();
+        const servicesRaw = data.services;
+        const servicesString = Array.isArray(servicesRaw) ? servicesRaw.join(', ') : (servicesRaw || '');
+        
+        return {
+            id: doc.id,
+            ...data,
+            services: servicesString
+        };
+    }).sort((a, b) => b.checkOutTimestamp.seconds - a.checkOutTimestamp.seconds); // Sorting happens here
+
     allFinishedClients = history;
     renderClientHistory(history);
     calculateAndRenderFavorites(history);
+}, (error) => {
+    // This will help us see any new errors directly
+    console.error("Error fetching client history:", error);
+    const container = document.getElementById('client-appointment-history');
+    if (container) {
+        container.innerHTML = '<p class="text-red-500">Could not load appointment history due to a permission issue.</p>';
+    }
 });
+
 
     let allClientGiftCards = [];
     onSnapshot(query(collection(db, "gift_cards"), where("createdBy", "==", clientId), orderBy("createdAt", "desc")), (snapshot) => {
@@ -1494,7 +1425,7 @@ onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientD
     document.getElementById('client-buy-gift-card-btn').addEventListener('click', () => {
         openPurchaseModalForClient(clientData);
     });
-
+    
     getDoc(doc(db, "settings", "royaltyProgram")).then(docSnap => {
         if (docSnap.exists() && docSnap.data().visitsNeeded) {
             royaltySettings = docSnap.data();
@@ -1502,7 +1433,7 @@ onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientD
         renderClientRoyaltyCard(clientData);
     });
 
-    setupClientNav(features); // Pass the settings to the nav builder
+    setupClientNav(features);
 }
 
 // REPLACE your old 'landing-membership-form' submit listener with this one
@@ -2758,66 +2689,83 @@ onSnapshot(doc(db, "settings", "backup"), (docSnap) => {
 
 
 // PASTE THIS ENTIRE NEW BLOCK OF CODE
-
 // --- TASK MANAGER LOGIC ---
 const addTaskForm = document.getElementById('add-task-form');
 const taskListContainer = document.getElementById('task-list-container');
+const editTaskModal = document.getElementById('edit-task-modal');
+const editTaskForm = document.getElementById('edit-task-form');
+const closeEditTaskBtn = document.getElementById('close-edit-task-modal-btn');
 
 const renderTasks = () => {
-    if (!taskListContainer) return;
+    const supplyContainer = document.getElementById('task-list-supply');
+    const maintenanceContainer = document.getElementById('task-list-maintenance');
+    const otherContainer = document.getElementById('task-list-other');
 
-    taskListContainer.innerHTML = '';
-    if (allTasks.length === 0) {
-        taskListContainer.innerHTML = '<p class="text-center text-gray-500 py-4">No tasks yet. Add one to get started!</p>';
-        return;
+    if (!supplyContainer || !maintenanceContainer || !otherContainer) return;
+
+    supplyContainer.innerHTML = '';
+    maintenanceContainer.innerHTML = '';
+    otherContainer.innerHTML = '';
+
+    const tasksByCategory = {
+        'Nails Supply': allTasks.filter(t => t.category === 'Nails Supply').sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)),
+        'Maintenance': allTasks.filter(t => t.category === 'Maintenance').sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)),
+        'Other': allTasks.filter(t => t.category === 'Other').sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0))
+    };
+
+    const createTaskElement = (task) => {
+        const categoryStyles = {
+            'Nails Supply': { border: 'border-blue-500', bg: 'bg-blue-50', icon: 'fa-shopping-cart' },
+            'Maintenance': { border: 'border-yellow-500', bg: 'bg-yellow-50', icon: 'fa-tools' },
+            'Other': { border: 'border-gray-400', bg: 'bg-gray-50', icon: 'fa-clipboard-list' }
+        };
+        const styles = categoryStyles[task.category] || categoryStyles['Other'];
+
+        const taskEl = document.createElement('div');
+        taskEl.className = `task-item flex items-center justify-between p-3 rounded-lg border-l-4 ${styles.border} ${styles.bg}`;
+        taskEl.innerHTML = `
+            <div class="flex items-center flex-grow min-w-0">
+                <i class="fas ${styles.icon} mr-3 text-gray-500"></i>
+                <span class="task-description flex-grow ${task.completed ? 'completed' : ''} truncate">${task.description}</span>
+            </div>
+            <div class="task-actions flex items-center gap-3 ml-4 flex-shrink-0">
+                <button data-id="${task.id}" class="edit-task-btn text-blue-500 hover:text-blue-700" title="Edit Task"><i class="fas fa-edit"></i></button>
+                <button data-id="${task.id}" class="complete-task-btn text-green-500 hover:text-green-700" title="Complete Task"><i class="fas ${task.completed ? 'fa-check-square' : 'fa-square'}"></i></button>
+                <button data-id="${task.id}" class="delete-task-btn text-red-500 hover:text-red-700" title="Delete Task"><i class="fas fa-trash"></i></button>
+            </div>
+        `;
+        return taskEl;
+    };
+    
+    if (tasksByCategory['Nails Supply'].length > 0) {
+        tasksByCategory['Nails Supply'].forEach(task => supplyContainer.appendChild(createTaskElement(task)));
+    } else {
+        supplyContainer.innerHTML = '<p class="text-xs text-center text-gray-400 py-2">No supply tasks.</p>';
     }
 
-    const sortedTasks = [...allTasks].sort((a, b) => {
-        const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
-        return priorityOrder[a.priority] - priorityOrder[b.priority];
-    });
+    if (tasksByCategory['Maintenance'].length > 0) {
+        tasksByCategory['Maintenance'].forEach(task => maintenanceContainer.appendChild(createTaskElement(task)));
+    } else {
+        maintenanceContainer.innerHTML = '<p class="text-xs text-center text-gray-400 py-2">No maintenance tasks.</p>';
+    }
 
-    sortedTasks.forEach(task => {
-        const priorityColors = {
-            high: 'border-red-500 bg-red-50',
-            medium: 'border-yellow-500 bg-yellow-50',
-            low: 'border-gray-300 bg-gray-50'
-        };
-        const taskEl = document.createElement('div');
-        taskEl.className = `task-item flex items-center justify-between p-3 rounded-lg border-l-4 ${priorityColors[task.priority]}`;
-        taskEl.innerHTML = `
-    <span class="task-description flex-grow ${task.completed ? 'completed' : ''}">${task.description}</span>
-    <div class="task-actions flex items-center gap-3 ml-4">
-        <button data-id="${task.id}" class="edit-task-btn text-blue-500 hover:text-blue-700" title="Edit Task">
-            <i class="fas fa-edit"></i>
-        </button>
-        <button data-id="${task.id}" class="complete-task-btn text-green-500 hover:text-green-700" title="Complete Task">
-            <i class="fas ${task.completed ? 'fa-check-square' : 'fa-square'}"></i>
-        </button>
-        <button data-id="${task.id}" class="delete-task-btn text-red-500 hover:text-red-700" title="Delete Task">
-            <i class="fas fa-trash"></i>
-        </button>
-    </div>
-`;
-        taskListContainer.appendChild(taskEl);
-    });
+    if (tasksByCategory['Other'].length > 0) {
+        tasksByCategory['Other'].forEach(task => otherContainer.appendChild(createTaskElement(task)));
+    } else {
+        otherContainer.innerHTML = '<p class="text-xs text-center text-gray-400 py-2">No other tasks.</p>';
+    }
 };
 
 if (addTaskForm) {
     addTaskForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const descriptionInput = document.getElementById('task-description');
-        const priority = document.getElementById('task-priority').value;
+        const category = document.getElementById('task-category').value;
         const description = descriptionInput.value.trim();
 
         if (description) {
             try {
-                await addDoc(collection(db, "tasks"), {
-                    description: description,
-                    priority: priority,
-                    completed: false,
-                    createdAt: serverTimestamp()
-                });
+                await addDoc(collection(db, "tasks"), { description, category, completed: false, createdAt: serverTimestamp() });
                 descriptionInput.value = '';
             } catch (error) {
                 console.error("Error adding task:", error);
@@ -2831,9 +2779,9 @@ if (taskListContainer) {
     taskListContainer.addEventListener('click', async (e) => {
         const completeBtn = e.target.closest('.complete-task-btn');
         const deleteBtn = e.target.closest('.delete-task-btn');
-        const editBtn = e.target.closest('.edit-task-btn'); // <-- Add this line
+        const editBtn = e.target.closest('.edit-task-btn');
 
-        if (editBtn) { // <-- Add this new block
+        if (editBtn) {
             const taskId = editBtn.dataset.id;
             const task = allTasks.find(t => t.id === taskId);
             if (task) {
@@ -2854,16 +2802,11 @@ if (taskListContainer) {
     });
 }
 
-// PASTE THIS ENTIRE NEW BLOCK OF CODE
-const editTaskModal = document.getElementById('edit-task-modal');
-const editTaskForm = document.getElementById('edit-task-form');
-const closeEditTaskBtn = document.getElementById('close-edit-task-modal-btn');
-
 const openEditTaskModal = (task) => {
     editTaskForm.reset();
     document.getElementById('edit-task-id').value = task.id;
     document.getElementById('edit-task-description').value = task.description;
-    document.getElementById('edit-task-priority').value = task.priority;
+    document.getElementById('edit-task-category').value = task.category;
     editTaskModal.classList.remove('hidden');
 };
 
@@ -2871,34 +2814,41 @@ const closeEditTaskModal = () => {
     editTaskModal.classList.add('hidden');
 };
 
-closeEditTaskBtn.addEventListener('click', closeEditTaskModal);
-editTaskModal.querySelector('.modal-overlay').addEventListener('click', closeEditTaskModal);
+if(closeEditTaskBtn) {
+    closeEditTaskBtn.addEventListener('click', closeEditTaskModal);
+}
+if(editTaskModal) {
+    editTaskModal.querySelector('.modal-overlay').addEventListener('click', closeEditTaskModal);
+}
 
-editTaskForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const taskId = document.getElementById('edit-task-id').value;
-    const newDescription = document.getElementById('edit-task-description').value;
-    const newPriority = document.getElementById('edit-task-priority').value;
+if (editTaskForm) {
+    editTaskForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const taskId = document.getElementById('edit-task-id').value;
+        const newDescription = document.getElementById('edit-task-description').value;
+        const newCategory = document.getElementById('edit-task-category').value;
 
-    if (taskId && newDescription) {
-        try {
-            await updateDoc(doc(db, "tasks", taskId), {
-                description: newDescription,
-                priority: newPriority
-            });
-            closeEditTaskModal();
-        } catch (error) {
-            console.error("Error updating task:", error);
-            alert("Could not update task.");
+        if (taskId && newDescription) {
+            try {
+                await updateDoc(doc(db, "tasks", taskId), {
+                    description: newDescription,
+                    category: newCategory
+                });
+                closeEditTaskModal();
+            } catch (error) {
+                console.error("Error updating task:", error);
+                alert("Could not update task.");
+            }
         }
-    }
-});
+    });
+}
 
 onSnapshot(query(collection(db, "tasks"), orderBy("createdAt", "desc")), (snapshot) => {
     allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     renderTasks();
 });
 
+  // --- END TASK MANAGER LOGIC ---  
 
 // END OF initMainApp }
 }
@@ -2948,6 +2898,7 @@ const initializeRoyaltyCardDesigner = () => {
     `;
 };
 
+// REPLACE your old handlePrintRoyaltyCards function with this new one:
 const handlePrintRoyaltyCards = () => {
     const quantity = parseInt(document.getElementById('designer-royalty-quantity').value, 10);
     if (isNaN(quantity) || quantity < 1) {
@@ -2994,9 +2945,12 @@ const handlePrintRoyaltyCards = () => {
                     <div class="royalty-card-footer text-center"><p class="text-xs">Complete all visits to earn a ${rewardText}!</p></div>
                 </div>
                 <!-- Back of Card -->
-                <div class="card rounded-lg p-4 flex flex-col justify-between bg-white text-gray-800">
-                    <div class="text-center pt-4"><p class="font-bold">Royalty Program Rules</p></div>
-                    <p class="text-xs text-center text-gray-600 px-4 leading-relaxed">One stamp per visit. This card is non-transferable and has no cash value. Cannot be combined with other offers. Lost cards cannot be replaced.</p>
+                <div class="card rounded-lg p-4 flex flex-col justify-between bg-white text-gray-800" style="text-shadow: none;">
+                    <div class="w-full h-10 bg-black mt-2"></div> 
+                    <div class="text-center pt-2"><p class="font-bold">Royalty Program Rules</p></div>
+                    <p class="text-xs text-center text-gray-600 px-4 leading-relaxed">
+                        One stamp per visit. This card is non-transferable and has no cash value. Cannot be combined with other offers. Lost cards cannot be replaced.
+                    </p>
                     <div class="text-center text-xs pb-2"><p class="font-bold">Nails Express</p><p>1560 Hustonville Rd #345, Danville, KY 40422</p></div>
                 </div>
             </div>
@@ -3004,7 +2958,7 @@ const handlePrintRoyaltyCards = () => {
     }
 
     printHTML += '</div></body></html>';
-
+    
     const printWindow = window.open('', '_blank');
     printWindow.document.write(printHTML);
     printWindow.document.close();
@@ -3906,7 +3860,7 @@ const renderSalonEarnings = (earnings) => {
         });
     };
 
-    const openServiceModal = (category) => {
+const openServiceModal = (category) => {
         modalTitle.textContent = category;
         modalContent.innerHTML = '';
         servicesData[category].forEach(service => {
@@ -3914,7 +3868,8 @@ const renderSalonEarnings = (earnings) => {
             const sourceCb = hiddenCheckboxContainer.querySelector(`input[value="${val}"]`);
             const label = document.createElement('label');
             label.className = 'flex items-center p-3 hover:bg-pink-50 cursor-pointer rounded-lg';
-            label.innerHTML = `<input type="checkbox" class="form-checkbox modal-checkbox" value="${val}" ${sourceCb && sourceCb.checked ? 'checked' : ''}><span class="ml-3 text-gray-700 flex-grow">${service.name}</span>${service.price ? `<span class="font-semibold">${service.price}</span>` : ''}`;
+            // FIX: Added data-source-container to link modal checkboxes to their origin
+            label.innerHTML = `<input type="checkbox" class="form-checkbox modal-checkbox" data-source-container="hidden-checkbox-container" value="${val}" ${sourceCb && sourceCb.checked ? 'checked' : ''}><span class="ml-3 text-gray-700 flex-grow">${service.name}</span>${service.price ? `<span class="font-semibold">${service.price}</span>` : ''}`;
             modalContent.appendChild(label);
         });
         serviceModal.classList.add('flex'); serviceModal.classList.remove('hidden');
@@ -3922,32 +3877,42 @@ const renderSalonEarnings = (earnings) => {
 
 // REPLACE the old closeServiceModal function with this one:
 const closeServiceModal = () => {
-    const firstCheckbox = modalContent.querySelector('.modal-checkbox');
-    const sourceContainerId = firstCheckbox ? firstCheckbox.dataset.sourceContainer : 'hidden-checkbox-container';
-    const sourceContainer = document.getElementById(sourceContainerId);
-    const categoryButtonContainerId = sourceContainerId === 'appointment-hidden-checkboxes' ? 'appointment-services-container' : 'services-container';
-    const categoryButtonContainer = document.getElementById(categoryButtonContainerId);
-
-    modalContent.querySelectorAll('.modal-checkbox').forEach(modalCb => {
-        const sourceCb = sourceContainer.querySelector(`input[value="${modalCb.value}"]`);
-        if (sourceCb) sourceCb.checked = modalCb.checked;
-    });
-
-    serviceModal.classList.add('hidden'); 
-    serviceModal.classList.remove('flex');
-
-    categoryButtonContainer.querySelectorAll('.category-button').forEach(button => {
-        const cat = button.dataset.category;
-        const count = sourceContainer.querySelectorAll(`input[data-category="${cat}"]:checked`).length;
-        const badge = button.querySelector('.selection-count');
-        if (count > 0) {
-            badge.textContent = `${count} selected`;
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
+        const firstCheckbox = modalContent.querySelector('.modal-checkbox');
+        
+        // FIX: Gracefully exit if the modal is empty to prevent errors.
+        if (!firstCheckbox) {
+            serviceModal.classList.add('hidden');
+            serviceModal.classList.remove('flex');
+            return;
         }
-    });
-};
+
+        const sourceContainerId = firstCheckbox.dataset.sourceContainer || 'hidden-checkbox-container';
+        const sourceContainer = document.getElementById(sourceContainerId);
+        const categoryButtonContainerId = sourceContainerId === 'appointment-hidden-checkboxes' ? 'appointment-services-container' : 'services-container';
+        const categoryButtonContainer = document.getElementById(categoryButtonContainerId);
+
+        modalContent.querySelectorAll('.modal-checkbox').forEach(modalCb => {
+            const sourceCb = sourceContainer.querySelector(`input[value="${modalCb.value}"]`);
+            if (sourceCb) sourceCb.checked = modalCb.checked;
+        });
+
+        serviceModal.classList.add('hidden');
+        serviceModal.classList.remove('flex');
+
+        if (categoryButtonContainer) {
+            categoryButtonContainer.querySelectorAll('.category-button').forEach(button => {
+                const cat = button.dataset.category;
+                const count = sourceContainer.querySelectorAll(`input[data-category="${cat}"]:checked`).length;
+                const badge = button.querySelector('.selection-count');
+                if (count > 0) {
+                    badge.textContent = `${count} selected`;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+            });
+        }
+    };
     servicesContainer.addEventListener('click', (e) => { const btn = e.target.closest('.category-button'); if (btn) openServiceModal(btn.dataset.category); });
     modalDoneBtn.addEventListener('click', closeServiceModal);
     modalOverlay.addEventListener('click', closeServiceModal);
@@ -4733,14 +4698,105 @@ function renderCalendar(year, month, technicianFilter = 'All') {
         };
         reader.readAsArrayBuffer(file);
     });
+// --- Located inside initMainApp() ---
+
+// --- Located inside initMainApp() ---
+
     document.getElementById('print-salon-earnings-btn').addEventListener('click', () => {
-        const printWindow = window.open('', '_blank', 'height=600,width=800');
-        printWindow.document.write('<html><head><title>Salon Earning Report</title><script src="https://cdn.tailwindcss.com"><\/script><style>body{padding:20px;font-family:"Poppins",sans-serif}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:8px;text-align:left}th{background-color:#f2f2f2}</style></head><body><h1>Salon Earning Report</h1>');
-        printWindow.document.write(document.getElementById('salon-earning-table').outerHTML);
+        const originalTable = document.getElementById('salon-earning-table');
+        if (!originalTable) return;
+
+        const printTable = document.createElement('table');
+        printTable.className = originalTable.className; 
+
+        const staffAndTechNames = techniciansAndStaff.map(t => t.name);
+
+        const originalThead = originalTable.querySelector('thead');
+        const newThead = originalThead.cloneNode(true);
+        const headerRow = newThead.querySelector('tr');
+        headerRow.innerHTML = ''; 
+        headerRow.insertAdjacentHTML('beforeend', '<th scope="col" class="px-2 py-1">Date</th>');
+        staffAndTechNames.forEach(name => {
+            headerRow.insertAdjacentHTML('beforeend', `<th scope="col" class="px-2 py-1">${name}</th>`);
+        });
+        printTable.appendChild(newThead);
+
+        const originalTbody = originalTable.querySelector('tbody');
+        const newTbody = document.createElement('tbody');
+        originalTbody.querySelectorAll('tr').forEach(row => {
+            const newRow = newTbody.insertRow();
+            newRow.appendChild(row.cells[0].cloneNode(true));
+            staffAndTechNames.forEach(name => {
+                const originalHeaderIndex = Array.from(originalThead.querySelectorAll('th')).findIndex(th => th.textContent === name);
+                if (originalHeaderIndex > -1) {
+                    newRow.appendChild(row.cells[originalHeaderIndex].cloneNode(true));
+                }
+            });
+        });
+        printTable.appendChild(newTbody);
+        
+        const originalTfoot = originalTable.querySelector('tfoot');
+        const newTfoot = originalTfoot.cloneNode(true);
+        newTfoot.querySelectorAll('tr').forEach((row, rowIndex) => {
+            if (rowIndex > 0) { 
+                const firstCell = row.querySelector('td');
+                firstCell.colSpan = 1;
+                while(row.cells.length > staffAndTechNames.length + 1) {
+                    row.deleteCell(-1);
+                }
+            } else { 
+                 while(row.cells.length > staffAndTechNames.length + 1) {
+                    row.deleteCell(-1);
+                }
+            }
+        });
+        printTable.appendChild(newTfoot);
+
+        const reportTitle = "Staff Earning Report";
+        const now = new Date();
+        const datePrinted = `Printed on: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`;
+        const logoUrl = "https://placehold.co/100x100/d63384/FFFFFF?text=NE";
+        
+        const printWindow = window.open('', '_blank', 'height=800,width=1000');
+        printWindow.document.write('<html><head><title>Print Staff Earnings</title>');
+        printWindow.document.write('<script src="https://cdn.tailwindcss.com"><\/script>');
+        
+        // --- THIS STYLE BLOCK IS UPDATED ---
+        printWindow.document.write(`
+            <style> 
+                body { padding: 15px; font-family: sans-serif; } 
+                table { width: 100%; border-collapse: collapse; font-size: 10px; } 
+                th, td { border: 1px solid #ddd; padding: 2px 4px; text-align: left; } 
+                thead { background-color: #f2f2f2; } 
+                tfoot { font-weight: bold; }
+                @media print { 
+                    body { -webkit-print-color-adjust: exact; padding: 10px; } 
+                    h1 { font-size: 1.25rem; }
+                    p { font-size: 0.75rem; }
+                } 
+            </style>
+        `);
+
+        printWindow.document.write('</head><body>');
+        printWindow.document.write(`
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <div>
+                    <h1 class="text-xl font-bold mb-1">${reportTitle}</h1>
+                    <p class="text-xs text-gray-500">${datePrinted}</p>
+                </div>
+                <img src="${logoUrl}" alt="Salon Logo" class="h-12 w-12 rounded-full">
+            </div>
+        `);
+        printWindow.document.write(printTable.outerHTML);
         printWindow.document.write('</body></html>');
+        
         printWindow.document.close();
         printWindow.focus();
-        setTimeout(() => { printWindow.print(); printWindow.close(); }, 250);
+
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 500);
     });
 
     // REPLACE the old openEditEarningModal function with this one
@@ -5466,6 +5522,128 @@ document.getElementById('expense-supplier-filter').addEventListener('change', (e
     currentExpenseSupplierFilter = e.target.value;
     renderExpenses();
 });
+
+// PASTE THIS ENTIRE NEW BLOCK inside the if (userRole === 'admin') block
+
+const exportExpensesBtn = document.getElementById('export-expenses-btn');
+if (exportExpensesBtn) {
+    exportExpensesBtn.addEventListener('click', () => {
+        // 1. Get the currently filtered data
+        let filteredExpenses = [...allExpenses];
+        if (currentExpenseMonthFilter && currentExpenseMonthFilter !== 'all') {
+            const [year, month] = currentExpenseMonthFilter.split('-').map(Number);
+            filteredExpenses = filteredExpenses.filter(exp => {
+                const d = new Date(exp.date.seconds * 1000);
+                return d.getFullYear() === year && d.getMonth() + 1 === month;
+            });
+        }
+        if (currentExpenseCategoryFilter && currentExpenseCategoryFilter !== 'all') {
+            filteredExpenses = filteredExpenses.filter(exp => exp.category === currentExpenseCategoryFilter);
+        }
+        if (currentExpenseSupplierFilter && currentExpenseSupplierFilter !== 'all') {
+            filteredExpenses = filteredExpenses.filter(exp => exp.supplier === currentExpenseSupplierFilter);
+        }
+
+        if (filteredExpenses.length === 0) {
+            alert("There is no data to export for the current filters.");
+            return;
+        }
+
+        // 2. Prepare the data for the worksheet
+        const dataToExport = filteredExpenses.map(exp => ({
+            'Date': new Date(exp.date.seconds * 1000).toLocaleDateString(),
+            'Expense Name': exp.name,
+            'Category': exp.category || '',
+            'Supplier': exp.supplier || '',
+            'Paid Via': exp.paymentAccount || '',
+            'Amount': exp.amount
+        }));
+
+        // 3. Add a total row at the bottom
+        const totalAmount = filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+        dataToExport.push({}); // Add a blank row for spacing
+        dataToExport.push({
+            'Date': 'Total:',
+            'Amount': totalAmount
+        });
+
+        // 4. Create the worksheet and workbook
+        const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+        
+        // Optional: Set column widths for better readability
+        worksheet['!cols'] = [
+            { wch: 12 }, { wch: 30 }, { wch: 20 }, { wch: 20 }, { wch: 20 }, { wch: 12 }
+        ];
+
+        // Format the 'Amount' column as currency
+        const amountColumnIndex = 'F';
+        for (let i = 2; i <= dataToExport.length + 1; i++) {
+            const cellRef = `${amountColumnIndex}${i}`;
+            if (worksheet[cellRef] && typeof worksheet[cellRef].v === 'number') {
+                worksheet[cellRef].t = 'n'; // Set type to number
+                worksheet[cellRef].z = '$#,##0.00'; // Set format to currency
+            }
+        }
+        
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Expenses Report");
+
+        // 5. Trigger the download
+        XLSX.writeFile(workbook, `NailsExpress_Expenses_${new Date().toISOString().split('T')[0]}.xlsx`);
+    });
+}
+
+// --- Located inside initMainApp() ---
+
+// --- Located inside initMainApp() ---
+
+    const printExpensesBtn = document.getElementById('print-expenses-btn');
+    if (printExpensesBtn) {
+        printExpensesBtn.addEventListener('click', () => {
+            const expenseTable = document.getElementById('expense-table');
+            if (expenseTable) {
+                const reportTitle = "Expense Report";
+                const now = new Date();
+                const datePrinted = `Printed on: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`;
+                
+                // --- This is the new line for your logo URL ---
+                const logoUrl = "https://placehold.co/100x100/d63384/FFFFFF?text=NE"; 
+                
+                const tableHTML = expenseTable.outerHTML;
+
+                const printWindow = window.open('', '_blank', 'height=800,width=1000');
+                printWindow.document.write('<html><head><title>Nails Express-Print Expenses</title>');
+                printWindow.document.write('<script src="https://cdn.tailwindcss.com"><\/script>');
+                printWindow.document.write('<style> body { padding: 20px; font-family: sans-serif; } @media print { body { -webkit-print-color-adjust: exact; } .no-print { display: none; } } </style>');
+                printWindow.document.write('</head><body>');
+                
+                // --- This block is updated to include the logo ---
+                printWindow.document.write(`
+                    <div class="flex justify-between items-center mb-4 border-b pb-4">
+                        <div>
+                            <h1 class="text-2xl font-bold mb-2">${reportTitle}</h1>
+                            <p class="text-sm text-gray-500">${datePrinted}</p>
+                        </div>
+                        <img src="${logoUrl}" alt="Salon Logo" class="h-16 w-16 rounded-full">
+                    </div>
+                `);
+
+                printWindow.document.write(tableHTML);
+                printWindow.document.write('</body></html>');
+                
+                printWindow.document.close();
+                printWindow.focus();
+
+                setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                }, 500);
+            }
+        });
+    }
+
+
+
     addExpenseForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const expenseId = document.getElementById('edit-expense-id').value;
