@@ -505,10 +505,13 @@ const openMembershipCardForPrint = (client, tier) => {
                 <p class="text-xs text-center text-gray-600 px-4 leading-relaxed mt-4">
                     Welcome, VIP! This card must be presented to receive benefits. Membership is non-transferable and benefits apply only to the registered member.
                 </p>
-                <div class="px-4 pb-2">
-                    <div class="w-full border-t border-dashed border-gray-400 pt-4"></div>
-                    <p class="text-center text-xs text-gray-500">Member Signature</p>
+                
+                <div class="px-4 pb-2 text-center">
+                    <p class="font-parisienne text-2xl text-gray-700">${client.name}</p>
+                    <div class="w-full border-t border-dashed border-gray-400 pt-1 mt-1"></div>
+                    <p class="text-xs text-gray-500">Member Signature</p>
                 </div>
+
                 <div class="text-center text-xs pb-2">
                     <p class="font-bold">Nails Express</p>
                     <p>1560 Hustonville Rd #345, Danville, KY 40422</p>
@@ -5761,25 +5764,69 @@ function initMainApp(userRole, userName) {
     const applyNailIdeaFilters = () => {
         const searchTerm = document.getElementById('nail-idea-search').value.toLowerCase();
         const shapeFilter = document.getElementById('nail-idea-shape-filter').value;
-        const categoryFilter = document.getElementById('nail-idea-category-filter').value;
-        const filteredIdeas = allNailIdeas.filter(idea => { const matchesSearch = idea.name.toLowerCase().includes(searchTerm) || idea.categories.some(cat => cat.toLowerCase().includes(searchTerm)); const matchesShape = !shapeFilter || idea.shape === shapeFilter; const matchesCategory = !categoryFilter || idea.categories.includes(categoryFilter); return matchesSearch && matchesShape && matchesCategory; });
+
+        // --- UPDATED to read from the new tag buttons ---
+        const activeTagButton = document.querySelector('#nail-idea-tag-filter-container .tech-filter-btn.active');
+        const categoryFilter = activeTagButton ? activeTagButton.dataset.category : "";
+
+        const filteredIdeas = allNailIdeas.filter(idea => {
+            const matchesSearch = idea.name.toLowerCase().includes(searchTerm) || idea.categories.some(cat => cat.toLowerCase().includes(searchTerm));
+            const matchesShape = !shapeFilter || idea.shape === shapeFilter;
+            const matchesCategory = !categoryFilter || idea.categories.includes(categoryFilter);
+            return matchesSearch && matchesShape && matchesCategory;
+        });
         renderNailIdeasGallery(filteredIdeas);
     };
 
+    // --- NEW Event Listener for Tag Filtering ---
+    const tagContainer = document.getElementById('nail-idea-tag-filter-container');
+    if (tagContainer) {
+        tagContainer.addEventListener('click', (e) => {
+            const button = e.target.closest('.tech-filter-btn');
+            if (button) {
+                // Remove active state from all buttons
+                tagContainer.querySelectorAll('.tech-filter-btn').forEach(btn => btn.classList.remove('active'));
+                // Add active state to the clicked button
+                button.classList.add('active');
+                // Re-apply the filters
+                applyNailIdeaFilters();
+            }
+        });
+    }
+
     onSnapshot(query(collection(db, "nail_ideas"), orderBy("createdAt", "desc")), (snapshot) => {
         allNailIdeas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // ADD THIS NEW BLOCK to populate the Nail Shape datalist
+
         const shapesDatalist = document.getElementById('nail-shapes-list');
         if (shapesDatalist) {
             const uniqueShapes = [...new Set(allNailIdeas.map(idea => idea.shape).filter(Boolean))];
             shapesDatalist.innerHTML = uniqueShapes.map(shape => `<option value="${shape}"></option>`).join('');
         }
         const shapes = [...new Set(allNailIdeas.map(i => i.shape).filter(Boolean))];
-        const categories = [...new Set(allNailIdeas.flatMap(i => i.categories).filter(Boolean))];
         const shapeFilter = document.getElementById('nail-idea-shape-filter');
-        const categoryFilter = document.getElementById('nail-idea-category-filter');
         shapeFilter.innerHTML = '<option value="">All Shapes</option>' + shapes.map(s => `<option value="${s}">${s}</option>`).join('');
-        categoryFilter.innerHTML = '<option value="">All Categories</option>' + categories.map(c => `<option value="${c}">${c}</option>`).join('');
+
+        // --- NEW TAG GENERATION LOGIC ---
+        const categories = [...new Set(allNailIdeas.flatMap(i => i.categories).filter(Boolean))];
+        const tagContainer = document.getElementById('nail-idea-tag-filter-container');
+        // Clear existing tags but keep the "Tags:" label
+        tagContainer.innerHTML = '<span class="text-sm font-semibold text-gray-600 mr-2">Tags:</span>';
+
+        const allBtn = document.createElement('button');
+        allBtn.className = 'tech-filter-btn px-3 py-1 rounded-full text-sm active'; // Active by default
+        allBtn.dataset.category = ""; // Empty value for "All"
+        allBtn.textContent = "All";
+        tagContainer.appendChild(allBtn);
+
+        categories.sort().forEach(cat => {
+            const btn = document.createElement('button');
+            btn.className = 'tech-filter-btn px-3 py-1 rounded-full text-sm';
+            btn.dataset.category = cat;
+            btn.textContent = cat;
+            tagContainer.appendChild(btn);
+        });
+        // --- END NEW LOGIC ---
+
         applyNailIdeaFilters();
         renderNailIdeasAdminTable(allNailIdeas);
     });
