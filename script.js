@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, signInAnonymously, updateEmail, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, collection, addDoc, onSnapshot, query, doc, getDoc, deleteDoc, serverTimestamp, where, getDocs, orderBy, Timestamp, updateDoc, writeBatch, setDoc, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
@@ -39,7 +39,8 @@ let anonymousUserId = null;
 let bookingSettings = { minBookingHours: 2 };
 let loginSecuritySettings = { maxAttempts: 5, lockoutMinutes: 15 };
 let salonHours = {};
-let salonRevenueChart, myEarningsChart, staffEarningsChart;
+//... inside initMainApp, around line 247
+let salonRevenueChart, myEarningsChart, staffEarningsChart, profitChart;
 let notifications = [];
 let currentUserRole = null;
 let currentUserName = null;
@@ -1138,11 +1139,10 @@ async function initClientDashboard(clientId, clientData) {
     });
 
     const featuresDoc = await getDoc(doc(db, "settings", "features"));
-    // THIS IS THE FIX: Changed 'docSnap' to 'featuresDoc'
-    const features = featuresDoc.exists() ? featuresDoc.data() : {
-        showGiftCards: true,
-        showMemberships: true,
-        showRoyaltyCard: true
+    const features = featuresDoc.exists() ? featuresDoc.data() : { 
+        showGiftCards: true, 
+        showMemberships: true, 
+        showRoyaltyCard: true 
     };
 
     document.getElementById('client-welcome-name').textContent = `Welcome back, ${clientData.name}!`;
@@ -1184,7 +1184,7 @@ async function initClientDashboard(clientId, clientData) {
     };
 
     renderClientMembership(clientData, clientId);
-
+    
     const renderClientRoyaltyCard = (clientData) => {
         const container = document.getElementById('royalty-card-content');
         if (!container) return;
@@ -1197,11 +1197,11 @@ async function initClientDashboard(clientId, clientData) {
                 </div>`;
             return;
         }
-
+        
         const visits = clientData.royaltyCard.visits || 0;
         const visitsNeeded = royaltySettings.visitsNeeded;
         const rewardText = royaltySettings.rewardDescription;
-
+        
         let stampsHTML = '';
         for (let i = 1; i <= visitsNeeded; i++) {
             const isStamped = i <= visits;
@@ -1233,7 +1233,7 @@ async function initClientDashboard(clientId, clientData) {
     const setupClientNav = (featureSettings) => {
         const navContainer = document.getElementById('client-top-nav');
         const contentSections = document.querySelectorAll('.client-tab-content');
-
+        
         let navItems = [
             { id: 'appointments', text: 'Appointments' },
             { id: 'favorites', text: 'My Favorites' }
@@ -1248,13 +1248,15 @@ async function initClientDashboard(clientId, clientData) {
         if (featureSettings.showRoyaltyCard) {
             navItems.push({ id: 'royalty-card', text: 'Royalty Card' });
         }
-
+        // --- ADD THE NEW "ACCOUNT SETTINGS" NAV ITEM ---
+        navItems.push({ id: 'account-settings', text: 'Account Settings' });
+        
         contentSections.forEach(content => content.classList.add('hidden'));
 
-        navContainer.innerHTML = navItems.map(item =>
+        navContainer.innerHTML = navItems.map(item => 
             `<button class="top-nav-btn" data-target="${item.id}-content">${item.text}</button>`
         ).join('');
-
+        
         const navButtons = navContainer.querySelectorAll('.top-nav-btn');
 
         navContainer.addEventListener('click', (e) => {
@@ -1317,7 +1319,7 @@ async function initClientDashboard(clientId, clientData) {
             return acc;
         }, {});
         const colorCounts = history.reduce((acc, visit) => {
-            if (visit.colorCode) acc[visit.colorCode] = (acc[visit.colorCode] || 0) + 1;
+            if(visit.colorCode) acc[visit.colorCode] = (acc[visit.colorCode] || 0) + 1;
             return acc;
         }, {});
         const favTech = Object.keys(techCounts).length > 0 ? Object.keys(techCounts).reduce((a, b) => techCounts[a] > techCounts[b] ? a : b) : 'N/A';
@@ -1325,39 +1327,35 @@ async function initClientDashboard(clientId, clientData) {
         document.getElementById('favorite-technician').textContent = favTech;
         document.getElementById('favorite-color').textContent = favColor;
     };
-
+    
     onSnapshot(query(collection(db, "appointments"), where("name", "==", clientData.name)), (snapshot) => {
-        const appointments = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+        const appointments = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
         renderClientAppointments(appointments);
     });
 
-    // REPLACE the old onSnapshot for finished_clients with this new one:
     onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name)), (snapshot) => {
-        // Sort the results in JavaScript, which is more reliable
         const history = snapshot.docs.map(doc => {
             const data = doc.data();
             const servicesRaw = data.services;
             const servicesString = Array.isArray(servicesRaw) ? servicesRaw.join(', ') : (servicesRaw || '');
-
+            
             return {
                 id: doc.id,
                 ...data,
                 services: servicesString
             };
-        }).sort((a, b) => b.checkOutTimestamp.seconds - a.checkOutTimestamp.seconds); // Sorting happens here
+        }).sort((a, b) => b.checkOutTimestamp.seconds - a.checkOutTimestamp.seconds);
 
         allFinishedClients = history;
         renderClientHistory(history);
         calculateAndRenderFavorites(history);
     }, (error) => {
-        // This will help us see any new errors directly
         console.error("Error fetching client history:", error);
         const container = document.getElementById('client-appointment-history');
         if (container) {
             container.innerHTML = '<p class="text-red-500">Could not load appointment history due to a permission issue.</p>';
         }
     });
-
 
     let allClientGiftCards = [];
     onSnapshot(query(collection(db, "gift_cards"), where("createdBy", "==", clientId), orderBy("createdAt", "desc")), (snapshot) => {
@@ -1428,13 +1426,61 @@ async function initClientDashboard(clientId, clientData) {
     document.getElementById('client-buy-gift-card-btn').addEventListener('click', () => {
         openPurchaseModalForClient(clientData);
     });
-
+    
     getDoc(doc(db, "settings", "royaltyProgram")).then(docSnap => {
         if (docSnap.exists() && docSnap.data().visitsNeeded) {
             royaltySettings = docSnap.data();
         }
         renderClientRoyaltyCard(clientData);
     });
+    
+    // --- NEW EVENT LISTENERS FOR ACCOUNT SETTINGS ---
+    const changeEmailForm = document.getElementById('client-change-email-form');
+    if (changeEmailForm) {
+        changeEmailForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newEmail = document.getElementById('client-new-email').value;
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const password = prompt("For your security, please enter your current password to change your email.");
+            if (!password) return;
+
+            try {
+                const credential = EmailAuthProvider.credential(user.email, password);
+                await reauthenticateWithCredential(user, credential);
+                await updateEmail(user, newEmail);
+                await updateDoc(doc(db, "clients", user.uid), { email: newEmail });
+                alert("Your email has been updated successfully!");
+                changeEmailForm.reset();
+            } catch (error) {
+                console.error("Error updating email:", error);
+                alert(`Could not update email. Error: ${error.message}`);
+            }
+        });
+    }
+
+    const changePasswordForm = document.getElementById('client-change-password-form');
+    if (changePasswordForm) {
+        changePasswordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const currentPassword = document.getElementById('client-current-password').value;
+            const newPassword = document.getElementById('client-new-password').value;
+            const user = auth.currentUser;
+            if (!user) return;
+
+            try {
+                const credential = EmailAuthProvider.credential(user.email, currentPassword);
+                await reauthenticateWithCredential(user, credential);
+                await updatePassword(user, newPassword);
+                alert("Your password has been updated successfully!");
+                changePasswordForm.reset();
+            } catch (error) {
+                console.error("Error updating password:", error);
+                alert(`Could not update password. Error: ${error.message}`);
+            }
+        });
+    }
 
     setupClientNav(features);
 }
@@ -2023,6 +2069,24 @@ function initLandingPage() {
 
 // --- MAIN CHECK-IN APP SCRIPT ---
 function initMainApp(userRole, userName) {
+     // PASTE THE FUNCTION DEFINITION RIGHT HERE
+    const setupReportDateFilters = (selectId, dateInputId, callback) => {
+        const select = document.getElementById(selectId);
+        const dateInput = document.getElementById(dateInputId);
+        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        select.innerHTML = `<option value="daily">Daily</option>`;
+        months.forEach((month, index) => { select.innerHTML += `<option value="${index}">${month}</option>`; });
+        select.innerHTML += `<option value="this-year">This Year</option><option value="last-year">Last Year</option>`;
+
+        select.addEventListener('change', (e) => {
+            const range = e.target.value;
+            dateInput.style.display = range === 'daily' ? 'block' : 'none';
+            callback(dateInput.value, range);
+        });
+        dateInput.addEventListener('input', (e) => {
+            callback(e.target.value, select.value);
+        });
+    };
     // --- START: MOBILE MENU LOGIC (REPLACE YOUR OLD BLOCK WITH THIS) ---
     const mobileMenuBtn = document.getElementById('mobile-menu-btn');
     const mobileSidebar = document.getElementById('mobile-sidebar');
@@ -3079,7 +3143,114 @@ function initMainApp(userRole, userName) {
         }
         return { startDate, endDate };
     };
+
+    // --- ADD THIS ENTIRE NEW BLOCK inside initMainApp() ---
+    
+    let profitChart;
+    const renderProfitDashboard = () => {
+        const rangeFilter = document.getElementById('profit-dashboard-range-filter').value;
+        const dateFilter = document.getElementById('profit-dashboard-date-filter').value;
+        
+        const { startDate, endDate } = getDateRange(rangeFilter, dateFilter);
+        if (!startDate) return;
+
+        // 1. Filter Data
+        const filteredExpenses = allExpenses.filter(ex => {
+            const expDate = ex.date.toDate();
+            return expDate >= startDate && expDate <= endDate;
+        });
+        const filteredSalonEarnings = allSalonEarnings.filter(e => {
+            const earnDate = e.date.toDate();
+            return earnDate >= startDate && earnDate <= endDate;
+        });
+
+        // 2. Calculate KPIs
+        const totalExpenses = filteredExpenses.reduce((sum, ex) => sum + ex.amount, 0);
+        
+        const totalRevenue = filteredSalonEarnings.reduce((sum, earning) => {
+            let dailyTotal = 0;
+            techniciansAndStaff.forEach(tech => {
+                dailyTotal += earning[tech.name.toLowerCase()] || 0;
+            });
+            dailyTotal += earning.sellGiftCard || 0;
+            return sum + dailyTotal;
+        }, 0);
+
+        const netProfit = totalRevenue - totalExpenses;
+        const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+        
+        document.getElementById('profit-total-revenue').textContent = `$${totalRevenue.toFixed(2)}`;
+        document.getElementById('profit-total-expenses').textContent = `$${totalExpenses.toFixed(2)}`;
+        document.getElementById('profit-net-profit').textContent = `$${netProfit.toFixed(2)}`;
+        document.getElementById('profit-margin').textContent = `${profitMargin.toFixed(1)}%`;
+        
+        // 3. Prepare Chart Data
+        const dataMap = new Map();
+        const addData = (date, revenue = 0, expense = 0) => {
+            const key = getLocalDateString(date);
+            if (!dataMap.has(key)) {
+                dataMap.set(key, { revenue: 0, expense: 0 });
+            }
+            const entry = dataMap.get(key);
+            entry.revenue += revenue;
+            entry.expense += expense;
+        };
+        
+        filteredSalonEarnings.forEach(earning => {
+            let dailyTotal = 0;
+            techniciansAndStaff.forEach(tech => { dailyTotal += earning[tech.name.toLowerCase()] || 0; });
+            dailyTotal += earning.sellGiftCard || 0;
+            addData(earning.date.toDate(), dailyTotal, 0);
+        });
+
+        filteredExpenses.forEach(expense => {
+            addData(expense.date.toDate(), 0, expense.amount);
+        });
+
+        const sortedData = Array.from(dataMap.entries()).sort((a, b) => new Date(a[0]) - new Date(b[0]));
+        
+        const labels = sortedData.map(entry => new Date(entry[0] + 'T00:00:00').toLocaleDateString());
+        const revenueData = sortedData.map(entry => entry[1].revenue);
+        const expenseData = sortedData.map(entry => entry[1].expense);
+
+        // 4. Render Chart
+        const ctx = document.getElementById('profit-chart')?.getContext('2d');
+        if (!ctx) return;
+        
+        const chartConfig = {
+            labels,
+            datasets: [
+                {
+                    label: 'Total Revenue',
+                    data: revenueData,
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    fill: true
+                },
+                {
+                    label: 'Total Expenses',
+                    data: expenseData,
+                    backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    fill: true
+                }
+            ]
+        };
+        profitChart = initializeChart(profitChart, ctx, 'line', chartConfig, { responsive: true, maintainAspectRatio: false });
+    };
+
+    // --- Setup the filter for the new dashboard ---
+    setupReportDateFilters('profit-dashboard-range-filter', 'profit-dashboard-date-filter', renderProfitDashboard);
+    document.getElementById('profit-dashboard-range-filter').value = String(new Date().getMonth());
+
+    
     // --- NEW DASHBOARD LOGIC ---
+
+    
     const updateDashboard = () => {
         if (currentUserRole === 'admin') {
             updateAdminDashboard();
@@ -4015,64 +4186,85 @@ function initMainApp(userRole, userName) {
         }
     });
 
-    // REPLACE your old openClientProfileModal function with this new one:
-    const openClientProfileModal = async (client) => {
-        const clientData = aggregatedClients.find(c => c.id === client.id);
-        if (!clientData) {
-            console.error("Could not find aggregated data for client:", client);
-            alert("Could not load client profile.");
-            return;
+ const openClientProfileModal = async (client) => {
+    // Find the most up-to-date client data from the master list
+    const clientData = allClients.find(c => c.id === client.id);
+    if (!clientData) {
+        console.error("Could not find data for client:", client.id);
+        alert("Could not load client profile.");
+        return;
+    }
+
+    const clientHistory = allFinishedClients.filter(c => c.name === clientData.name);
+    const clientAppointments = allAppointments.filter(c => c.name === clientData.name && c.appointmentTimestamp.toDate() > new Date());
+    
+    let serviceSpent = clientHistory.reduce((sum, visit) => {
+        const servicesString = Array.isArray(visit.services) ? visit.services.join(', ') : visit.services;
+        const prices = (servicesString.match(/\$\d+/g) || []).map(p => Number(p.slice(1)));
+        return sum + prices.reduce((a, b) => a + b, 0);
+    }, 0);
+
+    const giftCardsPurchased = allGiftCards.filter(gc => gc.createdBy === client.id);
+    let giftCardSpent = giftCardsPurchased.reduce((sum, gc) => sum + gc.amount, 0);
+
+    let membershipSpent = 0;
+    if (clientData.membership && clientData.membership.tierId) {
+        const tier = allMembershipTiers.find(t => t.id === clientData.membership.tierId);
+        if (tier) {
+            membershipSpent = tier.price; // Simplified for display
         }
-        const clientHistory = allFinishedClients.filter(c => c.name === clientData.name);
-        const clientAppointments = allAppointments.filter(c => c.name === clientData.name && c.appointmentTimestamp.toDate() > new Date());
+    }
+    const totalSpent = serviceSpent + giftCardSpent + membershipSpent;
+    
+    // Set the client ID in the hidden input for the new note form
+    document.getElementById('note-client-id').value = clientData.id || '';
 
-        // --- NEW: Comprehensive Total Spent Calculation ---
-        // 1. Calculate spending from services
-        let serviceSpent = clientHistory.reduce((sum, visit) => {
-            const servicesString = Array.isArray(visit.services) ? visit.services.join(', ') : visit.services;
-            const prices = (servicesString.match(/\$\d+/g) || []).map(p => Number(p.slice(1)));
-            return sum + prices.reduce((a, b) => a + b, 0);
-        }, 0);
+    document.getElementById('profile-client-name').textContent = clientData.name;
+    document.getElementById('profile-client-phone').textContent = clientData.phone || 'No phone number';
+    document.getElementById('profile-total-visits').textContent = clientHistory.length;
+    document.getElementById('profile-total-spent').textContent = `$${totalSpent.toFixed(2)}`;
+    
+    const aggregatedClientData = aggregatedClients.find(c => c.id === client.id) || {};
+    document.getElementById('profile-fav-tech').textContent = aggregatedClientData.favoriteTech || 'N/A';
+    document.getElementById('profile-fav-color').textContent = aggregatedClientData.favoriteColor || 'N/A';
 
-        // 2. Calculate spending from gift cards purchased
-        const giftCardsPurchased = allGiftCards.filter(gc => gc.createdBy === client.id);
-        let giftCardSpent = giftCardsPurchased.reduce((sum, gc) => sum + gc.amount, 0);
-
-        // 3. Calculate spending from membership
-        let membershipSpent = 0;
-        if (clientData.membership && clientData.membership.tierId) {
-            const tier = allMembershipTiers.find(t => t.id === clientData.membership.tierId);
-            if (tier) {
-                membershipSpent = tier.price;
-            }
-        }
-
-        const totalSpent = serviceSpent + giftCardSpent + membershipSpent;
-        // --- END of new calculation ---
-
-        document.getElementById('profile-client-name').textContent = clientData.name;
-        document.getElementById('profile-client-phone').textContent = clientData.phone || 'No phone number';
-        document.getElementById('profile-total-visits').textContent = clientHistory.length;
-        document.getElementById('profile-total-spent').textContent = `$${totalSpent.toFixed(2)}`;
-        document.getElementById('profile-fav-tech').textContent = clientData.favoriteTech;
-        document.getElementById('profile-fav-color').textContent = clientData.favoriteColor;
-
-        const historyBody = document.getElementById('profile-history-table-body');
-        historyBody.innerHTML = clientHistory.length > 0 ? clientHistory.map(v =>
-            `<tr>
+    const historyBody = document.getElementById('profile-history-table-body');
+    historyBody.innerHTML = clientHistory.length > 0 ? clientHistory.map(v =>
+        `<tr>
             <td class="px-4 py-2">${v.checkOutTimestamp.toDate().toLocaleDateString()}</td>
             <td class="px-4 py-2">${Array.isArray(v.services) ? v.services.join(', ') : v.services}</td>
             <td class="px-4 py-2">${v.technician}</td>
         </tr>`
-        ).join('') : '<tr><td colspan="3" class="text-center p-4 text-gray-500">No visit history found.</td></tr>';
+    ).join('') : '<tr><td colspan="3" class="text-center p-4 text-gray-500">No visit history found.</td></tr>';
 
-        const apptsContainer = document.getElementById('profile-upcoming-appts');
-        apptsContainer.innerHTML = clientAppointments.length > 0
-            ? clientAppointments.map(a => `<div class="bg-blue-50 p-2 rounded-md"><p class="font-semibold">${a.appointmentTimestamp.toDate().toLocaleString()}</p><p class="text-sm">${a.services.join(', ')}</p></div>`).join('')
-            : '<p class="text-sm text-gray-500">No upcoming appointments.</p>';
+    const apptsContainer = document.getElementById('profile-upcoming-appts');
+    apptsContainer.innerHTML = clientAppointments.length > 0
+        ? clientAppointments.map(a => `<div class="bg-blue-50 p-2 rounded-md"><p class="font-semibold">${a.appointmentTimestamp.toDate().toLocaleString()}</p><p class="text-sm">${a.services.join(', ')}</p></div>`).join('')
+        : '<p class="text-sm text-gray-500">No upcoming appointments.</p>';
+        
+    // --- NEW: RENDER CLIENT NOTES ---
+    const notesListContainer = document.getElementById('profile-client-notes-list');
+    notesListContainer.innerHTML = ''; // Clear previous notes
+    if (clientData.notes && clientData.notes.length > 0) {
+        // Sort notes newest first
+        const sortedNotes = clientData.notes.sort((a, b) => b.timestamp.seconds - a.timestamp.seconds);
+        sortedNotes.forEach(note => {
+            const noteEl = document.createElement('div');
+            noteEl.className = 'bg-yellow-50 p-3 rounded-lg border-l-4 border-yellow-300';
+            noteEl.innerHTML = `
+                <p class="text-sm text-gray-800">${note.text}</p>
+                <p class="text-xs text-gray-500 mt-1 text-right">${new Date(note.timestamp.seconds * 1000).toLocaleString()}</p>
+            `;
+            notesListContainer.appendChild(noteEl);
+        });
+    } else {
+        notesListContainer.innerHTML = '<p class="text-sm text-gray-500 text-center">No notes for this client yet.</p>';
+    }
 
-        clientProfileModal.classList.remove('hidden');
-    };
+    clientProfileModal.classList.remove('hidden');
+};
+
+
     document.getElementById('finished-content').addEventListener('click', async (e) => {
         const deleteBtn = e.target.closest('.delete-btn-finished');
         const feedbackBtn = e.target.closest('.view-feedback-btn');
@@ -4430,23 +4622,6 @@ function initMainApp(userRole, userName) {
     setupTechFilter('tech-filter-container-dashboard-appointments', (tech) => { currentDashboardApptTechFilter = tech; updateAdminDashboard(); });
 
 
-    const setupReportDateFilters = (selectId, dateInputId, callback) => {
-        const select = document.getElementById(selectId);
-        const dateInput = document.getElementById(dateInputId);
-        const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        select.innerHTML = `<option value="daily">Daily</option>`;
-        months.forEach((month, index) => { select.innerHTML += `<option value="${index}">${month}</option>`; });
-        select.innerHTML += `<option value="this-year">This Year</option><option value="last-year">Last Year</option>`;
-
-        select.addEventListener('change', (e) => {
-            const range = e.target.value;
-            dateInput.style.display = range === 'daily' ? 'block' : 'none';
-            callback(dateInput.value, range);
-        });
-        dateInput.addEventListener('input', (e) => {
-            callback(e.target.value, select.value);
-        });
-    };
 
     setupReportDateFilters('earning-range-filter', 'earning-date-filter', (date, range) => { currentEarningDateFilter = date; currentEarningRangeFilter = range; renderAllStaffEarnings(); });
     setupReportDateFilters('dashboard-earning-range-filter', 'dashboard-earning-date-filter', (date, range) => { currentDashboardEarningDateFilter = date; currentDashboardEarningRangeFilter = range; renderAllStaffEarnings(); });
@@ -7395,6 +7570,49 @@ function initMainApp(userRole, userName) {
 
 
     };
+
+    // --- Located inside initMainApp(), before loadAndRenderServices() ---
+
+    const addClientNoteForm = document.getElementById('add-client-note-form');
+    if (addClientNoteForm) {
+        addClientNoteForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const clientId = document.getElementById('note-client-id').value;
+            const noteTextarea = document.getElementById('new-client-note');
+            const noteText = noteTextarea.value.trim();
+
+            if (!clientId || !noteText) {
+                alert("Cannot save an empty note.");
+                return;
+            }
+
+            const newNote = {
+                text: noteText,
+                timestamp: Timestamp.now(),
+                // You could add author: currentUserName here if needed
+            };
+
+            try {
+                const clientDocRef = doc(db, "clients", clientId);
+                await updateDoc(clientDocRef, {
+                    notes: arrayUnion(newNote)
+                });
+                noteTextarea.value = ''; // Clear the textarea
+                
+                // Manually refresh the modal view after adding a note
+                const updatedClientData = allClients.find(c => c.id === clientId);
+                if (updatedClientData) {
+                    // Re-open/refresh the modal to show the new note instantly
+                    openClientProfileModal(updatedClientData);
+                }
+
+            } catch (error) {
+                console.error("Error saving client note:", error);
+                alert("Could not save the note.");
+            }
+        });
+    }
+
 
 
     loadAndRenderServices();
