@@ -1,5 +1,11 @@
 body { font-family: 'Poppins', sans-serif; background-color: #FEFBF9; }
         h1, h2, h3, .clock { font-family: 'Playfair Display', serif; }
+/* Style for the Task Manager Category Icon */
+.task-item .fa-shopping-cart,
+.task-item .fa-tools,
+.task-item .fa-clipboard-list {
+    width: 20px; /* Ensures icons are aligned */
+}
 /* Task Manager Styles */
 .task-item .task-description.completed {
     text-decoration: line-through;
@@ -144,10 +150,8 @@ body { font-family: 'Poppins', sans-serif; background-color: #FEFBF9; }
     height: 100px;
     width: 80px;
     margin: 0 auto;
-    border: 1px solid #e2e8f0;
     border-radius: 8px;
     padding: 8px;
-    background-color: #f7fafc;
 }
 
 .nail-shape-svg-wrapper svg {
@@ -156,9 +160,6 @@ body { font-family: 'Poppins', sans-serif; background-color: #FEFBF9; }
 }
 
 .nail-shape-svg-wrapper .nail {
-    stroke: #4a5568;
-    stroke-width: 4px;
-    fill: #ffffff; /* Default fill color */
     transition: fill 0.2s ease-in-out;
 }
 /* Add this to the end of your style.css file */
