@@ -41,6 +41,7 @@ let loginSecuritySettings = { maxAttempts: 5, lockoutMinutes: 15 };
 let salonHours = {};
 //... inside initMainApp, around line 247
 let salonRevenueChart, myEarningsChart, staffEarningsChart, profitChart;
+let clientSpendingChart, clientServicesChart;
 let notifications = [];
 let currentUserRole = null;
 let currentUserName = null;
@@ -58,6 +59,8 @@ let royaltySettings = { visitsNeeded: 10, rewardDescription: 'One Free Classic M
 let allRoyaltyCards = [];
 let globalListenersAttached = false;
 let holidaySettings = { dates: [], message: 'The salon is closed on the selected date.' };
+let holidayCalYear = new Date().getFullYear(); // You likely added this one
+let holidayCalMonth = new Date().getMonth(); // <--- ADD THIS LINE
 
 const nailIdeaLightbox = document.getElementById('nail-idea-lightbox');
 const lightboxCloseBtn = document.getElementById('lightbox-close-btn');
@@ -621,6 +624,55 @@ async function sendMembershipConfirmationEmail(details) {
         console.error("Error sending membership confirmation email:", error);
     }
 }
+
+// PASTE THIS NEW FUNCTION in the Email Notification Logic section
+async function sendAppointmentReminderEmail(appointmentData, clientEmail) {
+    if (!clientEmail) {
+        console.log("No client email found for reminder for:", appointmentData.name);
+        return;
+    }
+
+    try {
+        const templateDoc = await getDoc(doc(db, "settings", "emailTemplates"));
+        if (!templateDoc.exists()) return;
+        const templates = templateDoc.data();
+
+        let subject = templates.reminderSubject || 'Your Upcoming Appointment at Nails Express';
+        let body = templates.reminderBody || 'Hi {clientName}, this is a reminder for your appointment on {appointmentDate} at {appointmentTime}. We look forward to seeing you!';
+
+        const appointmentDate = appointmentData.appointmentTimestamp.toDate();
+        
+        // Calculate reminder time (24 hours before appointment)
+        const reminderTime = new Date(appointmentDate.getTime() - (24 * 60 * 60 * 1000));
+
+        // If the reminder time is in the past, don't schedule it
+        if (reminderTime < new Date()) {
+            console.log("Skipping reminder for appointment in less than 24 hours.");
+            return;
+        }
+
+        body = body.replace(/{clientName}/g, appointmentData.name)
+            .replace(/{appointmentDate}/g, appointmentDate.toLocaleDateString())
+            .replace(/{appointmentTime}/g, appointmentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
+            .replace(/{technician}/g, appointmentData.technician)
+            .replace(/{services}/g, Array.isArray(appointmentData.services) ? appointmentData.services.join(', ') : appointmentData.services)
+            .replace(/\n/g, '<br>');
+
+        await addDoc(collection(db, "mail"), {
+            to: clientEmail,
+            message: { subject: subject, html: body },
+            // This tells the Firebase Extension to send the email later
+            delivery: {
+                startTime: Timestamp.fromDate(reminderTime)
+            }
+        });
+        console.log(`Reminder email scheduled for ${appointmentData.name}`);
+
+    } catch (error) {
+        console.error("Error scheduling appointment reminder email:", error);
+    }
+}
+
 // --- Booking Validation Logic ---
 // REPLACE the old isBookingTimeValid function with this one
 function isBookingTimeValid(bookingDate) {
@@ -799,18 +851,20 @@ addAppointmentForm.addEventListener('submit', async (e) => {
     const appointmentId = document.getElementById('edit-appointment-id').value;
 
     try {
-        if (appointmentId) {
-            // If an ID exists, UPDATE the existing document
-            await updateDoc(doc(db, "appointments", appointmentId), appointmentData);
-            alert("Appointment updated successfully!");
-        } else {
-            // If no ID, ADD a new document
-            await addDoc(collection(db, "appointments"), appointmentData);
-            await sendBookingNotificationEmail(appointmentData);
-            alert("Appointment saved successfully!");
-        }
-        closeAddAppointmentModal();
-    } catch (err) {
+    const client = allClients.find(c => c.name === appointmentData.name); // Find client to get email
+
+    if (appointmentId) {
+        await updateDoc(doc(db, "appointments", appointmentId), appointmentData);
+        alert("Appointment updated successfully!");
+    } else {
+        const docRef = await addDoc(collection(db, "appointments"), appointmentData);
+        await sendBookingNotificationEmail(appointmentData);
+        // ADD THIS LINE for reminders
+        if (client && client.email) await sendAppointmentReminderEmail(appointmentData, client.email);
+        alert("Appointment saved successfully!");
+    }
+    closeAddAppointmentModal();
+} catch (err) {
         console.error("Error saving appointment:", err);
         alert("Could not save appointment.");
     }
@@ -1239,54 +1293,56 @@ async function initClientDashboard(clientId, clientData) {
         `;
     };
 
-    const setupClientNav = (featureSettings) => {
-        const navContainer = document.getElementById('client-top-nav');
-        const contentSections = document.querySelectorAll('.client-tab-content');
-        
-        let navItems = [
-            { id: 'appointments', text: 'Appointments' },
-            { id: 'favorites', text: 'My Favorites' }
-        ];
+// REPLACE your old setupClientNav function with this one
+const setupClientNav = (featureSettings) => {
+    const navContainer = document.getElementById('client-top-nav');
+    const contentSections = document.querySelectorAll('.client-tab-content');
+    
+    // Add "Dashboard" to the beginning of the nav items
+    let navItems = [
+        { id: 'client-overview', text: 'Dashboard' },
+        { id: 'appointments', text: 'Appointments' },
+        { id: 'favorites', text: 'My Favorites' }
+    ];
 
-        if (featureSettings.showGiftCards) {
-            navItems.push({ id: 'gift-cards', text: 'My Gift Cards' });
-        }
-        if (featureSettings.showMemberships) {
-            navItems.push({ id: 'membership', text: 'My Membership' });
-        }
-        if (featureSettings.showRoyaltyCard) {
-            navItems.push({ id: 'royalty-card', text: 'Royalty Card' });
-        }
-        // --- ADD THE NEW "ACCOUNT SETTINGS" NAV ITEM ---
-        navItems.push({ id: 'account-settings', text: 'Account Settings' });
-        
+    if (featureSettings.showGiftCards) {
+        navItems.push({ id: 'gift-cards', text: 'My Gift Cards' });
+    }
+    if (featureSettings.showMemberships) {
+        navItems.push({ id: 'membership', text: 'My Membership' });
+    }
+    if (featureSettings.showRoyaltyCard) {
+        navItems.push({ id: 'royalty-card', text: 'Royalty Card' });
+    }
+    navItems.push({ id: 'account-settings', text: 'Account Settings' });
+    
+    contentSections.forEach(content => content.classList.add('hidden'));
+
+    navContainer.innerHTML = navItems.map(item => 
+        `<button class="top-nav-btn" data-target="${item.id}-content">${item.text}</button>`
+    ).join('');
+    
+    const navButtons = navContainer.querySelectorAll('.top-nav-btn');
+
+    navContainer.addEventListener('click', (e) => {
+        const button = e.target.closest('.top-nav-btn');
+        if (!button) return;
+
+        navButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+
         contentSections.forEach(content => content.classList.add('hidden'));
-
-        navContainer.innerHTML = navItems.map(item => 
-            `<button class="top-nav-btn" data-target="${item.id}-content">${item.text}</button>`
-        ).join('');
-        
-        const navButtons = navContainer.querySelectorAll('.top-nav-btn');
-
-        navContainer.addEventListener('click', (e) => {
-            const button = e.target.closest('.top-nav-btn');
-            if (!button) return;
-
-            navButtons.forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-
-            contentSections.forEach(content => content.classList.add('hidden'));
-            const targetId = button.dataset.target;
-            const targetContent = document.getElementById(targetId);
-            if (targetContent) {
-                targetContent.classList.remove('hidden');
-            }
-        });
-
-        if (navButtons.length > 0) {
-            navButtons[0].click();
+        const targetId = button.dataset.target;
+        const targetContent = document.getElementById(targetId);
+        if (targetContent) {
+            targetContent.classList.remove('hidden');
         }
-    };
+    });
+
+    if (navButtons.length > 0) {
+        navButtons[0].click(); // Click the first button (Dashboard) by default
+    }
+};
 
     const renderClientAppointments = (appointments) => {
         const container = document.getElementById('client-upcoming-appointments');
@@ -1303,6 +1359,83 @@ async function initClientDashboard(clientId, clientData) {
             container.appendChild(el);
         });
     };
+
+// PASTE these two new functions inside initClientDashboard
+
+const renderClientDashboardCharts = (history, appointments) => {
+    // 1. Calculate KPIs for the cards
+    document.getElementById('client-total-visits').textContent = history.length;
+    document.getElementById('client-last-visit').textContent = history.length > 0 ? history[0].checkOutTimestamp.toDate().toLocaleDateString() : 'N/A';
+
+    const upcomingAppointments = appointments.filter(a => a.appointmentTimestamp.toDate() > new Date()).sort((a,b) => a.appointmentTimestamp.seconds - b.appointmentTimestamp.seconds);
+    document.getElementById('client-next-appt').textContent = upcomingAppointments.length > 0 ? upcomingAppointments[0].appointmentTimestamp.toDate().toLocaleDateString() : 'None';
+
+    // 2. Process data for Spending Chart
+    const spendingByMonth = {};
+    let totalSpent = 0;
+    const serviceCounts = {};
+
+    history.forEach(visit => {
+        const visitDate = visit.checkOutTimestamp.toDate();
+        const monthKey = `${visitDate.getFullYear()}-${String(visitDate.getMonth() + 1).padStart(2, '0')}`;
+        
+        let visitTotal = 0;
+        const serviceNames = visit.services.split(', ').map(s => s.replace(/\s*\$\d+/, '').trim());
+
+        serviceNames.forEach(name => {
+            serviceCounts[name] = (serviceCounts[name] || 0) + 1;
+            const servicePrice = allServicesList.find(s => s.name === name)?.price || 0;
+            visitTotal += servicePrice;
+        });
+        
+        spendingByMonth[monthKey] = (spendingByMonth[monthKey] || 0) + visitTotal;
+        totalSpent += visitTotal;
+    });
+
+    document.getElementById('client-total-spent').textContent = `$${totalSpent.toFixed(2)}`;
+
+    const sortedMonths = Object.keys(spendingByMonth).sort();
+    const spendingLabels = sortedMonths.map(key => new Date(key + '-02').toLocaleString('default', { month: 'short', year: '2-digit' }));
+    const spendingData = sortedMonths.map(key => spendingByMonth[key]);
+
+    // 3. Render Spending Chart
+    const spendingCtx = document.getElementById('client-spending-chart')?.getContext('2d');
+    if (spendingCtx) {
+        const spendingConfig = {
+            labels: spendingLabels,
+            datasets: [{
+                label: 'Total Spent',
+                data: spendingData,
+                backgroundColor: 'rgba(219, 39, 119, 0.1)',
+                borderColor: 'rgba(219, 39, 119, 1)',
+                borderWidth: 2,
+                tension: 0.2,
+                fill: true
+            }]
+        };
+        clientSpendingChart = initializeChart(clientSpendingChart, spendingCtx, 'line', spendingConfig, { responsive: true, maintainAspectRatio: false });
+    }
+
+    // 4. Process and Render Services Chart
+    const sortedServices = Object.entries(serviceCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    const serviceLabels = sortedServices.map(entry => entry[0]);
+    const serviceData = sortedServices.map(entry => entry[1]);
+
+    const servicesCtx = document.getElementById('client-services-chart')?.getContext('2d');
+    if (servicesCtx) {
+        const servicesConfig = {
+            labels: serviceLabels,
+            datasets: [{
+                label: 'Service Count',
+                data: serviceData,
+                backgroundColor: colorPalette.map(c => c.bg),
+                borderColor: colorPalette.map(c => c.border),
+                borderWidth: 1
+            }]
+        };
+        clientServicesChart = initializeChart(clientServicesChart, servicesCtx, 'doughnut', servicesConfig, { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } });
+    }
+};
 
     const renderClientHistory = (history) => {
         const container = document.getElementById('client-appointment-history');
@@ -1337,10 +1470,14 @@ async function initClientDashboard(clientId, clientData) {
         document.getElementById('favorite-color').textContent = favColor;
     };
     
-    onSnapshot(query(collection(db, "appointments"), where("name", "==", clientData.name)), (snapshot) => {
-        const appointments = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
-        renderClientAppointments(appointments);
-    });
+// Inside initClientDashboard
+onSnapshot(query(collection(db, "appointments"), where("name", "==", clientData.name)), (snapshot) => {
+    const appointments = snapshot.docs.map(doc => ({...doc.data(), id: doc.id}));
+    renderClientAppointments(appointments);
+
+    // ADD THIS LINE
+    if (allFinishedClients.length > 0) renderClientDashboardCharts(allFinishedClients, appointments);
+});
 
     onSnapshot(query(collection(db, "finished_clients"), where("name", "==", clientData.name)), (snapshot) => {
         const history = snapshot.docs.map(doc => {
@@ -1358,6 +1495,10 @@ async function initClientDashboard(clientId, clientData) {
         allFinishedClients = history;
         renderClientHistory(history);
         calculateAndRenderFavorites(history);
+        // ADD THIS LINE - fetch current appointments to pass to the function
+    const currentAppointments = allAppointments.filter(a => a.name === clientData.name);
+    renderClientDashboardCharts(history, currentAppointments);
+
     }, (error) => {
         console.error("Error fetching client history:", error);
         const container = document.getElementById('client-appointment-history');
@@ -2007,9 +2148,14 @@ function initLandingPage() {
         };
 
         try {
+            const client = allClients.find(c => c.name === appointmentData.name); // Find client to get email
+
             await addDoc(collection(db, "appointments"), appointmentData);
             await sendBookingNotificationEmail(appointmentData);
-
+            // ADD THIS LINE for reminders
+             if (client && client.email) await sendAppointmentReminderEmail(appointmentData, client.email);
+             // For landing page, we don't have the client's email readily, so we can't send a reminder.
+            // This functionality will primarily be for clients booked through the admin panel.
             alert('Appointment booked successfully!');
             addAppointmentFormLanding.reset();
             step2.classList.add('hidden');
@@ -2324,6 +2470,47 @@ function initMainApp(userRole, userName) {
         }
     };
 
+
+    const renderHolidayCalendar = () => {
+        const grid = document.getElementById('holiday-calendar-grid');
+        const monthYearEl = document.getElementById('holiday-month-year');
+        if (!grid || !monthYearEl) return;
+
+        monthYearEl.textContent = new Date(holidayCalYear, holidayCalMonth).toLocaleString('default', { month: 'long', year: 'numeric' });
+        grid.innerHTML = '<div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>'; // Headers
+
+        const firstDay = new Date(holidayCalYear, holidayCalMonth, 1).getDay();
+        const daysInMonth = new Date(holidayCalYear, holidayCalMonth + 1, 0).getDate();
+
+        for (let i = 0; i < firstDay; i++) { grid.insertAdjacentHTML('beforeend', '<div></div>'); }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${holidayCalYear}-${String(holidayCalMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const isHoliday = holidaySettings.dates.includes(dateStr);
+            const isToday = new Date().toDateString() === new Date(holidayCalYear, holidayCalMonth, day).toDateString();
+            
+            const cell = document.createElement('div');
+            cell.textContent = day;
+            cell.dataset.date = dateStr;
+            cell.className = `day-cell ${isHoliday ? 'is-holiday' : ''} ${isToday ? 'is-today' : ''}`;
+            grid.appendChild(cell);
+        }
+    };
+
+    const renderHolidayList = () => {
+        const listEl = document.getElementById('holiday-list-admin');
+        if (!listEl) return;
+        const upcoming = holidaySettings.dates
+            .filter(d => new Date(d) >= new Date().setHours(0,0,0,0))
+            .sort();
+        
+        if (upcoming.length > 0) {
+            listEl.innerHTML = upcoming.map(d => `<div>${new Date(d+'T00:00:00').toLocaleDateString([], {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}</div>`).join('');
+        } else {
+            listEl.innerHTML = '<p class="text-gray-500">No upcoming closures scheduled.</p>';
+        }
+    };
+    
     // NEW Simplified Desktop Nav Listener
     topNav.addEventListener('click', (e) => {
         const button = e.target.closest('.top-nav-btn');
@@ -2372,34 +2559,41 @@ function initMainApp(userRole, userName) {
     const shareModal = document.getElementById('share-modal');
     // PASTE THIS CODE BLOCK
     const emailTemplatesForm = document.getElementById('email-templates-form');
-    if (emailTemplatesForm) {
-        getDoc(doc(db, "settings", "emailTemplates")).then(docSnap => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                document.getElementById('gift-card-subject').value = data.giftCardSubject || '';
-                document.getElementById('gift-card-body').value = data.giftCardBody || '';
-                document.getElementById('membership-subject').value = data.membershipSubject || '';
-                document.getElementById('membership-body').value = data.membershipBody || '';
-            }
-        });
+// REPLACE your old emailTemplatesForm listener with this one
+if (emailTemplatesForm) {
+    getDoc(doc(db, "settings", "emailTemplates")).then(docSnap => {
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            document.getElementById('gift-card-subject').value = data.giftCardSubject || '';
+            document.getElementById('gift-card-body').value = data.giftCardBody || '';
+            document.getElementById('membership-subject').value = data.membershipSubject || '';
+            document.getElementById('membership-body').value = data.membershipBody || '';
+            // New lines for reminder template
+            document.getElementById('reminder-subject').value = data.reminderSubject || '';
+            document.getElementById('reminder-body').value = data.reminderBody || '';
+        }
+    });
 
-        emailTemplatesForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const templateData = {
-                giftCardSubject: document.getElementById('gift-card-subject').value,
-                giftCardBody: document.getElementById('gift-card-body').value,
-                membershipSubject: document.getElementById('membership-subject').value,
-                membershipBody: document.getElementById('membership-body').value,
-            };
-            try {
-                await setDoc(doc(db, "settings", "emailTemplates"), templateData);
-                alert("Email templates saved successfully!");
-            } catch (error) {
-                console.error("Error saving email templates:", error);
-                alert("Could not save email templates.");
-            }
-        });
-    }
+    emailTemplatesForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const templateData = {
+            giftCardSubject: document.getElementById('gift-card-subject').value,
+            giftCardBody: document.getElementById('gift-card-body').value,
+            membershipSubject: document.getElementById('membership-subject').value,
+            membershipBody: document.getElementById('membership-body').value,
+            // New lines for reminder template
+            reminderSubject: document.getElementById('reminder-subject').value,
+            reminderBody: document.getElementById('reminder-body').value,
+        };
+        try {
+            await setDoc(doc(db, "settings", "emailTemplates"), templateData);
+            alert("Email templates saved successfully!");
+        } catch (error) {
+            console.error("Error saving email templates:", error);
+            alert("Could not save email templates.");
+        }
+    });
+}
     // PASTE THIS ENTIRE BLOCK inside your initMainApp function
 
     const royaltySettingsForm = document.getElementById('royalty-settings-form');
@@ -2928,66 +3122,12 @@ function initMainApp(userRole, userName) {
 
 // PASTE THIS inside initMainApp()
 
-onSnapshot(doc(db, "settings", "holidays"), (docSnap) => {
-    if (docSnap.exists()) {
-        holidaySettings = docSnap.data();
-    } else {
-        // If it doesn't exist, create it with defaults
-        setDoc(doc(db, "settings", "holidays"), holidaySettings);
-    }
-    // Re-render calendars if they are visible
-    if (currentUserRole === 'admin') {
-        renderHolidayCalendar();
-        renderHolidayList();
-    }
-    renderCalendar(currentYear, currentMonth, currentTechFilterCalendar);
-});
 
 // PASTE THIS ENTIRE BLOCK inside initMainApp()
 
 if (userRole === 'admin') {
     let holidayCalYear = new Date().getFullYear();
     let holidayCalMonth = new Date().getMonth();
-
-    const renderHolidayCalendar = () => {
-        const grid = document.getElementById('holiday-calendar-grid');
-        const monthYearEl = document.getElementById('holiday-month-year');
-        if (!grid || !monthYearEl) return;
-
-        monthYearEl.textContent = new Date(holidayCalYear, holidayCalMonth).toLocaleString('default', { month: 'long', year: 'numeric' });
-        grid.innerHTML = '<div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>'; // Headers
-
-        const firstDay = new Date(holidayCalYear, holidayCalMonth, 1).getDay();
-        const daysInMonth = new Date(holidayCalYear, holidayCalMonth + 1, 0).getDate();
-
-        for (let i = 0; i < firstDay; i++) { grid.insertAdjacentHTML('beforeend', '<div></div>'); }
-
-        for (let day = 1; day <= daysInMonth; day++) {
-            const dateStr = `${holidayCalYear}-${String(holidayCalMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const isHoliday = holidaySettings.dates.includes(dateStr);
-            const isToday = new Date().toDateString() === new Date(holidayCalYear, holidayCalMonth, day).toDateString();
-            
-            const cell = document.createElement('div');
-            cell.textContent = day;
-            cell.dataset.date = dateStr;
-            cell.className = `day-cell ${isHoliday ? 'is-holiday' : ''} ${isToday ? 'is-today' : ''}`;
-            grid.appendChild(cell);
-        }
-    };
-
-    const renderHolidayList = () => {
-        const listEl = document.getElementById('holiday-list-admin');
-        if (!listEl) return;
-        const upcoming = holidaySettings.dates
-            .filter(d => new Date(d) >= new Date().setHours(0,0,0,0))
-            .sort();
-        
-        if (upcoming.length > 0) {
-            listEl.innerHTML = upcoming.map(d => `<div>${new Date(d+'T00:00:00').toLocaleDateString([], {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}</div>`).join('');
-        } else {
-            listEl.innerHTML = '<p class="text-gray-500">No upcoming closures scheduled.</p>';
-        }
-    };
 
     document.getElementById('prev-holiday-month-btn')?.addEventListener('click', () => {
         holidayCalMonth--;
@@ -3062,7 +3202,20 @@ document.getElementById('appointment-datetime-landing')?.addEventListener('input
 document.getElementById('appointment-datetime')?.addEventListener('input', checkDateForHoliday);
 
 
-
+onSnapshot(doc(db, "settings", "holidays"), (docSnap) => {
+    if (docSnap.exists()) {
+        holidaySettings = docSnap.data();
+    } else {
+        // If it doesn't exist, create it with defaults
+        setDoc(doc(db, "settings", "holidays"), holidaySettings);
+    }
+    // Re-render calendars if they are visible
+    if (currentUserRole === 'admin') {
+        renderHolidayCalendar();
+        renderHolidayList();
+    }
+    renderCalendar(currentYear, currentMonth, currentTechFilterCalendar);
+});
 
         // END OF initMainApp }
     }
@@ -7066,6 +7219,77 @@ calendarGrid.addEventListener('click', (e) => {
     const promotionsTableBody = document.querySelector('#promotions-table tbody');
     const promotionsContainerLanding = document.getElementById('promotions-container-landing');
 
+// PASTE THIS ENTIRE BLOCK inside initMainApp()
+
+const emailMarketingModal = document.getElementById('email-marketing-modal');
+const emailMarketingForm = document.getElementById('email-marketing-form');
+
+const openEmailMarketingModal = (promo = null) => {
+    emailMarketingForm.reset();
+    if (promo) {
+        document.getElementById('email-marketing-modal-title').textContent = `Email Campaign for "${promo.title}"`;
+        document.getElementById('email-marketing-subject').value = promo.title;
+        document.getElementById('email-marketing-body').value = promo.description;
+    } else {
+        document.getElementById('email-marketing-modal-title').textContent = 'Create Email Campaign';
+    }
+    emailMarketingModal.classList.remove('hidden');
+};
+
+const closeEmailMarketingModal = () => emailMarketingModal.classList.add('hidden');
+
+document.getElementById('open-email-marketing-btn').addEventListener('click', () => openEmailMarketingModal());
+document.getElementById('close-email-marketing-modal-btn').addEventListener('click', closeEmailMarketingModal);
+emailMarketingModal.querySelector('.modal-overlay').addEventListener('click', closeEmailMarketingModal);
+
+promotionsTableBody.addEventListener('click', (e) => {
+    const emailBtn = e.target.closest('.email-promo-btn');
+    if (emailBtn) {
+        const promo = allPromotions.find(p => p.id === emailBtn.dataset.id);
+        if (promo) openEmailMarketingModal(promo);
+    }
+});
+
+emailMarketingForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const subject = document.getElementById('email-marketing-subject').value;
+    const body = document.getElementById('email-marketing-body').value;
+
+    const clientsWithEmail = allClients.filter(c => c.email);
+
+    if (clientsWithEmail.length === 0) {
+        alert("No clients with email addresses found.");
+        return;
+    }
+
+    if (!confirm(`This will send an email to ${clientsWithEmail.length} clients. Are you sure you want to proceed?`)) {
+        return;
+    }
+
+    try {
+        const batch = writeBatch(db);
+        clientsWithEmail.forEach(client => {
+            const mailRef = doc(collection(db, "mail"));
+            const personalizedBody = body.replace(/{clientName}/g, client.name).replace(/\n/g, '<br>');
+            batch.set(mailRef, {
+                to: client.email,
+                message: {
+                    subject: subject,
+                    html: personalizedBody
+                }
+            });
+        });
+
+        await batch.commit();
+        alert(`Email campaign has been queued for ${clientsWithEmail.length} clients!`);
+        closeEmailMarketingModal();
+
+    } catch (error) {
+        console.error("Error sending email campaign:", error);
+        alert("Could not send the email campaign. Please check the console for details.");
+    }
+});
+
     const renderPromotionsAdminTable = (promotions) => {
         promotionsTableBody.innerHTML = '';
         const now = new Date();
@@ -7077,8 +7301,17 @@ calendarGrid.addEventListener('click', (e) => {
             else if (now > endDate) { status = 'Expired'; statusColor = 'text-gray-500'; }
             else { status = 'Active'; statusColor = 'text-green-600'; }
             const row = promotionsTableBody.insertRow();
-            row.innerHTML = `<td class="px-6 py-4">${promo.title}</td><td class="px-6 py-4">${promo.description}</td><td class="px-6 py-4">${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</td><td class="px-6 py-4 font-bold ${statusColor}">${status}</td><td class="px-6 py-4 text-center space-x-2"><button data-id="${promo.id}" class="send-promo-notification-btn text-purple-500" title="Send Notification"><i class="fas fa-paper-plane"></i></button><button data-id="${promo.id}" class="edit-promotion-btn text-blue-500"><i class="fas fa-edit"></i></button><button data-id="${promo.id}" class="delete-promotion-btn text-red-500"><i class="fas fa-trash"></i></button></td>`;
-        });
+        // Inside renderPromotionsAdminTable, find the row.innerHTML assignment
+// and REPLACE the actionButtons part with this
+let actionButtons = `
+    <button data-id="${promo.id}" class="send-promo-notification-btn text-purple-500" title="Send In-App Notification"><i class="fas fa-bell"></i></button>
+    <button data-id="${promo.id}" class="email-promo-btn text-blue-500" title="Create Email Campaign"><i class="fas fa-paper-plane"></i></button>
+    <button data-id="${promo.id}" class="edit-promotion-btn text-yellow-500"><i class="fas fa-edit"></i></button>
+    <button data-id="${promo.id}" class="delete-promotion-btn text-red-500"><i class="fas fa-trash"></i></button>
+`;
+row.innerHTML = `<td class="px-6 py-4">${promo.title}</td><td class="px-6 py-4">${promo.description}</td><td class="px-6 py-4">${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}</td><td class="px-6 py-4 font-bold ${statusColor}">${status}</td><td class="px-6 py-4 text-center space-x-3">${actionButtons}</td>`;
+
+         });
     };
 
 
