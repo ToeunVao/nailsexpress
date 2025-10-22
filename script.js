@@ -3218,7 +3218,7 @@ if (!proposedStartTime) {
         // 1. Check if the global list is empty. If so, fetch data synchronously.
         //    (Your existing code already handles this well - included for completeness)
         if (!localServicesList || localServicesList.length === 0) {
-            addNotification('info', "Loading service data, please wait...");
+            //addNotification('info', "Loading service data, please wait...");
             try {
                 const [servicesSnapshot, settingsDoc] = await Promise.all([
                     getDocs(collection(db, "services")),
@@ -3268,12 +3268,12 @@ if (!proposedStartTime) {
         // Disable buttons during check
         if (submitBtnLanding) submitBtnLanding.disabled = true;
         if (prevBtnLanding) prevBtnLanding.disabled = true;
-        addNotification('info', "Checking technician availability...");
+       // addNotification('info', "Checking technician availability...");
 
         try { // Wrap the check and save logic in a try...finally block
-            console.log("Checking availability for:", { technician, bookingDate, totalDuration });
+            //console.log("Checking availability for:", { technician, bookingDate, totalDuration });
             const availabilityCheck = await isTechnicianAvailable(technician, bookingDate, totalDuration);
-            console.log("Availability check result:", availabilityCheck);
+            //console.log("Availability check result:", availabilityCheck);
 
             if (!availabilityCheck.available) {
                 // A conflict was found, so show the waitlist option
@@ -3325,7 +3325,7 @@ if (!proposedStartTime) {
             }
 
         } catch (error) {
-            console.error("Error booking appointment or checking availability:", error);
+           // console.error("Error booking appointment or checking availability:", error);
             addNotification('error', "Could not complete booking. Please try again.");
             // Ensure UI is reset correctly on error
             waitlistCtaLanding.classList.add('hidden');
