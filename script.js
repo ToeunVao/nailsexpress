@@ -27,7 +27,6 @@ const appContent = document.getElementById('app-content');
 const clientDashboardContent = document.getElementById('client-dashboard-content');
 const policyModal = document.getElementById('policy-modal');
 const addAppointmentModal = document.getElementById('add-appointment-modal');
-const addAppointmentForm = document.getElementById('add-appointment-form');
 const promotionsContainerLanding = document.getElementById('promotions-container-landing');
 const serviceModal = document.getElementById('service-modal');
 const modalTitle = document.getElementById('modal-title');
@@ -88,6 +87,8 @@ const lightboxDescription = document.getElementById('lightbox-description');
 let currentLightboxIndex = 0;
 let allFeaturedReviews = [];
 let pendingWaitlistData = null;
+let globalOnlineGcStartNumber = 1000; // Default start
+let globalLastUsedOnlineGcNumber = 0; // Will be loaded from settings
 
 const giftCardBackgrounds = {
     'General': ['https://img.freepik.com/premium-photo/women-s-legs-with-bright-pedicure-pink-background-chamomile-flower-decoration-spa-pedicure-skincare-concept_256259-166.jpg', 'https://png.pngtree.com/thumb_back/fh260/background/20250205/pngtree-soft-pastel-floral-design-light-blue-background-image_16896113.jpg', 'https://files.123freevectors.com/wp-content/original/119522-abstract-pastel-pink-background-image.jpg'],
@@ -95,48 +96,6 @@ const giftCardBackgrounds = {
     'Valentines': ['https://slidescorner.com/wp-content/uploads/2023/02/01-Cute-Pink-Hearts-Valentines-Day-Background-Aesthetic-FREE-by-SlidesCorner.com_.jpg', 'https://images.rawpixel.com/image_800/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIzLTExL2xhdXJhc3RlZmFubzI2Nl9waW5rX3ZhbGVudGluZXNfZGF5X2JhY2tncm91bmRfd2l0aF9oZWFydHNfYm9rZV9kZTAzMWNjMy05MmJmLTQ2NzAtYjliZC0wN2Y2ZDkzYTM1ZDBfMS5qcGc.jpg', 'https://cms-artifacts.artlist.io/content/motion_array/1390934/Valentines_Day_Romantic_Background_high_resolution_preview_1390934.jpg?Expires=2037527646045&Key-Pair-Id=K2ZDLYDZI2R1DF&Signature=fCbOC95RTvVc0Ld-pyxhFN5gzuS-VqGG1UYsxvu48kx8A6rdAPf~gjuv0sVBrV~0p0~2u99BYafKT5oRUsRbluBt9c8eH4k~YXVcT2KdNrQUjVD-wKS2qTcgdp8aVDYCCILMkFT4hrWRWzKlsjjgoBe7mAIaHV3cc2iqMErb-qGWlk8jX0J8vLfCvXH~daNNPMqO7tssbeYiHVrD7y89fbJ0YRVfR6wwb1AoBLseF8-7IsAZe8Hh2bn-kUEp8KocRZ4X7DBTFD~9Ho-E0HeRym4oZ37u3BdLAqY-y0a1HdIf3dOXXkF6X~UQpMlPtxTvWj4857QSez20b1mhnBhpsQ__'],
     'Birthday': ['https://marketplace.canva.com/EAGhbM7XcuY/1/0/1600w/canva-white-and-blue-birthday-background-card-yqLk4e5MQjY.jpg', 'https://images.rawpixel.com/image_800/czNmcy1wcml2YXRlL3Jhd3BpeGVsX2ltYWdlcy93ZWJzaXRlX2NvbnRlbnQvbHIvam9iNTE2LW51bm9vbi0xMC5qcGc.jpg', 'https://www.creativefabrica.com/wp-content/uploads/2021/08/30/Happy-birthday-background-design-Graphics-16518598-1-1-580x430.jpg']
 };
-
-// Converts a 'YYYY-MM-DDTHH:mm' string (from datetime-local input)
-// into an ISO 8601 string *with* the local timezone offset appended.
-function formatLocalToISOWithOffset(localDateTimeString) {
-    if (!localDateTimeString) return null; // Handle empty input
-
-    // 1. Create a Date object. JS assumes the input string is in the *local* timezone.
-    const localDate = new Date(localDateTimeString);
-
-    // 2. Check if the date is valid
-    if (isNaN(localDate.getTime())) {
-        console.error("Invalid date string provided:", localDateTimeString);
-        return null; // Or handle the error appropriately
-    }
-
-    // 3. Get the timezone offset in minutes for *this specific date*
-    //    (negative for zones ahead of UTC, positive for behind)
-    const offsetMinutes = localDate.getTimezoneOffset();
-
-    // 4. Calculate the offset parts
-    const offsetSign = offsetMinutes > 0 ? '-' : '+'; // Note: Opposite sign needed for ISO format
-    const absOffsetMinutes = Math.abs(offsetMinutes);
-    const offsetHours = Math.floor(absOffsetMinutes / 60);
-    const offsetMinutesPart = absOffsetMinutes % 60;
-
-    // 5. Format the offset string (e.g., "-04:00" or "+07:00")
-    const offsetString = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMinutesPart).padStart(2, '0')}`;
-
-    // 6. Combine the local date/time string with the calculated offset
-    //    Format: YYYY-MM-DDTHH:mm:ss.sssOFFSET (e.g., 2025-10-22T11:11:00.000-04:00)
-    //    We manually reconstruct to ensure the correct local time parts are kept.
-    const year = localDate.getFullYear();
-    const month = String(localDate.getMonth() + 1).padStart(2, '0');
-    const day = String(localDate.getDate()).padStart(2, '0');
-    const hours = String(localDate.getHours()).padStart(2, '0');
-    const minutes = String(localDate.getMinutes()).padStart(2, '0');
-    const seconds = String(localDate.getSeconds()).padStart(2, '0');
-    // Optional: Add milliseconds if needed: const ms = String(localDate.getMilliseconds()).padStart(3, '0');
-
-    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${offsetString}`;
-    // Or without seconds: return `${year}-${month}-${day}T${hours}:${minutes}${offsetString}`;
-}
 
 // Global variable to store chart instances (optional, but useful)
     const initializeChart = (chartInstance, ctx, type, data, options) => {
@@ -245,19 +204,23 @@ function initializeGlobalListeners() {
 
 // ---
 // --- PRIMARY AUTHENTICATION ROUTER ---
-// ---
 onAuthStateChanged(auth, async (user) => {
     try {
         if (user) {
-            initializeGlobalListeners(); // It's now safe to attach listeners
+            // Common setup for any authenticated user
+            initializeGlobalListeners(); // Ensures Firestore listeners are ready
             currentUserId = user.uid;
 
+            // Load essential settings
             const hoursDoc = await getDoc(doc(db, "settings", "salonHours"));
             if (hoursDoc.exists()) {
                 salonHours = hoursDoc.data();
             }
 
+            // --- Route based on user type ---
+
             if (user.isAnonymous) {
+                // ANONYMOUS USER: Show Landing Page
                 loadingScreen.style.display = 'none';
                 appContent.style.display = 'none';
                 clientDashboardContent.style.display = 'none';
@@ -267,120 +230,188 @@ onAuthStateChanged(auth, async (user) => {
                     landingPageInitialized = true;
                 }
             } else {
-                const userDoc = await getDoc(doc(db, "users", user.uid));
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
+                // AUTHENTICATED (Non-Anonymous) USER: Check if Admin/Staff or Client
+
+                // 1. Check if it's an Admin or Staff user
+                const userDocRef = doc(db, "users", user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+
+                if (userDocSnap.exists()) {
+                    // ADMIN/STAFF USER: Initialize Main App
+                    const userData = userDocSnap.data();
                     currentUserRole = userData.role;
                     currentUserName = userData.name;
+
                     loadingScreen.style.display = 'none';
                     landingPageContent.style.display = 'none';
                     clientDashboardContent.style.display = 'none';
                     appContent.style.display = 'block';
+
                     if (!mainAppInitialized) {
                         initMainApp(currentUserRole, currentUserName);
                         mainAppInitialized = true;
                     }
                 } else {
-                    const clientDoc = await getDoc(doc(db, "clients", user.uid));
-                    if (clientDoc.exists()) {
+                    // Not Admin/Staff, check if it's an existing Client
+                    const clientDocRef = doc(db, "clients", user.uid);
+                    const clientDocSnap = await getDoc(clientDocRef);
+
+                    if (clientDocSnap.exists()) {
+                        // EXISTING CLIENT USER: Initialize Client Dashboard
                         loadingScreen.style.display = 'none';
                         landingPageContent.style.display = 'none';
                         appContent.style.display = 'none';
                         clientDashboardContent.style.display = 'block';
-                        initClientDashboard(user.uid, clientDoc.data());
+                        // Initialize dashboard with existing client data
+                        initClientDashboard(user.uid, clientDocSnap.data());
                     } else {
+                        // --- NEW CLIENT CREATION FLOW ---
+                        // This user just signed up, likely triggered by an action.
+                        // Check sessionStorage for pending actions.
+
                         const pendingPurchaseJSON = sessionStorage.getItem('pendingGiftCardPurchase');
                         const pendingMembershipId = sessionStorage.getItem('pendingMembershipPurchase');
                         const pendingRoyaltyJSON = sessionStorage.getItem('pendingRoyaltyCard');
-                        let newClientData;
+                        const genericSignupJSON = sessionStorage.getItem('signupDetails'); // For generic signups
 
+                        let newClientData = { role: 'client', createdAt: serverTimestamp() };
+                        let signupDetails = null;
+                        let actionTaken = false; // Flag to track if an action was processed
+
+                        // Determine signup source and get details
                         if (pendingPurchaseJSON) {
-                            const details = JSON.parse(pendingPurchaseJSON);
-                            newClientData = { name: details.buyerName, email: details.buyerEmail, phone: details.buyerPhone, role: 'client', createdAt: serverTimestamp() };
-                            await setDoc(doc(db, "clients", user.uid), newClientData);
-
-                            // ***** START OF THE FIX *****
-                            const batch = writeBatch(db);
-                            const expiryDate = new Date();
-                            expiryDate.setMonth(expiryDate.getMonth() + 6); // Or your default expiry
-
-                            // Use details from sessionStorage
-                            const buyerInfo = {
-                                name: details.buyerName,
-                                email: details.buyerEmail,
-                                phone: details.buyerPhone,
-                            };
-
-                            for (let i = 0; i < details.quantity; i++) {
-                                const cardData = {
-                                    amount: details.amount,
-                                    balance: details.amount,
-                                    history: [],
-                                    recipientName: details.recipientName || buyerInfo.name, // Use recipient or buyer name
-                                    senderName: details.senderName || buyerInfo.name,     // Use sender or buyer name
-                                    backgroundUrl: details.backgroundUrl, // Get URL from details
-                                    code: `GC-${Date.now()}-${i}`,
-                                    status: 'Pending', // <-- Set status to Pending
-                                    type: 'E-Gift', // Or determine type as needed
-                                    createdBy: user.uid, // <-- Associate with the new user's ID
-                                    buyerInfo: buyerInfo,
-                                    createdAt: serverTimestamp(),
-                                    expiresAt: Timestamp.fromDate(expiryDate) // Set expiry if needed
-                                };
-                                const newCardRef = doc(collection(db, "gift_cards"));
-                                batch.set(newCardRef, cardData);
-                            }
-                            await batch.commit(); // Commit the batch to save the gift cards
-                            // ***** END OF THE FIX *****
-
-                            // ... gift card creation logic ...
-                            await sendGiftCardConfirmationEmail(details);
-                            sessionStorage.removeItem('pendingGiftCardPurchase');
-                            addNotification('success' , "Success! Your account has been created and your gift card request has been sent.");
+                            signupDetails = JSON.parse(pendingPurchaseJSON);
+                            newClientData.name = signupDetails.buyerName;
+                            newClientData.email = signupDetails.buyerEmail;
+                            newClientData.phone = signupDetails.buyerPhone;
                         } else if (pendingMembershipId) {
-                            const details = JSON.parse(sessionStorage.getItem('signupDetails'));
+                            signupDetails = JSON.parse(genericSignupJSON); // Membership uses generic signup details
+                            newClientData.name = signupDetails.name;
+                            newClientData.email = signupDetails.email;
+                            newClientData.phone = signupDetails.phone;
                             const tier = allMembershipTiers.find(t => t.id === pendingMembershipId);
-                            newClientData = { name: details.name, email: details.email, phone: details.phone, role: 'client', createdAt: serverTimestamp(), membership: { tierId: pendingMembershipId, tierName: tier?.name || 'Unknown', startDate: serverTimestamp(), status: 'Pending' } };
-                            await setDoc(doc(db, "clients", user.uid), newClientData);
-                            await sendMembershipConfirmationEmail({ ...details, tierName: tier?.name || 'Unknown' });
-                            sessionStorage.removeItem('pendingMembershipPurchase');
-                            sessionStorage.removeItem('signupDetails');
-                           addNotification('success' , "Welcome! Your account and membership request have been sent.");
+                            newClientData.membership = {
+                                tierId: pendingMembershipId,
+                                tierName: tier?.name || 'Unknown Tier',
+                                startDate: serverTimestamp(),
+                                status: 'Pending' // Set initial status
+                            };
                         } else if (pendingRoyaltyJSON) {
-                            const details = JSON.parse(pendingRoyaltyJSON);
-                            newClientData = { name: details.name, email: details.email, phone: details.phone, role: 'client', createdAt: serverTimestamp(), royaltyCard: { visits: 0, lastVisit: null } };
-                            await setDoc(doc(db, "clients", user.uid), newClientData);
-                            sessionStorage.removeItem('pendingRoyaltyCard');
-                           addNotification('success' , "Welcome! Your Royalty Card is active. We'll see you soon!");
-                        } else {
-                            const details = JSON.parse(sessionStorage.getItem('signupDetails'));
-                            if (details) {
-                                newClientData = { name: details.name, email: details.email, phone: details.phone, role: 'client', createdAt: serverTimestamp() };
-                                await setDoc(doc(db, "clients", user.uid), newClientData);
-                                sessionStorage.removeItem('signupDetails');
-                            } else {
-                                console.error("New user with no client doc and no pending action.");
-                                await signOut(auth);
-                                return;
-                            }
+                            signupDetails = JSON.parse(pendingRoyaltyJSON);
+                            newClientData.name = signupDetails.name;
+                            newClientData.email = signupDetails.email;
+                            newClientData.phone = signupDetails.phone;
+                            newClientData.royaltyCard = { visits: 0, lastVisit: null };
+                        } else if (genericSignupJSON) {
+                            signupDetails = JSON.parse(genericSignupJSON);
+                            newClientData.name = signupDetails.name;
+                            newClientData.email = signupDetails.email;
+                            newClientData.phone = signupDetails.phone; // Assuming phone was stored
                         }
 
-                        loadingScreen.style.display = 'none';
-                        landingPageContent.style.display = 'none';
-                        appContent.style.display = 'none';
-                        clientDashboardContent.style.display = 'block';
-                        initClientDashboard(user.uid, newClientData);
+                        // If we have details, create the client document
+                        if (signupDetails) {
+                            await setDoc(clientDocRef, newClientData); // Create the client document
+
+                            // Perform action-specific logic AFTER client creation
+                            if (pendingPurchaseJSON) {
+                                // Create Gift Card(s) using details from sessionStorage
+                                if (signupDetails.generatedCodes && signupDetails.generatedCodes.length === signupDetails.quantity) {
+                                    const batch = writeBatch(db);
+                                    const expiryDate = new Date();
+                                    expiryDate.setMonth(expiryDate.getMonth() + 6); // Example expiry
+                                    const buyerInfo = { name: signupDetails.buyerName, email: signupDetails.buyerEmail, phone: signupDetails.buyerPhone };
+
+                                    signupDetails.generatedCodes.forEach((code) => {
+                                        const cardData = {
+                                            amount: signupDetails.amount,
+                                            balance: signupDetails.amount,
+                                            history: [],
+                                            recipientName: signupDetails.recipientName,
+                                            senderName: signupDetails.senderName,
+                                            backgroundUrl: signupDetails.backgroundUrl,
+                                            code: code,
+                                            status: 'Pending', // Initial status
+                                            type: 'E-Gift',
+                                            createdBy: user.uid, // Link to the new client
+                                            buyerInfo: buyerInfo,
+                                            createdAt: serverTimestamp(),
+                                            expiresAt: Timestamp.fromDate(expiryDate)
+                                        };
+                                        const newCardRef = doc(collection(db, "gift_cards"));
+                                        batch.set(newCardRef, cardData);
+                                    });
+
+                                    // Update the last used online GC number in settings
+                                    const settingsRef = doc(db, "settings", "ecommerce");
+                                    batch.set(settingsRef, { lastUsedOnlineGcNumber: signupDetails.finalLastNumber }, { merge: true });
+
+                                    await batch.commit();
+                                    await sendGiftCardConfirmationEmail(signupDetails);
+                                    addNotification('success', "Account created & gift card request sent!");
+                                } else {
+                                    console.error("Gift card code generation failed during signup.");
+                                    addNotification('error', "Account created, but failed to process gift card request.");
+                                }
+                                sessionStorage.removeItem('pendingGiftCardPurchase');
+                                actionTaken = true;
+                            } else if (pendingMembershipId) {
+                                await sendMembershipConfirmationEmail({ ...signupDetails, tierName: newClientData.membership.tierName });
+                                addNotification('success', "Welcome! Account created & membership request sent.");
+                                sessionStorage.removeItem('pendingMembershipPurchase');
+                                actionTaken = true;
+                            } else if (pendingRoyaltyJSON) {
+                                addNotification('success', "Welcome! Your Royalty Card account is active.");
+                                sessionStorage.removeItem('pendingRoyaltyCard');
+                                actionTaken = true;
+                            } else if (genericSignupJSON) {
+                                // Just a generic signup, no further action needed besides client creation
+                                addNotification('success', `Welcome, ${signupDetails.name}! Your account is ready.`);
+                                actionTaken = true;
+                            }
+
+                            // Clear generic signup details if used
+                            sessionStorage.removeItem('signupDetails');
+
+                            // Initialize the dashboard for the newly created client
+                            loadingScreen.style.display = 'none';
+                            landingPageContent.style.display = 'none';
+                            appContent.style.display = 'none';
+                            clientDashboardContent.style.display = 'block';
+                            initClientDashboard(user.uid, newClientData);
+
+                        } else {
+                            // Edge Case: User authenticated but has no user/client doc and no pending action in session.
+                            console.error("New user detected, but no client document exists and no pending action found in sessionStorage. Cannot determine role.");
+                            addNotification('error', "Account created, but initial setup failed. Please contact support.");
+                            // Sign out to prevent being stuck in an invalid state.
+                            await signOut(auth);
+                            // Redirect to landing or show error message
+                            loadingScreen.style.display = 'none';
+                            landingPageContent.style.display = 'block'; // Go back to landing
+                            appContent.style.display = 'none';
+                            clientDashboardContent.style.display = 'none';
+                            return; // Stop further execution
+                        }
                     }
                 }
             }
         } else {
+            // NO USER: Sign in anonymously to allow landing page interaction
             signInAnonymously(auth).catch((error) => {
                 console.error("Initial anonymous sign-in failed:", error);
+                // Handle failure (e.g., show error message on loading screen)
+                loadingScreen.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold text-red-700">Initialization Error</h2><p>Could not start the application anonymously. Please check your connection or browser settings.</p></div>`;
             });
         }
     } catch (error) {
-        console.error("Authentication Error:", error);
-        loadingScreen.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold text-red-700">Connection Error</h2><p>Could not connect to services. Please check your internet connection and refresh the page.</p><p class="text-xs text-gray-400 mt-4">Error: ${error.message}</p></div>`;
+        // --- General Authentication Error Handling ---
+        console.error("Authentication State Error:", error);
+        loadingScreen.innerHTML = `<div class="text-center"><h2 class="text-3xl font-bold text-red-700">Authentication Error</h2><p>An error occurred during authentication. Please refresh the page.</p><p class="text-xs text-gray-400 mt-4">Error: ${error.message}</p></div>`;
+        // Ensure other content areas are hidden
+        appContent.style.display = 'none';
+        clientDashboardContent.style.display = 'none';
+        landingPageContent.style.display = 'none';
     }
 });
 
@@ -394,6 +425,15 @@ onSnapshot(doc(db, "settings", "ecommerce"), (docSnap) => {
         const data = docSnap.data();
         globalTaxRate = data.taxRate || 0; 
         globalShippingFee = data.shippingFee || 0;
+        // --- FIX: Load online GC settings ---
+        globalOnlineGcStartNumber = data.onlineGcStartNumber || 1000;
+        globalLastUsedOnlineGcNumber = data.lastUsedOnlineGcNumber || 0; // Load last used
+        // Update display in admin settings
+        const startNumInput = document.getElementById('online-gc-start-number');
+        const lastUsedDisplay = document.getElementById('last-used-online-gc-display');
+        if (startNumInput) startNumInput.value = globalOnlineGcStartNumber;
+        if (lastUsedDisplay) lastUsedDisplay.textContent = globalLastUsedOnlineGcNumber > 0 ? globalLastUsedOnlineGcNumber : 'Not set';
+        // --- End fix ---
 
         // Update Admin Panel fields if they exist
         const adminTaxRateEl = document.getElementById('admin-tax-rate');
@@ -412,7 +452,12 @@ onSnapshot(doc(db, "settings", "ecommerce"), (docSnap) => {
 
     } else {
         // Initialize default settings if document doesn't exist
-        setDoc(doc(db, "settings", "ecommerce"), { taxRate: 0.00, shippingFee: 0.00 }, { merge: true });
+        setDoc(doc(db, "settings", "ecommerce"), {
+             taxRate: 0.00,
+             shippingFee: 0.00,
+             onlineGcStartNumber: 1000, // Default start
+             lastUsedOnlineGcNumber: 0
+        }, { merge: true });
     }
 });
 
@@ -695,6 +740,7 @@ const getLocalDateString = (date = new Date()) => {
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 };
+
 // --- Cart Persistence Functions ---
 
 // --- Cart Persistence Functions (Use 'function' for Hoisting) ---
@@ -1138,182 +1184,303 @@ document.getElementById('appointment-phone').addEventListener('input', (e) => {
      }
 });
 
-addAppointmentForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    // Get the value from the input (e.g., '2025-10-22T11:11')
-const localDateTimeString = document.getElementById('appointment-datetime').value; // Or 'appointment-datetime-landing' for landing page
+// --- END OF FUNCTION BODY ---
+// Ensure you are selecting the correct form for the ADMIN modal
+const addAppointmentForm = document.getElementById('add-appointment-form'); 
 
-// Convert it to ISO format *with* the offset
-const proposedStartTime = formatLocalToISOWithOffset(localDateTimeString);
+if (addAppointmentForm) {
+    addAppointmentForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-// Check if the conversion was successful before proceeding
-if (!proposedStartTime) {
-    alert("Invalid date/time selected. Please check your input.");
-    return; // Stop the submission if the date was invalid
-}
+        // --- 1. Reset UI State at start of submission ---
+        const submitBtn = document.getElementById('add-appointment-submit-btn');
+        const waitlistCta = document.getElementById('waitlist-cta');
+        const waitlistMsg = document.getElementById('waitlist-message');
+        
+        if (waitlistCta) waitlistCta.classList.add('hidden');
+        if (submitBtn) submitBtn.classList.remove('hidden');
+        pendingWaitlistData = null; 
 
-// Now, 'proposedStartTime' (e.g., "2025-10-22T11:11:00-04:00") is ready
-// to be sent to your Cloud Function in the request body.
-// ... rest of your code to call the checkAvailability function ...
 
-    const bookingDate = new Date(datetimeString);
-    const validation = isBookingTimeValid(bookingDate);
-    if (!validation.valid) {
-        alert(validation.message);
-        return;
-    }
-
-    const technician = document.getElementById('appointment-technician-select').value;
-    const serviceName = document.getElementById('appointment-services').value.split(' $')[0].trim();
-    const service = allServicesList.find(s => s.name === serviceName);
-    const serviceDuration = service ? service.duration : bookingSettings.defaultDuration;
-
-// Availability Check
-const availabilityCheck = isTechnicianAvailable(technician, bookingDate, serviceDuration);
-if (!availabilityCheck.available) {
-    // Store the data for the waitlist button to use
-    pendingWaitlistData = {
-        clientName: document.getElementById('appointment-client-name').value,
-        clientPhone: document.getElementById('appointment-phone').value,
-        services: [document.getElementById('appointment-services').value],
-        technician: technician, // Use the 'technician' variable we already have
-        date: datetimeString.split('T')[0]
-    };
-    // Show the waitlist UI
-    document.getElementById('waitlist-message').textContent = availabilityCheck.message;
-    document.getElementById('waitlist-cta').classList.remove('hidden');
-    document.getElementById('add-appointment-submit-btn').classList.add('hidden');
-    return; // Stop the original booking
-}
-    // --- END OF THE NEW CHECK ---
-
-    const appointmentData = {
-        name: document.getElementById('appointment-client-name').value,
-        phone: document.getElementById('appointment-phone').value,
-        email: document.getElementById('appointment-email').value,
-        people: document.getElementById('appointment-people').value,
-        bookingType: document.getElementById('appointment-booking-type').value,
-        services: [document.getElementById('appointment-services').value],
-        technician: technician,
-        notes: document.getElementById('appointment-notes').value,
-        appointmentTimestamp: Timestamp.fromDate(bookingDate)
-    };
-
-    const appointmentId = document.getElementById('edit-appointment-id').value;
-    
-    try {
-        if (appointmentId) {
-            await updateDoc(doc(db, "appointments", appointmentId), appointmentData);
-            addNotification('success' , "Appointment updated successfully!");
-        } else {
-            const docRef = await addDoc(collection(db, "appointments"), appointmentData);
-            await sendBookingNotificationEmail(appointmentData);
-            
-            if (appointmentData.email) {
-                await sendAppointmentReminderEmail(appointmentData, appointmentData.email);
-            }
-            addNotification('success' , "Appointment saved successfully!");
+        // --- 2. Get Date/Time ---
+        const localDateTimeInput = document.getElementById('appointment-datetime');
+        
+        if (!localDateTimeInput || !localDateTimeInput.value) {
+            addNotification('error', 'Please select a date and time.');
+            return;
         }
-        closeAddAppointmentModal();
-    } catch (err) {
-        console.error("Error saving appointment:", err);
-        alert("Could not save appointment.");
-    }
-});
+        
+        const proposedStartTime = localDateTimeInput.value; 
 
+        if (!proposedStartTime) {
+            addNotification('error', "Invalid date/time selected.");
+            return;
+        }
+        
+        const bookingDate = new Date(proposedStartTime);
+        // --- End Date/Time ---
+
+
+        // --- 3. Validate Salon Hours & Minimum Notice ---
+        const validation = isBookingTimeValid(bookingDate);
+        if (!validation.valid) {
+            addNotification('error', validation.message);
+            return;
+        }
+
+
+        // --- 4. Get Technician and Services (Allow zero services) ---
+        const technicianSelect = document.getElementById('appointment-technician-select');
+        const servicesInput = document.getElementById('appointment-services'); 
+
+        if (!technicianSelect || !servicesInput) {
+             addNotification('error', 'Form elements missing. Cannot proceed.');
+             return;
+        }
+        const technician = technicianSelect.value;
+        const selectedServicesString = servicesInput.value;
+        
+        let totalDuration = 0;
+        const serviceNames = selectedServicesString.split(',')
+                                    .map(s => s.split(' $')[0].trim())
+                                    .filter(name => name); 
+                                    
+        if (serviceNames.length === 0) {
+            totalDuration = bookingSettings.defaultDuration; 
+        } else {
+            for (const name of serviceNames) {
+                const service = allServicesList.find(s => s.name === name);
+                totalDuration += service ? service.duration : bookingSettings.defaultDuration;
+            }
+        }
+        // --- End Duration Calculation ---
+
+
+        // --- 5. Availability Check ---
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Checking...';
+        }
+        addNotification('info', "Checking technician availability...");
+
+        try {
+            const availabilityCheck = await isTechnicianAvailable(technician, bookingDate, totalDuration);
+
+            if (!availabilityCheck.available) {
+                // CONFLICT: Show Waitlist UI with the specific message
+                pendingWaitlistData = {
+                    clientName: document.getElementById('appointment-client-name').value,
+                    clientPhone: document.getElementById('appointment-phone').value,
+                    services: serviceNames,
+                    technician: technician,
+                    date: proposedStartTime.split('T')[0]
+                };
+
+                // CRITICAL FIX: The detailed message from the availability function
+                const conflictMessage = availabilityCheck.message || "This slot is busy. A conflict was detected.";
+                
+                if (waitlistMsg) waitlistMsg.textContent = conflictMessage;
+                if (waitlistCta) waitlistCta.classList.remove('hidden');
+                if (submitBtn) submitBtn.classList.add('hidden');
+                
+                // Show the specific conflict message in the notification area
+                addNotification('warning', conflictMessage); 
+                return; 
+
+            } else {
+                // AVAILABLE: Proceed to Save
+                const appointmentData = {
+                    name: document.getElementById('appointment-client-name').value,
+                    phone: document.getElementById('appointment-phone').value,
+                    email: document.getElementById('appointment-email').value,
+                    people: document.getElementById('appointment-people').value,
+                    bookingType: document.getElementById('appointment-booking-type').value,
+                    services: serviceNames,
+                    technician: technician,
+                    notes: document.getElementById('appointment-notes').value,
+                    appointmentTimestamp: Timestamp.fromDate(bookingDate)
+                };
+
+                const appointmentId = document.getElementById('edit-appointment-id').value;
+
+                if (appointmentId) {
+                    await updateDoc(doc(db, "appointments", appointmentId), appointmentData);
+                    addNotification('success', "Appointment updated successfully!");
+                } else {
+                    const docRef = await addDoc(collection(db, "appointments"), appointmentData);
+                    await sendBookingNotificationEmail(appointmentData);
+                    if (appointmentData.email) {
+                        await sendAppointmentReminderEmail(appointmentData, appointmentData.email);
+                    }
+                    addNotification('success', "Appointment saved successfully!");
+                }
+                closeAddAppointmentModal();
+            }
+        } catch (error) {
+            // This catch block handles UNEXPECTED errors (network, Firebase failure, etc.)
+            console.error("Error during admin booking submission:", error);
+            
+            // Show a generic error message for unexpected failures
+            addNotification('error', "Could not verify schedule due to a system error. Please try again.");
+            
+            if (waitlistCta) waitlistCta.classList.add('hidden');
+            if (submitBtn) submitBtn.classList.remove('hidden');
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = document.getElementById('edit-appointment-id').value ? 'Update Appointment' : 'Save Appointment';
+            }
+        }
+    });
+}
 // Located inside initLandingPage()
-// Located inside initLandingPage()
+/**
+ * Event listener for submitting the Landing Page Gift Card purchase form.
+ * Handles two scenarios:
+ * 1. Logged-in client: Creates gift cards directly, linked to their account.
+ * 2. New/Anonymous user: Initiates account creation, stores purchase details
+ * in sessionStorage, and relies on onAuthStateChanged to finalize the purchase
+ * after account creation.
+ */
 purchaseForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const amount = parseFloat(document.getElementById('gc-amount').value);
-    const quantity = parseInt(document.getElementById('gc-quantity').value, 10);
+    e.preventDefault(); // Prevent default form submission
+
+    // --- 1. Get and Validate Form Inputs ---
+    const amountInput = document.getElementById('gc-amount');
+    const quantityInput = document.getElementById('gc-quantity');
+    const amount = parseFloat(amountInput.value);
+    const quantity = parseInt(quantityInput.value, 10);
 
     if (isNaN(amount) || amount <= 0 || isNaN(quantity) || quantity <= 0) {
-        addNotification('error' , 'Please fill out the gift card amount and quantity correctly.');
+        addNotification('error', 'Please enter a valid amount and quantity (at least 1).');
         return;
     }
 
+    // --- 2. Update UI for Processing ---
     const submitBtn = document.getElementById('landing-gc-submit-btn');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Processing...';
 
-    try {
-        // SCENARIO 1: User is already a logged-in client
-        if (currentUserId && auth.currentUser && !auth.currentUser.isAnonymous) {
-            const batch = writeBatch(db);
-            const expiryDate = new Date();
-            expiryDate.setMonth(expiryDate.getMonth() + 6);
+    // --- 3. Determine User State and Process Purchase ---
+    let lastNumberUsed = globalLastUsedOnlineGcNumber; // Get the last used code number from global state
 
+    try {
+        // SCENARIO 1: User is already logged in (not anonymous)
+        if (currentUserId && auth.currentUser && !auth.currentUser.isAnonymous) {
+            const batch = writeBatch(db); // Use a batch for atomic writes
+            const expiryDate = new Date();
+            expiryDate.setMonth(expiryDate.getMonth() + 6); // Set a default expiry (e.g., 6 months)
+
+            // Get buyer info directly (assuming these fields exist for logged-in user flow)
             const buyerInfo = {
-                name: document.getElementById('gc-buyer-name').value,
-                email: document.getElementById('gc-buyer-email').value,
-                phone: document.getElementById('gc-buyer-phone').value,
+                name: document.getElementById('gc-buyer-name').value || auth.currentUser.displayName || 'Unknown Buyer',
+                email: document.getElementById('gc-buyer-email').value || auth.currentUser.email,
+                phone: document.getElementById('gc-buyer-phone').value || 'N/A',
             };
 
+            // Loop to create each gift card in the batch
             for (let i = 0; i < quantity; i++) {
+                // Generate the next sequential code
+                lastNumberUsed = Math.max(lastNumberUsed + 1, globalOnlineGcStartNumber); // Increment, ensuring minimum start number
+                const newCode = String(lastNumberUsed).padStart(4, '0'); // Pad to 4 digits
+
+                // Prepare card data
                 const cardData = {
                     amount: amount,
                     balance: amount,
-                    history: [],
+                    history: [], // Initialize transaction history
                     recipientName: document.getElementById('gc-show-to').checked ? document.getElementById('gc-to').value : buyerInfo.name,
                     senderName: document.getElementById('gc-show-from').checked ? document.getElementById('gc-from').value : buyerInfo.name,
-                    backgroundUrl: document.getElementById('landing-gc-preview-card').style.backgroundImage.slice(5, -2),
-                    code: `GC-${Date.now()}-${i}`,
-                    status: 'Pending',
+                    backgroundUrl: document.getElementById('landing-gc-preview-card').style.backgroundImage.slice(5, -2).replace(/"/g, ""), // Get URL from preview
+                    code: newCode,
+                    status: 'Pending', // Cards start as Pending until payment confirmed
                     type: 'E-Gift',
-                    createdBy: currentUserId,
+                    createdBy: currentUserId, // Link card to the logged-in user
                     buyerInfo: buyerInfo,
                     createdAt: serverTimestamp(),
                     expiresAt: Timestamp.fromDate(expiryDate)
                 };
-                const newCardRef = doc(collection(db, "gift_cards"));
-                batch.set(newCardRef, cardData);
+                const newCardRef = doc(collection(db, "gift_cards")); // Create a reference for the new card
+                batch.set(newCardRef, cardData); // Add card creation to the batch
             }
+
+            // Update the last used code number in Firestore settings
+            const settingsRef = doc(db, "settings", "ecommerce");
+            batch.set(settingsRef, { lastUsedOnlineGcNumber: lastNumberUsed }, { merge: true }); // Add setting update to the batch
+
+            // Commit all operations in the batch
             await batch.commit();
-            addNotification('success' , "Success! Your gift card request has been sent. It will be activated once payment is confirmed.");
-            // **** FIX FOR LOGGED-IN USER ****
-            closePurchaseModal();
+            addNotification('success', "Success! Your gift card request sent. Activation pending payment confirmation.");
+            closePurchaseModal(); // Close the modal on success
 
         } else {
-            // SCENARIO 2: New or anonymous user (original flow)
+            // SCENARIO 2: New user or Anonymous user - Initiate signup/login flow
             const buyerName = document.getElementById('gc-buyer-name').value;
             const buyerPhone = document.getElementById('gc-buyer-phone').value;
             const buyerEmail = document.getElementById('gc-buyer-email').value;
 
+            // Validate essential info for account creation
             if (!buyerName || !buyerPhone || !buyerEmail) {
-                addNotification('error' , 'Please fill out all your information to create an account.');
-                throw new Error("Missing buyer information.");
+                addNotification('error', 'Please fill out Name, Phone, and Email to create an account.');
+                throw new Error("Missing buyer information for account creation."); // Throw error to be caught below
             }
 
-            await createUserWithEmailAndPassword(auth, buyerEmail, buyerPhone);
+            // Generate the required codes *before* attempting user creation
+            const generatedCodes = [];
+            let tempLastNumber = globalLastUsedOnlineGcNumber; // Use a temporary variable for this batch
+            for (let i = 0; i < quantity; i++) {
+                tempLastNumber = Math.max(tempLastNumber + 1, globalOnlineGcStartNumber);
+                generatedCodes.push(String(tempLastNumber).padStart(4, '0'));
+            }
+            const finalLastNumber = tempLastNumber; // The last number used in this specific transaction
 
+            // Store all necessary purchase details in sessionStorage for onAuthStateChanged
             const purchaseDetails = {
-                buyerName, buyerPhone, buyerEmail, amount, quantity,
+                buyerName,
+                buyerPhone,
+                buyerEmail,
+                amount,
+                quantity,
                 recipientName: document.getElementById('gc-show-to').checked ? document.getElementById('gc-to').value : buyerName,
                 senderName: document.getElementById('gc-show-from').checked ? document.getElementById('gc-from').value : buyerName,
-                backgroundUrl: document.getElementById('landing-gc-preview-card').style.backgroundImage.slice(5, -2),
+                backgroundUrl: document.getElementById('landing-gc-preview-card').style.backgroundImage.slice(5, -2).replace(/"/g, ""),
+                generatedCodes: generatedCodes, // Pass the generated codes
+                finalLastNumber: finalLastNumber // Pass the last number used
             };
             sessionStorage.setItem('pendingGiftCardPurchase', JSON.stringify(purchaseDetails));
-            // onAuthStateChanged will handle the rest
-            await sendGiftCardConfirmationEmail(purchaseDetails);
-            // **** FIX FOR NEW USER ****
-            closePurchaseModal();
 
+            // Attempt to create a new user account (using phone as a temporary password, adjust if needed)
+            // The onAuthStateChanged listener will handle client document creation and gift card saving
+            await createUserWithEmailAndPassword(auth, buyerEmail, buyerPhone);
+
+            // Send confirmation email immediately (even before onAuthStateChanged runs)
+            await sendGiftCardConfirmationEmail(purchaseDetails);
+            closePurchaseModal(); // Close modal after initiating signup
         }
     } catch (error) {
+        // --- 4. Handle Errors ---
+        console.error("Error during gift card purchase:", error);
         if (error.code === 'auth/email-already-in-use') {
-            alert("An account with this email already exists. Please log in to purchase a gift card.");
+            addNotification('error', "Account exists. Please log in to purchase.");
+            // Optionally, redirect to login modal here
         } else {
-            console.error("Error during gift card purchase:", error);
-            alert(`Could not process your request. Error: ${error.message}`);
+            addNotification('error', `Could not process request: ${error.message}`);
+        }
+        // Ensure purchase details are cleared from session if signup fails before onAuthStateChanged
+        if (!auth.currentUser || auth.currentUser.isAnonymous) {
+             sessionStorage.removeItem('pendingGiftCardPurchase');
         }
     } finally {
+        // --- 5. Reset UI Regardless of Outcome ---
         submitBtn.disabled = false;
         submitBtn.textContent = 'Submit Purchase Request';
-        // Re-enable form fields that might have been disabled
-        document.getElementById('gc-buyer-name').disabled = false;
-        document.getElementById('gc-buyer-phone').disabled = false;
-        document.getElementById('gc-buyer-email').disabled = false;
+        // Re-enable form fields only if they exist (safety check)
+        const buyerNameInput = document.getElementById('gc-buyer-name');
+        const buyerPhoneInput = document.getElementById('gc-buyer-phone');
+        const buyerEmailInput = document.getElementById('gc-buyer-email');
+        if (buyerNameInput) buyerNameInput.disabled = false;
+        if (buyerPhoneInput) buyerPhoneInput.disabled = false;
+        if (buyerEmailInput) buyerEmailInput.disabled = false;
     }
 });
 
@@ -1374,7 +1541,7 @@ const initializeMembershipPurchaseForm = (selectedTierId, clientData = null) => 
     const updatePreview = () => {
         const tierId = tierSelect.value;
         const tier = allMembershipTiers.find(t => t.id === tierId);
-        const buyerName = document.getElementById('ms-buyer-name').value || 'Client Name';
+        const buyerName = document.getElementById('ms-buyer-name').value || '';
 
         if (tier) {
             amountInput.value = tier.price.toFixed(2);
@@ -3167,28 +3334,18 @@ renderCart();
     addAppointmentFormLanding.addEventListener('submit', async (e) => {
         e.preventDefault();
         const services = Array.from(document.querySelectorAll('#hidden-checkbox-container-landing input[name="service-landing"]:checked')).map(el => el.value);
-        
+        const datetimeString = document.getElementById('appointment-datetime-landing').value;
         const technician = document.getElementById('appointment-technician-select-landing').value;
         const submitBtnLanding = document.querySelector('#add-appointment-form-landing button[type="submit"]');
         const prevBtnLanding = document.getElementById('booking-prev-btn');
         const waitlistCtaLanding = document.getElementById('waitlist-cta-landing');
         const waitlistMsgLanding = document.getElementById('waitlist-message-landing');
 
-// Get the value from the input (e.g., '2025-10-22T11:11')
-const localDateTimeString = document.getElementById('appointment-datetime').value; // Or 'appointment-datetime-landing' for landing page
-
-// Convert it to ISO format *with* the offset
-const proposedStartTime = formatLocalToISOWithOffset(localDateTimeString);
-
-// Check if the conversion was successful before proceeding
-if (!proposedStartTime) {
-    alert("Invalid date/time selected. Please check your input.");
-    return; // Stop the submission if the date was invalid
-}
-
-// Now, 'proposedStartTime' (e.g., "2025-10-22T11:11:00-04:00") is ready
-// to be sent to your Cloud Function in the request body.
-// ... rest of your code to call the checkAvailability function ...
+        // --- Basic Validation ---
+        if (!datetimeString) {
+            addNotification('error', 'Please select a date and time.');
+            return;
+        }
         if (services.length === 0) {
             addNotification('error', 'Please select at least one service.');
             // Ensure UI is correct even on validation failure
@@ -3218,7 +3375,7 @@ if (!proposedStartTime) {
         // 1. Check if the global list is empty. If so, fetch data synchronously.
         //    (Your existing code already handles this well - included for completeness)
         if (!localServicesList || localServicesList.length === 0) {
-            //addNotification('info', "Loading service data, please wait...");
+            addNotification('info', "Loading service data, please wait...");
             try {
                 const [servicesSnapshot, settingsDoc] = await Promise.all([
                     getDocs(collection(db, "services")),
@@ -3268,12 +3425,12 @@ if (!proposedStartTime) {
         // Disable buttons during check
         if (submitBtnLanding) submitBtnLanding.disabled = true;
         if (prevBtnLanding) prevBtnLanding.disabled = true;
-       // addNotification('info', "Checking technician availability...");
+        addNotification('info', "Checking technician availability...");
 
         try { // Wrap the check and save logic in a try...finally block
-            //console.log("Checking availability for:", { technician, bookingDate, totalDuration });
+            console.log("Checking availability for:", { technician, bookingDate, totalDuration });
             const availabilityCheck = await isTechnicianAvailable(technician, bookingDate, totalDuration);
-            //console.log("Availability check result:", availabilityCheck);
+            console.log("Availability check result:", availabilityCheck);
 
             if (!availabilityCheck.available) {
                 // A conflict was found, so show the waitlist option
@@ -3325,7 +3482,7 @@ if (!proposedStartTime) {
             }
 
         } catch (error) {
-           // console.error("Error booking appointment or checking availability:", error);
+            console.error("Error booking appointment or checking availability:", error);
             addNotification('error', "Could not complete booking. Please try again.");
             // Ensure UI is reset correctly on error
             waitlistCtaLanding.classList.add('hidden');
@@ -4696,7 +4853,13 @@ const saveEcommerceSettings = async (e) => {
     e.preventDefault();
     const taxRateInput = document.getElementById('admin-tax-rate').value;
     const shippingFeeInput = document.getElementById('admin-shipping-fee').value;
-
+    // --- FIX: Read and save online GC start number ---
+    const onlineGcStart = parseInt(document.getElementById('online-gc-start-number').value, 10);
+    if (isNaN(onlineGcStart) || onlineGcStart < 1000) {
+        alert("Online Gift Card Start Number must be a number and at least 1000.");
+        return;
+    }
+    // --- End fix ---
     // Convert percentage input (e.g., 8.25) to a decimal (e.g., 0.0825) for storage
     const taxRate = parseFloat(taxRateInput) / 100; 
     const shippingFee = parseFloat(shippingFeeInput);
@@ -4708,10 +4871,14 @@ const saveEcommerceSettings = async (e) => {
 
     try {
         const settingsRef = doc(db, "settings", "ecommerce");
+       // --- FIX: Add onlineGcStartNumber to saved data ---
         await setDoc(settingsRef, {
-            taxRate: taxRate, // Saved as decimal
-            shippingFee: shippingFee // Saved as currency
+            taxRate: taxRate,
+            shippingFee: shippingFee,
+            onlineGcStartNumber: onlineGcStart // Save the start number
+            // We'll update lastUsedOnlineGcNumber separately when a card is generated
         }, { merge: true });
+        // --- End fix ---
 
         alert("E-commerce fee settings saved successfully! Cart totals will now update.");
     } catch (error) {
@@ -5769,42 +5936,49 @@ const checkoutStarRatingContainer = document.getElementById('checkout-star-ratin
     };
 
     // Located inside initMainApp()
-    const renderStaffEarningsTable = (earnings, tableId, totalEarningId, totalTipId) => {
-        const tbody = document.querySelector(`#${tableId} tbody`);
-        if (!tbody) return;
+const renderStaffEarningsTable = (earnings, tableId, totalEarningId, totalTipId) => {
+    const tbody = document.querySelector(`#${tableId} tbody`);
+    if (!tbody) return { totalEarning: 0, totalTip: 0 };
 
-        const colspan = userRole === 'admin' ? 6 : 5;
-        tbody.innerHTML = earnings.length === 0 ? `<tr><td colspan="${colspan}" class="py-6 text-center text-gray-400">No earnings found.</td></tr>` : '';
+    // FIX: Update colspan to 6 (non-admin) or 7 (admin) to account for the new 'NO.' column.
+    // Columns are: NO., Date, Staff, Service, Earning, Tip (6 data columns)
+    const colspan = userRole === 'admin' ? 7 : 6; 
+    
+    tbody.innerHTML = earnings.length === 0 ? `<tr><td colspan="${colspan}" class="py-6 text-center text-gray-400">No earnings found.</td></tr>` : '';
 
-        // *** FIX IS HERE: Re-instating the correct descending sort logic. ***
-        // This explicitly sorts the array by the newest date first every time the table is drawn.
-        earnings.sort((a, b) => b.date.seconds - a.date.seconds).forEach(earning => {
-            const row = tbody.insertRow();
-            row.className = 'bg-white border-b';
-            let rowHTML = `
-            <td class="px-6 py-4">${new Date(earning.date.seconds * 1000).toLocaleDateString()}</td>
-            <td class="px-6 py-4 font-medium text-gray-900">${earning.staffName}</td>
+    // Sort by newest date first (descending)
+    earnings.sort((a, b) => b.date.seconds - a.date.seconds).forEach((earning, index) => {
+        const row = tbody.insertRow();
+        row.className = 'bg-white border-b';
+
+        // Add a safety check for the date object
+        const earningDate = earning.date ? new Date(earning.date.seconds * 1000) : null;
+        const dateString = earningDate ? earningDate.toLocaleDateString() : 'N/A';
+        
+        let rowHTML = `
+            <td class="px-6 py-4">${index + 1}</td> <td class="px-6 py-4">${dateString}</td> <td class="px-6 py-4 font-medium text-gray-900">${earning.staffName || 'N/A'}</td>
             <td class="px-6 py-4">${earning.service || ''}</td>
-            <td class="px-6 py-4">$${earning.earning.toFixed(2)}</td>
-            <td class="px-6 py-4">$${earning.tip.toFixed(2)}</td>
+            <td class="px-6 py-4">$${earning.earning ? earning.earning.toFixed(2) : '0.00'}</td>
+            <td class="px-6 py-4">$${earning.tip ? earning.tip.toFixed(2) : '0.00'}</td>
         `;
-            if (userRole === 'admin') {
-                rowHTML += `<td class="px-6 py-4 text-center space-x-2"><button data-id="${earning.id}" class="edit-earning-btn text-blue-500 hover:text-blue-700" title="Edit Earning"><i class="fas fa-edit text-lg"></i></button><button data-id="${earning.id}" class="delete-earning-btn text-red-500 hover:text-red-700" title="Delete Earning"><i class="fas fa-trash-alt text-lg"></i></button></td>`;
-            }
-            row.innerHTML = rowHTML;
-        });
+        
+        if (userRole === 'admin') {
+            rowHTML += `<td class="px-6 py-4 text-center space-x-2"><button data-id="${earning.id}" class="edit-earning-btn text-blue-500 hover:text-blue-700" title="Edit Earning"><i class="fas fa-edit text-lg"></i></button><button data-id="${earning.id}" class="delete-earning-btn text-red-500 hover:text-red-700" title="Delete Earning"><i class="fas fa-trash-alt text-lg"></i></button></td>`;
+        }
+        row.innerHTML = rowHTML;
+    });
 
-        const totalEarning = earnings.reduce((sum, e) => sum + e.earning, 0);
-        const totalTip = earnings.reduce((sum, e) => sum + e.tip, 0);
+    // Ensure reduce handles potential null/undefined values
+    const totalEarning = earnings.reduce((sum, e) => sum + (e.earning || 0), 0);
+    const totalTip = earnings.reduce((sum, e) => sum + (e.tip || 0), 0);
 
-        const totalEarningEl = document.getElementById(totalEarningId);
-        const totalTipEl = document.getElementById(totalTipId);
-        if (totalEarningEl) totalEarningEl.textContent = `$${totalEarning.toFixed(2)}`;
-        if (totalTipEl) totalTipEl.textContent = `$${totalTip.toFixed(2)}`;
+    const totalEarningEl = document.getElementById(totalEarningId);
+    const totalTipEl = document.getElementById(totalTipId);
+    if (totalEarningEl) totalEarningEl.textContent = `$${totalEarning.toFixed(2)}`;
+    if (totalTipEl) totalTipEl.textContent = `$${totalTip.toFixed(2)}`;
 
-        return { totalEarning, totalTip };
-    };
-
+    return { totalEarning, totalTip };
+};
     // Located inside initMainApp()
     const renderAllStaffEarnings = () => {
         // Render for Report Page
@@ -6924,8 +7098,381 @@ calendarGrid.addEventListener('click', (e) => {
         reader.readAsArrayBuffer(file);
     });
     // --- Located inside initMainApp() ---
+// --- Add these inside initMainApp() ---
+// --- NEW: Printable Membership Card Designer Logic (Final Update) ---
 
-    // --- Located inside initMainApp() ---
+// Get common elements once for efficiency
+const membershipDesignerForm = document.getElementById('membership-card-designer-form');
+const tierSelectDesigner = document.getElementById('designer-ms-tier-select');
+const frontPreviewCard = document.getElementById('ms-card-preview-front');
+const backPreviewCard = document.getElementById('ms-card-preview-back'); // Get the back card element
+const backPreviewName = document.getElementById('ms-back-signature-name');
+const startDateInput = document.getElementById('designer-ms-start-date');
+const noStartDateCheckbox = document.getElementById('designer-ms-no-start-date');
+
+const getLocalDateString = () => {
+    // Helper function to get today's date in YYYY-MM-DD format for input[type="date"]
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
+const initializeMembershipCardDesigner = () => {
+    membershipDesignerForm.reset();
+    startDateInput.value = getLocalDateString(); // Default to today
+    noStartDateCheckbox.checked = false;
+    startDateInput.disabled = false;
+    document.getElementById('designer-ms-quantity').value = 1;
+
+    // Populate Tier Select dropdown (assuming allMembershipTiers is a global variable)
+    tierSelectDesigner.innerHTML = '<option value="">Select Tier...</option>';
+    if (typeof allMembershipTiers !== 'undefined' && allMembershipTiers.length > 0) {
+        allMembershipTiers.forEach(tier => {
+            tierSelectDesigner.innerHTML += `<option value="${tier.id}" data-name="${tier.name}" data-price="${tier.price}" data-discount="${tier.discount}">${tier.name}</option>`;
+        });
+    }
+
+    updateMembershipCardPreview(); // Initial preview render
+};
+
+/**
+ * Toggles the state of the start date input and updates the preview.
+ */
+const handleNoStartDateToggle = () => {
+    const isChecked = noStartDateCheckbox.checked;
+    startDateInput.disabled = isChecked;
+    startDateInput.required = !isChecked; // Date is not required if 'Write Later' is checked
+
+    if (isChecked) {
+        startDateInput.value = ''; // Clear the date input visually
+    } else if (!startDateInput.value) {
+        startDateInput.value = getLocalDateString(); // Set back to today if unchecking and value is empty
+    }
+    updateMembershipCardPreview();
+};
+
+/**
+ * Updates the visual preview of the membership card based on form inputs.
+ */
+const updateMembershipCardPreview = () => {
+    const selectedOption = tierSelectDesigner.options[tierSelectDesigner.selectedIndex];
+    
+    // FIX: Safely determine tierName. If selectedOption is null, or data.name is undefined, use 'Select Tier'.
+    const tierName = (selectedOption && selectedOption.dataset.name) ? selectedOption.dataset.name : 'Select Tier';
+    // The previous implementation was breaking here if data.name was undefined.
+
+    // 1. Client Name Logic
+    const clientNameInput = document.getElementById('designer-ms-client-name').value.trim();
+    // Use blank space for better layout when name is blank
+    const clientNameDisplay = clientNameInput || '&nbsp;'; 
+
+    // 2. Start Date Logic
+    const isDateToBeWrittenLater = noStartDateCheckbox.checked;
+    let startDateDisplay;
+    let startDateValue = startDateInput.value;
+
+    if (isDateToBeWrittenLater || !startDateValue) {
+        startDateDisplay = '...../...../.....'; 
+    } else {
+        startDateDisplay = new Date(startDateValue + 'T00:00:00').toLocaleDateString();
+    }
+    
+    // 3. Member ID Logic
+    const manualId = document.getElementById('designer-ms-id').value.trim();
+    const memberIdDisplay = manualId || '................'; 
+
+    // Update back card signature line with blank if input is blank
+    backPreviewName.textContent = clientNameInput || '';
+    
+    // Back card padding adjustment (for preview)
+    if (!clientNameInput) {
+        backPreviewName.style.minHeight = '24px'; 
+        backPreviewName.style.display = 'block';
+    } else {
+        backPreviewName.style.minHeight = '0';
+    }
+
+
+    // Update front card styling based on tier name
+    let cardStyle = 'from-gray-700 via-gray-900 to-black';
+    
+    // ERROR FIX APPLIED HERE: tierName is guaranteed to be a string now.
+    if (tierName.toLowerCase().includes('silver')) cardStyle = 'from-gray-400 via-gray-500 to-gray-600';
+    if (tierName.toLowerCase().includes('gold')) cardStyle = 'from-yellow-400 via-yellow-500 to-yellow-600';
+    if (tierName.toLowerCase().includes('platinum')) cardStyle = 'from-indigo-500 via-purple-600 to-pink-600';
+
+    // Apply styles to the card element
+    frontPreviewCard.className = `card rounded-lg p-4 flex flex-col justify-between bg-gradient-to-br ${cardStyle} text-white`;
+    frontPreviewCard.style.width = '400px';
+    frontPreviewCard.style.height = '228px';
+    frontPreviewCard.style.textShadow = '1px 1px 3px rgba(0,0,0,0.4)';
+
+    // Update the front card content
+    frontPreviewCard.innerHTML = `
+        <div class="flex justify-between items-start">
+            <div class="font-bold text-lg"><p>${tierName}</p><p class="text-xs font-normal opacity-80">MEMBERSHIP</p></div>
+            <p class="font-parisienne text-3xl">Nails Express</p>
+        </div>
+        <div class="flex justify-between items-end">
+            <div class="text-left"><p class="text-xs opacity-80">MEMBER</p><p class="text-2xl font-semibold tracking-wider">${clientNameDisplay}</p></div>
+            <div class="text-right text-xs opacity-80">
+                <p>Member Since: ${startDateDisplay}</p>
+                <p>Member ID: ${memberIdDisplay}</p>
+            </div>
+        </div>
+    `;
+};
+
+/**
+ * Handles generating and printing the membership cards.
+ */
+const handlePrintMembershipCards = async () => {
+    const quantity = parseInt(document.getElementById('designer-ms-quantity').value, 10);
+    const clientNameInput = document.getElementById('designer-ms-client-name').value.trim();
+    const tierId = document.getElementById('designer-ms-tier-select').value;
+    const manualId = document.getElementById('designer-ms-id').value.trim();
+    const isDateToBeWrittenLater = noStartDateCheckbox.checked;
+    const startDateValue = startDateInput.value;
+
+    if (!isDateToBeWrittenLater && !startDateValue) {
+        addNotification('error', "Please select a Start Date or check 'Write Later'.");
+        return;
+    }
+
+    if (isNaN(quantity) || quantity < 1 || !tierId) {
+        addNotification('error', "Please fill in Membership Tier and Quantity.");
+        return;
+    }
+
+    const tier = allMembershipTiers.find(t => t.id === tierId);
+    if (!tier) { addNotification('error', "Selected tier not found."); return; }
+    
+    // Determine the text to show on the printed card
+    let startDateDisplay;
+    if (isDateToBeWrittenLater || !startDateValue) {
+        startDateDisplay = '...../...../.....'; 
+    } else {
+        startDateDisplay = new Date(startDateValue + 'T00:00:00').toLocaleDateString();
+    }
+    
+    const clientNameForCard = clientNameInput || '&nbsp;'; // Use blank space
+    const memberIdDisplay = (quantity === 1 && manualId) ? manualId : '................';
+
+
+    let printHTML = `
+        <html>
+        <head>
+            <title>Print Membership Cards</title>
+            <style>
+                /* Reuse your existing print styles here */
+                @media print {
+                    @page { size: A4 landscape; margin: 10mm; }
+                    body { font-family: 'Poppins', sans-serif; }
+                    .print-page { display: flex; flex-wrap: wrap; gap: 20px; justify-content: flex-start; }
+                    .card-container { width: 420px; height: 260px; break-inside: avoid; display: flex; flex-direction: column; gap: 4px; }
+                    .card { width: 400px; height: 228px; border: 1px solid #ccc; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-radius: 12px; padding: 16px; box-sizing: border-box; font-size: 14px; position: relative; }
+                    .bg-gradient-to-br { background: linear-gradient(to bottom right, #333, #111); }
+                    .text-white { color: white; }
+                    .text-gray-800 { color: #1f2937; }
+                    .font-parisienne { font-family: 'Parisienne', cursive; }
+                }
+            </style>
+        </head>
+        <body>
+        <div class="print-page">
+    `;
+
+    for (let i = 0; i < quantity; i++) {
+        
+        // Get card style based on tier name
+        let cardStyleClasses = 'from-gray-700 via-gray-900 to-black';
+        if (tier.name.toLowerCase().includes('silver')) cardStyleClasses = 'from-gray-400 via-gray-500 to-gray-600';
+        if (tier.name.toLowerCase().includes('gold')) cardStyleClasses = 'from-yellow-400 via-yellow-500 to-yellow-600';
+        if (tier.name.toLowerCase().includes('platinum')) cardStyleClasses = 'from-indigo-500 via-purple-600 to-pink-600';
+
+        // Set the signature area style for the back card
+        const signatureText = clientNameInput || `<span style="font-size: 0.1px;">.</span>`; // Use tiny dot for space
+        const signatureStyle = clientNameInput ? '' : 'style="padding-top: 10px;"'; // Add padding if name is blank
+
+        printHTML += `
+            <div class="card-container">
+                <div class="card rounded-lg p-4 flex flex-col justify-between bg-gradient-to-br ${cardStyleClasses} text-white">
+                     <div class="flex justify-between items-start">
+                        <div class="font-bold text-lg"><p>${tier.name}</p><p class="text-xs font-normal opacity-80">MEMBERSHIP</p></div>
+                        <p class="font-parisienne text-3xl">Nails Express</p>
+                    </div>
+                    <div class="flex justify-between items-end">
+                        <div class="text-left"><p class="text-xs opacity-80">MEMBER</p><p class="text-2xl font-semibold tracking-wider">${clientNameForCard}</p></div>
+                        <div class="text-right text-xs opacity-80">
+                            <p>Member Since: ${startDateDisplay}</p>
+                            <p>Member ID: ${memberIdDisplay}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card rounded-lg p-4 flex flex-col justify-between bg-white text-gray-800 border" style="text-shadow: none;">
+                    <div class="w-full h-10 bg-black mt-2"></div>
+                    <p class="text-xs text-center text-gray-600 px-4 leading-relaxed">
+                        Welcome, VIP! This card must be presented to receive benefits. Membership is non-transferable and benefits apply only to the registered member.
+                    </p>
+                    <div class="px-4 pb-2 text-center" ${signatureStyle}>
+                        <p class="font-parisienne text-2xl text-gray-700">${signatureText}</p> 
+                        <div class="w-full border-t border-dashed border-gray-400 pt-1 mt-1"></div>
+                        <p class="text-xs text-gray-500">Member Signature</p>
+                    </div>
+                    <div class="text-center text-xs pb-2">
+                        <p class="font-bold">Nails Express</p>
+                        <p>1560 Hustonville Rd #345, Danville, KY 40422</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    printHTML += `</div></body></html>`;
+
+    // NOTE: Firestore saving logic is unchanged (requires designer-client-id selection)
+    if (quantity === 1 && manualId && clientNameInput && document.getElementById('designer-client-id').value) {
+        // ... (your existing Firestore saving logic here) ...
+    }
+
+    // Open print window
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(printHTML);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+};
+
+// Add/Update Event Listeners
+membershipDesignerForm.addEventListener('input', updateMembershipCardPreview);
+noStartDateCheckbox.addEventListener('change', handleNoStartDateToggle);
+document.getElementById('generate-print-ms-cards-btn').addEventListener('click', handlePrintMembershipCards);
+document.getElementById('membership-management-tab').addEventListener('click', initializeMembershipCardDesigner); 
+// Ensure download-ms-card-images-btn listener is defined or included if needed
+
+/**
+ * Generic utility to render a given HTML element's content and trigger a PNG download.
+ * @param {string} elementId - The ID of the element to be rendered (e.g., 'ms-card-preview-front').
+ * @param {string} filename - The complete filename for the downloaded file (e.g., 'Membership_Front_John_MEM123.png').
+ */
+const downloadCardAsImage = async (elementId, filename) => {
+    const cardElement = document.getElementById(elementId);
+    if (!cardElement) {
+        console.error(`Element with ID ${elementId} not found for download.`);
+        addNotification('error', `Download failed: Preview card element not found.`);
+        return;
+    }
+
+    try {
+        // Clone the element to a temporary, hidden container for a clean, styled capture
+        const tempContainer = document.createElement('div');
+        tempContainer.style.position = 'absolute';
+        tempContainer.style.left = '-9999px';
+        tempContainer.style.width = '400px'; 
+        tempContainer.style.height = '228px'; // Assuming this is your card size
+        
+        const clonedCard = cardElement.cloneNode(true);
+        if (clonedCard.style.display === 'none') {
+            clonedCard.style.display = 'block';
+        }
+        tempContainer.appendChild(clonedCard);
+        document.body.appendChild(tempContainer);
+
+        // Use html2canvas to capture the image
+        const canvas = await html2canvas(clonedCard, {
+            scale: 3, 
+            logging: false,
+            useCORS: true 
+        });
+
+        document.body.removeChild(tempContainer); // Cleanup
+
+        const imageURL = canvas.toDataURL("image/png");
+        const downloadLink = document.createElement('a');
+        downloadLink.href = imageURL;
+        downloadLink.download = filename;
+        
+        // Trigger the browser download
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        
+        addNotification('info', `${filename} download initiated.`);
+
+    } catch (error) {
+        console.error(`Error generating image for ${filename}:`, error);
+        addNotification('error', `Failed to download ${filename}. Check console for details.`);
+    }
+};
+
+/**
+ * Orchestrates the download of both the front and back membership card images.
+ * Uses the correct element IDs: 'ms-card-preview-front' and 'ms-card-preview-back'.
+ */
+const downloadMembershipCardForPrint = async () => {
+    // 1. Get data from the form inputs
+    const name = document.getElementById('designer-ms-name')?.value || 'Client';
+    const cardId = document.getElementById('designer-ms-id')?.value || 'MEM-XXXXX';
+    const tierSelect = document.getElementById('designer-ms-tier-select');
+    const tierName = tierSelect?.options[tierSelect.selectedIndex]?.dataset.name || 'Membership';
+    
+    // Create a safe, descriptive filename prefix
+    const safeFilename = `${tierName.replace(/\s/g, '_')}_${name.replace(/\s/g, '_')}_${cardId}`;
+
+    addNotification('info', 'Starting Membership Card image download...');
+    
+    // --- 1. FRONT CARD DOWNLOAD ---
+    // Note: 'ms-card-preview-front' is the expected ID for the front preview DIV
+    await downloadCardAsImage('ms-card-preview-front', `${safeFilename}_FRONT.png`);
+
+    // --- 2. BACK CARD DOWNLOAD ---
+    // A small delay is required for some browsers to handle two sequential downloads
+    await new Promise(resolve => setTimeout(resolve, 500)); 
+
+    // Note: 'ms-card-preview-back' is the expected ID for the back preview DIV
+    await downloadCardAsImage('ms-card-preview-back', `${safeFilename}_BACK.png`);
+    
+    addNotification('success', 'Membership Card downloads complete.');
+};
+
+
+// Locate this section: // --- NEW: Printable Membership Card Designer Logic (Final Update) ---
+// Add the listener below the initialization function call:
+
+const downloadMsCardBtn = document.getElementById('download-ms-card-images-btn');
+    if (downloadMsCardBtn) {
+        downloadMsCardBtn.addEventListener('click', downloadMembershipCardForPrint);
+    }
+
+const downloadGiftCardForPrint = async () => {
+    // 1. Get dynamic names for the filename from the designer form inputs
+    const recipient = document.getElementById('designer-gc-recipient')?.value || 'Recipient';
+    const amount = document.getElementById('designer-gc-amount')?.value || '0';
+    
+    // Create a safe, descriptive filename prefix
+    const safeFilename = `GiftCard_Value${amount}_${recipient.replace(/\s/g, '_')}`;
+
+    addNotification('info', 'Starting Gift Card image download...');
+    
+    // --- 1. FRONT CARD DOWNLOAD (FIXED ID) ---
+    // Use the correct ID 'printable-gift-card' as confirmed in your HTML
+    await downloadCardAsImage('printable-gift-card', `${safeFilename}_FRONT.png`);
+
+    // --- 2. BACK CARD DOWNLOAD ---
+    await new Promise(resolve => setTimeout(resolve, 500)); 
+
+    await downloadCardAsImage('gc-card-preview-back', `${safeFilename}_BACK.png`);
+    
+    addNotification('success', 'Gift Card downloads complete.');
+};
+
+// --- Gift Card Download Listener (NEW) ---
+    const downloadGcCardBtn = document.getElementById('download-gc-images-btn');
+    if (downloadGcCardBtn) {
+        downloadGcCardBtn.addEventListener('click', downloadGiftCardForPrint);
+    }
+// --- Located inside initMainApp() ---
 
     document.getElementById('print-salon-earnings-btn').addEventListener('click', () => {
         const originalTable = document.getElementById('salon-earning-table');
@@ -9258,7 +9805,13 @@ clientForm.addEventListener('submit', async (e) => {
         const transactionType = document.getElementById('edit-gc-transaction-type').value;
         const amount = parseFloat(document.getElementById('edit-gc-transaction-amount').value);
         const notes = document.getElementById('edit-gc-transaction-notes').value.trim();
-
+// --- FIX: Get the updated code ---
+    const newCode = document.getElementById('edit-gc-code-input').value.trim();
+    if (!newCode) {
+        alert("Gift card code cannot be empty.");
+        return;
+    }
+    // --- End fix ---
         if (isNaN(amount) || amount <= 0) {
             alert("Please enter a valid, positive amount for the transaction.");
             return;
@@ -9286,11 +9839,14 @@ clientForm.addEventListener('submit', async (e) => {
 
         try {
             const cardDocRef = doc(db, "gift_cards", cardId);
-            await updateDoc(cardDocRef, {
-                balance: newBalance,
-                status: newStatus,
-                history: arrayUnion(newTransaction)
-            });
+            // --- FIX: Add the code to the update data ---
+        await updateDoc(cardDocRef, {
+            balance: newBalance,
+            status: newStatus,
+            history: arrayUnion(newTransaction),
+            code: newCode // Save the potentially updated code
+        });
+        // --- End fix ---
             alert("Transaction applied successfully!");
             editGiftCardModal.classList.add('hidden');
         } catch (error) {
@@ -9316,7 +9872,15 @@ clientForm.addEventListener('submit', async (e) => {
 
         const amount = parseFloat(document.getElementById('designer-amount').value) || 0;
         document.getElementById('preview-amount').textContent = `$${amount.toFixed(2)}`;
-
+        // --- FIX: Read the manual code input ---
+    const manualCodeInput = document.getElementById('designer-code').value.trim();
+    const previewCodeEl = document.getElementById('preview-code');
+    if (manualCodeInput) {
+        previewCodeEl.textContent = manualCodeInput; // Show entered code
+    } else {
+        previewCodeEl.textContent = 'GC-'; // Show placeholder
+    }
+    // --- End code fix ---
         const expiryPreview = document.getElementById('preview-expiry');
         if (noExpiry) {
             expiryPreview.textContent = 'Expires: ____/____/____';
@@ -9424,37 +9988,63 @@ clientForm.addEventListener('submit', async (e) => {
         const cardsToPrint = [];
         const setExpiry = document.getElementById('designer-set-expiry').checked;
         const noExpiry = document.getElementById('designer-no-expiry').checked;
-
+       // --- FIX: Get manual code ---
+    const manualCodeInput = document.getElementById('designer-code').value.trim();
+    // --- End code fix ---
         for (let i = 0; i < quantity; i++) {
-            const cardData = {
-                amount: amount,
-                balance: amount,
-                history: [],
-                recipientName: document.getElementById('designer-show-to').checked ? document.getElementById('designer-to').value : '',
-                senderName: document.getElementById('designer-show-from').checked ? document.getElementById('designer-from').value : '',
-                code: `GC-${Date.now()}-${i}`,
-                status: 'Active',
-                type: 'Physical',
-                createdAt: serverTimestamp(),
-                backgroundUrl: printableCard.style.backgroundImage.slice(5, -2).replace(/"/g, "")
-            };
-
-            if (setExpiry) {
-                const value = parseInt(document.getElementById('designer-expiry-value').value, 10);
-                const unit = document.getElementById('designer-expiry-unit').value;
-                const expiryDate = new Date();
-                if (unit === 'months') expiryDate.setMonth(expiryDate.getMonth() + value);
-                else expiryDate.setFullYear(expiryDate.getFullYear() + value);
-                cardData.expiresAt = Timestamp.fromDate(expiryDate);
+            // --- FIX: Determine code to save ---
+        let finalCode = '';
+        if (manualCodeInput) {
+            // If manual code entered, use it ONLY for the first card if quantity is 1
+            // Otherwise, warn the user or use placeholders. Let's use placeholders for batches.
+            if (quantity === 1) {
+                finalCode = manualCodeInput;
+            } else {
+                // For batch printing without manual code, use GC-
+                finalCode = `GC-`; // Placeholder for manual writing
             }
+        } else {
+            // Default placeholder if no manual code
+            finalCode = `GC-`; // Placeholder for manual writing
+        }
+        // --- End code determination ---
 
-            const newCardRef = doc(collection(db, "gift_cards"));
-            batch.set(newCardRef, cardData);
-            cardsToPrint.push(cardData);
+        const cardData = {
+            amount: amount,
+            balance: amount,
+            history: [],
+            recipientName: document.getElementById('designer-show-to').checked ? document.getElementById('designer-to').value : '',
+            senderName: document.getElementById('designer-show-from').checked ? document.getElementById('designer-from').value : '',
+            code: finalCode, // Use the determined code
+            status: 'Active', // Printable cards are usually active immediately
+            type: 'Physical',
+            createdAt: serverTimestamp(),
+            backgroundUrl: printableCard.style.backgroundImage.slice(5, -2).replace(/"/g, "")
+        };
+if (setExpiry) {
+             const value = parseInt(document.getElementById('designer-expiry-value').value, 10);
+             const unit = document.getElementById('designer-expiry-unit').value;
+             const expiryDate = new Date();
+             if (unit === 'months') expiryDate.setMonth(expiryDate.getMonth() + value);
+             else expiryDate.setFullYear(expiryDate.getFullYear() + value);
+             cardData.expiresAt = Timestamp.fromDate(expiryDate);
         }
 
-        try {
+        const newCardRef = doc(collection(db, "gift_cards"));
+        // Only save to DB if a specific code was generated/entered
+        // If it's just 'GC-', we only prepare for printing, not saving yet.
+        if (finalCode !== 'GC-') {
+             batch.set(newCardRef, cardData);
+        }
+        // Add to print list regardless of saving
+        cardsToPrint.push(cardData);
+    }
+
+    try {
+        // Only commit if there were cards with actual codes to save
+        if (cardsToPrint.some(card => card.code !== 'GC-')) {
             await batch.commit();
+        }
 
             let printHTML = `
             <html><head><title>Print Gift Cards</title><script src="https://cdn.tailwindcss.com"><\/script><link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Poppins:wght@400;600&family=Parisienne&display=swap" rel="stylesheet">
@@ -9531,7 +10121,9 @@ clientForm.addEventListener('submit', async (e) => {
     const openEditGiftCardModal = (card) => {
         editGiftCardForm.reset();
         document.getElementById('edit-gift-card-id').value = card.id;
-        document.getElementById('edit-gc-code').textContent = card.code;
+        // --- FIX: Populate the new input field ---
+    document.getElementById('edit-gc-code-input').value = card.code || ''; // Populate the input
+    // --- End fix ---
         document.getElementById('edit-gc-original-amount').textContent = `$${card.amount.toFixed(2)}`;
         document.getElementById('edit-gc-current-balance').textContent = `$${card.balance.toFixed(2)}`;
 
@@ -9647,38 +10239,69 @@ clientForm.addEventListener('submit', async (e) => {
         renderClientMembershipsTable(filtered);
     });
 
-    document.querySelector('#client-memberships-table tbody').addEventListener('click', async (e) => {
-        const activateBtn = e.target.closest('.activate-membership-btn');
-        // Add the new code here:
-        const printBtn = e.target.closest('.print-membership-card-btn'); // <-- ADD THIS
+ // Ensure this listener is placed within a scope where 'allClientMemberships' and 'allMembershipTiers' are accessible
+document.querySelector('#client-memberships-table tbody')?.addEventListener('click', async (e) => {
+    const activateBtn = e.target.closest('.activate-membership-btn');
+    const printBtn = e.target.closest('.print-membership-card-btn');
+    const deleteBtn = e.target.closest('.delete-membership-record-btn');
 
-        if (printBtn) { // <-- ADD THIS BLOCK
-            const clientId = printBtn.dataset.id;
-            const client = allClientMemberships.find(m => m.id === clientId);
-            if (client && client.membership) {
-                const tier = allMembershipTiers.find(t => t.id === client.membership.tierId);
-                if (tier) {
-                    openMembershipCardForPrint(client, tier);
-                }
+    // --- Handle Print Button ---
+    if (printBtn) {
+        const clientId = printBtn.dataset.id;
+        // Find the client data from the list used to render the table
+        const client = allClientMemberships.find(m => m.id === clientId);
+        if (client && client.membership) {
+            // Find the corresponding tier details
+            const tier = allMembershipTiers.find(t => t.id === client.membership.tierId);
+            if (tier) {
+                openMembershipCardForPrint(client, tier); // Call the print function
+            } else {
+                console.error("Membership tier details not found for tier ID:", client.membership.tierId);
+                addNotification('error', "Could not find tier details to print the card.");
             }
+        } else {
+            console.error("Client or membership data not found for printing card, ID:", clientId);
+            addNotification('error', "Could not find client data to print the card.");
         }
-        if (activateBtn) {
-            const clientId = activateBtn.dataset.id;
-            showConfirmModal("Activate this membership?", async () => {
-                await updateDoc(doc(db, "clients", clientId), { "membership.status": "Active" });
-                alert("Membership activated!");
-            }, "Activate");
-        }
+    }
+    // --- Handle Activate Button ---
+    else if (activateBtn) {
+        const clientId = activateBtn.dataset.id;
+        const client = allClientMemberships.find(m => m.id === clientId); // Get client name for confirmation message
+        const clientName = client ? client.name : 'this client';
 
-        const deleteBtn = e.target.closest('.delete-membership-record-btn');
-        if (deleteBtn) {
-            const clientId = deleteBtn.dataset.id;
-            showConfirmModal("Remove this membership from the client?", async () => {
-                await updateDoc(doc(db, "clients", clientId), { membership: null });
-                alert("Membership removed.");
-            });
-        }
-    });
+        showConfirmModal(`Activate membership for ${clientName}?`, async () => {
+            try {
+                await updateDoc(doc(db, "clients", clientId), {
+                    "membership.status": "Active"
+                });
+                addNotification('success', `Membership for ${clientName} activated!`);
+            } catch (error) {
+                console.error("Error activating membership:", error);
+                addNotification('error', "Could not activate membership. Please try again.");
+            }
+        }, "Activate"); // Use "Activate" as the confirmation button text
+    }
+    // --- Handle Delete Button ---
+    else if (deleteBtn) {
+        const clientId = deleteBtn.dataset.id;
+        const client = allClientMemberships.find(m => m.id === clientId); // Get client name for confirmation message
+        const clientName = client ? client.name : 'this client';
+
+        showConfirmModal(`Remove membership record for ${clientName}?`, async () => {
+            try {
+                // Set the membership field to null to remove it
+                await updateDoc(doc(db, "clients", clientId), {
+                    membership: null
+                });
+                addNotification('success', `Membership removed for ${clientName}.`);
+            } catch (error) {
+                console.error("Error removing membership:", error);
+                addNotification('error', "Could not remove membership. Please try again.");
+            }
+        }); // Default confirmation button text is "Delete"
+    }
+});
 
     // --- MEMBERSHIP MANAGEMENT (ADMIN) ---
     const membershipModal = document.getElementById('membership-tier-modal');
@@ -9813,6 +10436,61 @@ clientForm.addEventListener('submit', async (e) => {
     loadAndRenderServices();
     initializeGiftCardDesigner();
     const todayString = getLocalDateString();
+    /**
+ * Converts a local date-time string (can be YYYY-MM-DDTHH:MM or MM/DD/YYYY HH:MM)
+ * into a timezone-aware ISO string (YYYY-MM-DDTHH:MM:SS±HH:MM).
+ * This is crucial for Firebase Timestamps to correctly interpret the local time.
+ */
+function formatLocalToISOWithOffset(localDateTimeString) {
+    if (!localDateTimeString) return null;
+
+    // 1. Standardize separator and split into date and time parts
+    // Converts 'YYYY-MM-DD HH:MM' or 'MM/DD/YYYY HH:MM' into ['DatePart', 'TimePart']
+    const parts = localDateTimeString.replace(' ', 'T').split('T');
+    if (parts.length < 2) return null; // Must have date and time
+
+    let [datePart, timePart] = parts;
+    let year, month, day;
+
+    // 2. Detect and reorder MM/DD/YYYY format
+    if (datePart.includes('/')) {
+        // Input is MM/DD/YYYY (or MM/D/YYYY)
+        [month, day, year] = datePart.split('/');
+    } else {
+        // Input is assumed to be ISO YYYY-MM-DD (or YYYY-M-D)
+        [year, month, day] = datePart.split('-');
+    }
+
+    // 3. Reconstruct into unambiguous YYYY-MM-DDTHH:MM format
+    // Use the required padding (padStart) for single-digit months/days
+    const unambiguousLocalString = 
+        `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${timePart}`;
+
+    // 4. Create local Date object
+    const date = new Date(unambiguousLocalString); 
+
+    // Check for invalid date
+    if (isNaN(date.getTime())) return null;
+
+    // 5. Calculate Offset (Standard logic remains the same)
+    const offsetMinutes = date.getTimezoneOffset();
+    const sign = offsetMinutes < 0 ? '+' : '-';
+    const absOffset = Math.abs(offsetMinutes);
+    const offsetHours = String(Math.floor(absOffset / 60)).padStart(2, '0');
+    const offsetMins = String(absOffset % 60).padStart(2, '0');
+    const offsetString = `${sign}${offsetHours}:${offsetMins}`;
+
+    // 6. Get final components (ensuring they match the date before offset)
+    const finalYear = date.getFullYear();
+    const finalMonth = String(date.getMonth() + 1).padStart(2, '0');
+    const finalDay = String(date.getDate()).padStart(2, '0');
+    const finalHours = String(date.getHours()).padStart(2, '0');
+    const finalMinutes = String(date.getMinutes()).padStart(2, '0');
+
+    // 7. Return ISO 8601 with offset
+    return `${finalYear}-${finalMonth}-${finalDay}T${finalHours}:${finalMinutes}:00${offsetString}`;
+}
+
     const currentMonthIndex = new Date().getMonth();
     document.getElementById('finished-date-filter').value = todayString;
     currentFinishedDateFilter = todayString;
